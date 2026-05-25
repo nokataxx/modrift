@@ -18,7 +18,8 @@
     "viewer": {
       "edit": "Edit",
       "preview": "Preview",
-      "loading": "Loading…"
+      "loading": "Loading…",
+      "imagePlaceholder": "[Image: {{filename}}]"
     }
   },
   "editor": {

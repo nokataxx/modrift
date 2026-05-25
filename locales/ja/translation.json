@@ -18,7 +18,8 @@
     "viewer": {
       "edit": "編集",
       "preview": "プレビュー",
-      "loading": "読み込み中…"
+      "loading": "読み込み中…",
+      "imagePlaceholder": "[画像: {{filename}}]"
     }
   },
   "editor": {
