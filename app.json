@@ -9,7 +9,19 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.nokata.modrift"
+      "bundleIdentifier": "com.nokata.modrift",
+      "infoPlist": {
+        "CFBundleDocumentTypes": [
+          {
+            "CFBundleTypeName": "Markdown Document",
+            "LSHandlerRank": "Alternate",
+            "LSItemContentTypes": [
+              "net.daringfireball.markdown",
+              "public.plain-text"
+            ]
+          }
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
