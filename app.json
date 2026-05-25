@@ -11,6 +11,7 @@
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.nokata.modrift",
       "infoPlist": {
+        "LSSupportsOpeningDocumentsInPlace": true,
         "CFBundleDocumentTypes": [
           {
             "CFBundleTypeName": "Markdown Document",

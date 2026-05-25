@@ -1,9 +1,10 @@
 import { File } from 'expo-file-system';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/build/react-navigation/elements';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  AppState,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -41,6 +42,14 @@ export default function ViewerScreen() {
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>('preview');
 
+  const contentRef = useRef<string | null>(null);
+  const isDirtyRef = useRef(false);
+  const pendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    contentRef.current = content;
+  }, [content]);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -57,6 +66,54 @@ export default function ViewerScreen() {
       cancelled = true;
     };
   }, [fileUri, t]);
+
+  const saveNow = useCallback(() => {
+    if (!isDirtyRef.current || contentRef.current === null) return;
+    try {
+      new File(fileUri).write(contentRef.current);
+      isDirtyRef.current = false;
+    } catch {
+      // Silent per FR-04. Next edit will retry.
+    }
+  }, [fileUri]);
+
+  const handleEdit = useCallback(
+    (next: string) => {
+      setContent(next);
+      isDirtyRef.current = true;
+      if (pendingTimeoutRef.current !== null) {
+        clearTimeout(pendingTimeoutRef.current);
+      }
+      pendingTimeoutRef.current = setTimeout(() => {
+        pendingTimeoutRef.current = null;
+        saveNow();
+      }, 3000);
+    },
+    [saveNow],
+  );
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (next) => {
+      if (next === 'background' || next === 'inactive') {
+        if (pendingTimeoutRef.current !== null) {
+          clearTimeout(pendingTimeoutRef.current);
+          pendingTimeoutRef.current = null;
+        }
+        saveNow();
+      }
+    });
+    return () => subscription.remove();
+  }, [saveNow]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingTimeoutRef.current !== null) {
+        clearTimeout(pendingTimeoutRef.current);
+        pendingTimeoutRef.current = null;
+      }
+      saveNow();
+    };
+  }, [saveNow]);
 
   const processedMarkdown = useMemo(() => {
     if (content === null) return null;
@@ -116,7 +173,7 @@ export default function ViewerScreen() {
               multiline
               autoFocus
               value={content ?? ''}
-              onChangeText={setContent}
+              onChangeText={handleEdit}
               style={[styles.editor, { color: theme.text }]}
               textAlignVertical="top"
               autoCapitalize="none"

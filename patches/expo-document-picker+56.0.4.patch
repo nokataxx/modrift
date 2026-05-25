@@ -1,0 +1,46 @@
+diff --git a/node_modules/expo-document-picker/ios/DocumentPickerModule.swift b/node_modules/expo-document-picker/ios/DocumentPickerModule.swift
+index 8b093cd..861cf5e 100644
+--- a/node_modules/expo-document-picker/ios/DocumentPickerModule.swift
++++ b/node_modules/expo-document-picker/ios/DocumentPickerModule.swift
+@@ -57,16 +57,21 @@ public class DocumentPickerModule: Module, PickingResultHandler {
+ 
+     do {
+       if options.multiple {
+-        let assets = try urls.map {
+-          try readDocumentDetails(
+-            documentUrl: $0,
++        let assets = try urls.map { url -> DocumentInfo in
++          let accessed = url.startAccessingSecurityScopedResource()
++          defer { if accessed { url.stopAccessingSecurityScopedResource() } }
++          return try readDocumentDetails(
++            documentUrl: url,
+             copy: options.copyToCacheDirectory
+           )
+         }
+         promise.resolve(DocumentPickerResponse(assets: assets))
+       } else {
++        let url = urls[0]
++        let accessed = url.startAccessingSecurityScopedResource()
++        defer { if accessed { url.stopAccessingSecurityScopedResource() } }
+         let asset = try readDocumentDetails(
+-          documentUrl: urls[0],
++          documentUrl: url,
+           copy: options.copyToCacheDirectory
+         )
+         promise.resolve(DocumentPickerResponse(assets: [asset]))
+@@ -214,13 +219,13 @@ public class DocumentPickerModule: Module, PickingResultHandler {
+       let utTypes = options.type.compactMap { toUTType(mimeType: $0) }
+       return UIDocumentPickerViewController(
+         forOpeningContentTypes: utTypes,
+-        asCopy: true
++        asCopy: false
+       )
+     } else {
+       let utiTypes = options.type.map { toUTI(mimeType: $0) }
+       return UIDocumentPickerViewController(
+         documentTypes: utiTypes,
+-        in: .import
++        in: .open
+       )
+     }
+   }

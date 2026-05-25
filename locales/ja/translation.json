@@ -22,13 +22,6 @@
       "imagePlaceholder": "[画像: {{filename}}]"
     }
   },
-  "editor": {
-    "status": {
-      "saving": "保存中…",
-      "saved": "保存済み",
-      "offline": "オフライン"
-    }
-  },
   "picker": {
     "open": "ファイルを開く",
     "errorTitle": "ファイルを開けませんでした",

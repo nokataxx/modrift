@@ -22,13 +22,6 @@
       "imagePlaceholder": "[Image: {{filename}}]"
     }
   },
-  "editor": {
-    "status": {
-      "saving": "Saving…",
-      "saved": "Saved",
-      "offline": "Offline"
-    }
-  },
   "picker": {
     "open": "Open File",
     "errorTitle": "Couldn't open file",
