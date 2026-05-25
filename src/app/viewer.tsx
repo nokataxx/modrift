@@ -1,15 +1,23 @@
 import { File } from 'expo-file-system';
 import { Stack, useLocalSearchParams } from 'expo-router';
+import { useHeaderHeight } from 'expo-router/build/react-navigation/elements';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ScrollView, StyleSheet } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  TextInput,
+} from 'react-native';
 import { EnrichedMarkdownText, type MarkdownStyle } from 'react-native-enriched-markdown';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
-import { Spacing } from '@/theme';
+import { Fonts, Spacing } from '@/theme';
 
 const IMAGE_RE = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
 
@@ -21,13 +29,17 @@ function replaceLocalImages(md: string, placeholder: (filename: string) => strin
   });
 }
 
+type Mode = 'preview' | 'edit';
+
 export default function ViewerScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
+  const headerHeight = useHeaderHeight();
   const { fileUri, fileName } = useLocalSearchParams<{ fileUri: string; fileName: string }>();
 
   const [content, setContent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<Mode>('preview');
 
   useEffect(() => {
     let cancelled = false;
@@ -72,12 +84,46 @@ export default function ViewerScreen() {
     [theme],
   );
 
+  const canToggle = content !== null && !error;
+  const toggleLabel =
+    mode === 'preview' ? t('screens.viewer.edit') : t('screens.viewer.preview');
+
   return (
     <ThemedView style={styles.container}>
-      <Stack.Screen options={{ title: fileName ?? '' }} />
+      <Stack.Screen
+        options={{
+          title: fileName ?? '',
+          headerRight: canToggle
+            ? () => (
+                <Pressable
+                  onPress={() => setMode((m) => (m === 'preview' ? 'edit' : 'preview'))}
+                  hitSlop={8}>
+                  <ThemedText type="link">{toggleLabel}</ThemedText>
+                </Pressable>
+              )
+            : undefined,
+        }}
+      />
       <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
         {error ? (
           <ThemedText themeColor="textSecondary">{error}</ThemedText>
+        ) : mode === 'edit' ? (
+          <KeyboardAvoidingView
+            style={styles.flex}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            keyboardVerticalOffset={headerHeight}>
+            <TextInput
+              multiline
+              autoFocus
+              value={content ?? ''}
+              onChangeText={setContent}
+              style={[styles.editor, { color: theme.text }]}
+              textAlignVertical="top"
+              autoCapitalize="none"
+              autoCorrect={false}
+              spellCheck={false}
+            />
+          </KeyboardAvoidingView>
         ) : (
           <ScrollView contentContainerStyle={styles.scrollContent}>
             <EnrichedMarkdownText
@@ -103,6 +149,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  flex: {
+    flex: 1,
+  },
   safeArea: {
     flex: 1,
     paddingHorizontal: Spacing.four,
@@ -113,5 +162,13 @@ const styles = StyleSheet.create({
   },
   loading: {
     marginTop: Spacing.three,
+  },
+  editor: {
+    flex: 1,
+    paddingTop: Spacing.two,
+    paddingBottom: Spacing.four,
+    fontFamily: Fonts.mono,
+    fontSize: 14,
+    lineHeight: 22,
   },
 });
