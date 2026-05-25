@@ -1,0 +1,34 @@
+{
+  "app": {
+    "name": "Modrift"
+  },
+  "common": {
+    "open": "Open",
+    "cancel": "Cancel",
+    "ok": "OK",
+    "save": "Save",
+    "edit": "Edit",
+    "preview": "Preview"
+  },
+  "screens": {
+    "recentFiles": {
+      "title": "Recent Files",
+      "empty": "No files opened yet. Tap Open to pick one."
+    },
+    "viewer": {
+      "edit": "Edit",
+      "preview": "Preview"
+    }
+  },
+  "editor": {
+    "status": {
+      "saving": "Saving…",
+      "saved": "Saved",
+      "offline": "Offline"
+    }
+  },
+  "picker": {
+    "open": "Open File",
+    "unsupportedType": "This file type isn't supported."
+  }
+}

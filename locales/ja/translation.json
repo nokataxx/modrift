@@ -1,0 +1,34 @@
+{
+  "app": {
+    "name": "Modrift"
+  },
+  "common": {
+    "open": "開く",
+    "cancel": "キャンセル",
+    "ok": "OK",
+    "save": "保存",
+    "edit": "編集",
+    "preview": "プレビュー"
+  },
+  "screens": {
+    "recentFiles": {
+      "title": "最近開いたファイル",
+      "empty": "まだファイルがありません。「開く」から選択してください。"
+    },
+    "viewer": {
+      "edit": "編集",
+      "preview": "プレビュー"
+    }
+  },
+  "editor": {
+    "status": {
+      "saving": "保存中…",
+      "saved": "保存済み",
+      "offline": "オフライン"
+    }
+  },
+  "picker": {
+    "open": "ファイルを開く",
+    "unsupportedType": "このファイル形式には対応していません。"
+  }
+}
