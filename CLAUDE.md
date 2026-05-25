@@ -163,8 +163,7 @@ Modrift は **2つの起動経路** をフラットに対応する。これは M
 ## Settings (App Configuration)
 
 ### Bundle Identifier
-- **暫定**: `com.anonymous.modrift` (Apple Developer Program 登録後に正式決定)
-- **検討中の正式 ID**: `app.modrift.ios` または `io.modrift.app`
+- **現在**: `com.nokata.modrift` (開発用、App Store 提出前に再検討の余地あり)
 
 ### App Name
 - 表示名: **Modrift**

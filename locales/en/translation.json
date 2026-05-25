@@ -17,7 +17,8 @@
     },
     "viewer": {
       "edit": "Edit",
-      "preview": "Preview"
+      "preview": "Preview",
+      "loading": "Loading…"
     }
   },
   "editor": {
@@ -29,6 +30,9 @@
   },
   "picker": {
     "open": "Open File",
-    "unsupportedType": "This file type isn't supported."
+    "errorTitle": "Couldn't open file",
+    "errorOpenFailed": "Couldn't open the file picker.",
+    "errorReadFailed": "Couldn't read the file content.",
+    "unsupportedType": "This file type isn't supported. Open a .md, .markdown, or .txt file."
   }
 }
