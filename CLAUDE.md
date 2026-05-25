@@ -197,30 +197,3 @@ Modrift は以下の競合とは**コンセプトが異なる**ので、機能�
 5. テストやドキュメントを過剰に書きすぎないこと (個人開発として実用的なレベルに)
 6. 「2つの起動経路」(経路A: Document Picker、経路B: Open In) はコア機能なので、どちらの経路でもファイル表示画面に到達できる実装にすること
 
-## Current Status
-
-- ✅ Phase 0 (企画): 完了
-- ✅ Phase 1 (要件定義): Requirements.md 完成 (改訂2まで)
-- ✅ Phase 2 (設計): 軽量化 (バイブコーディング前提、頭の中で完結)
-- ✅ Phase 3 (実装準備): 完了 — i18n 土台 (i18next + locales)、EAS Build 3プロファイル、Expo scaffold クリーンアップ済み
-- 🔜 Phase 4 (実装): **現在ここ**
-- ⬜ Phase 5 (配布準備)
-- ⬜ Phase 6 (リリース)
-- ⬜ Phase 7 (運用)
-
-### 次の実装タスク (MVP)
-
-優先順位順:
-
-1. **基本ナビゲーション**: ホーム画面、ファイルビュー画面の骨格
-2. **ファイルを開く (経路A)**: Document Picker、ファイル読み込み
-3. **ファイルを開く (経路B)**: Open In対応 (`app.json` 設定 + `expo-linking`)
-4. **Md レンダリング**: `react-native-enriched-markdown` 統合
-5. **編集モード**: TextInput、編集⇄プレビューのトグル
-6. **自動保存**: debounce 実装、保存状態UI
-7. **最近開いたファイル**: AsyncStorage、ホーム画面表示
-8. **i18n 統合**: 日英 UI 切り替え
-
----
-
-最終更新: 2026-05-25 (Requirements.md 改訂2を反映)
