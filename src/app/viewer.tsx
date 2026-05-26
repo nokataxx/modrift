@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
+import { recordRecentFile } from '@/lib/recent-files';
 import { Fonts, Spacing } from '@/theme';
 
 const IMAGE_RE = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
@@ -57,7 +58,11 @@ export default function ViewerScreen() {
         const file = new File(fileUri);
         const text = await file.text();
         const normalized = text.replace(/^﻿/, '').replace(/\r\n/g, '\n');
-        if (!cancelled) setContent(normalized);
+        if (cancelled) return;
+        setContent(normalized);
+        recordRecentFile({ uri: fileUri, name: fileName ?? '' }).catch(() => {
+          // Non-fatal: history is for display only.
+        });
       } catch {
         if (!cancelled) setError(t('picker.errorReadFailed'));
       }
@@ -65,7 +70,7 @@ export default function ViewerScreen() {
     return () => {
       cancelled = true;
     };
-  }, [fileUri, t]);
+  }, [fileUri, fileName, t]);
 
   const saveNow = useCallback(() => {
     if (!isDirtyRef.current || contentRef.current === null) return;

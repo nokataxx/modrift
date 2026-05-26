@@ -1,12 +1,14 @@
 import * as DocumentPicker from 'expo-document-picker';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, StyleSheet } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
+import { loadRecentFiles, type RecentFile } from '@/lib/recent-files';
 import { Spacing } from '@/theme';
 
 const SUPPORTED_EXTENSIONS = ['.md', '.markdown', '.txt'] as const;
@@ -15,6 +17,19 @@ export default function HomeScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
   const router = useRouter();
+  const [recent, setRecent] = useState<RecentFile[] | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      loadRecentFiles().then((items) => {
+        if (!cancelled) setRecent(items);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, []),
+  );
 
   const handleOpen = async () => {
     let result: DocumentPicker.DocumentPickerResult;
@@ -45,13 +60,32 @@ export default function HomeScreen() {
     });
   };
 
+  const isEmpty = recent !== null && recent.length === 0;
+
   return (
     <ThemedView style={styles.container}>
       <Stack.Screen options={{ title: t('screens.recentFiles.title') }} />
       <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
-        <ThemedText themeColor="textSecondary" style={styles.empty}>
-          {t('screens.recentFiles.empty')}
-        </ThemedText>
+        {isEmpty ? (
+          <ThemedText themeColor="textSecondary" style={styles.empty}>
+            {t('screens.recentFiles.empty')}
+          </ThemedText>
+        ) : (
+          <FlatList
+            data={recent ?? []}
+            keyExtractor={(item) => item.uri}
+            contentContainerStyle={styles.listContent}
+            ItemSeparatorComponent={() => (
+              <View style={[styles.separator, { backgroundColor: theme.backgroundElement }]} />
+            )}
+            renderItem={({ item }) => (
+              <View style={styles.row}>
+                <ThemedText numberOfLines={1}>{item.name}</ThemedText>
+              </View>
+            )}
+            style={styles.list}
+          />
+        )}
 
         <Pressable
           style={({ pressed }) => [
@@ -79,6 +113,18 @@ const styles = StyleSheet.create({
   },
   empty: {
     textAlign: 'center',
+  },
+  list: {
+    flex: 1,
+  },
+  listContent: {
+    paddingBottom: Spacing.three,
+  },
+  row: {
+    paddingVertical: Spacing.three,
+  },
+  separator: {
+    height: StyleSheet.hairlineWidth,
   },
   openButton: {
     paddingVertical: Spacing.three,
