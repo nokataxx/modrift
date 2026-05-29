@@ -10,7 +10,7 @@ Modrift を **iPhone 実機** にインストールして動かすための手�
 
 Modrift は **Expo Go では動作しない**。Markdown 表示に使う `react-native-enriched-markdown` (ネイティブモジュール) が含まれるため、**Expo Dev Client** という独自のネイティブアプリを実機にビルドして入れる必要がある。
 
-実機での開発は **2 つの要素** で成り立つ:
+実機での開発は **2つの要素** で成り立つ:
 
 1. **Dev Client アプリ本体** … Xcode から実機にビルド & インストール (本手順の Step 1〜7)
 2. **Metro バンドラ** … JS コードを配信する開発サーバ。`npx expo start` で起動 (Step 8)
@@ -19,13 +19,13 @@ Modrift は **Expo Go では動作しない**。Markdown 表示に使う `react-
 
 ## 前提条件 (用意するもの)
 
-| 項目 | 要件 |
-|---|---|
-| Mac | macOS + Xcode 26 以降 (検証環境: Xcode 26.5) |
-| iPhone | iOS 16 以降 (Modrift のターゲット下限) |
-| ケーブル | Mac と iPhone を繋ぐ USB-C / Lightning ケーブル (初回は有線推奨) |
-| Apple ID | 無料 Apple ID で可。詳細は下記「署名 (Signing) について」 |
-| CLI ツール | Node 22 / CocoaPods (検証環境: Node 22.17, CocoaPods 1.16.2) |
+| 項目       | 要件                                                             |
+| ---------- | ---------------------------------------------------------------- |
+| Mac        | macOS + Xcode 26 以降 (検証環境: Xcode 26.5)                     |
+| iPhone     | iOS 16 以降 (Modrift のターゲット下限)                           |
+| ケーブル   | Mac と iPhone を繋ぐ USB-C / Lightning ケーブル (初回は有線推奨) |
+| Apple ID   | 無料 Apple ID で可。詳細は下記「署名 (Signing) について」        |
+| CLI ツール | Node 22 / CocoaPods (検証環境: Node 22.17, CocoaPods 1.16.2)     |
 
 ### 署名 (Signing) について
 
@@ -123,16 +123,16 @@ npx expo start --dev-client
 
 ## トラブルシューティング
 
-| 症状 | 対処 |
-|---|---|
-| `Signing for "modrift" requires a development team` | Step 3 で Team を選択する |
-| Bundle ID 重複でビルド不可 (無料 Apple ID) | Bundle Identifier の末尾を変えて一意にする (例 `com.nokata.modrift.dev`) |
-| `Untrusted Developer` でアプリが起動しない | Step 6 のデバイス信頼を実施 |
-| 開発者モード関連で実機が選べない / インストール不可 | Step 1 の Developer Mode を有効化して再起動 |
-| `pod install` 系のエラー | `cd ios && pod install` を手動実行。改善しなければ `npx expo prebuild --clean --platform ios` |
-| `Could not connect to development server` | Mac と iPhone が同じ Wi-Fi か確認。`npx expo start --dev-client` が起動中か確認。ファイアウォールでブロックされていないか確認 |
-| 7 日後にアプリが起動しなくなった | 無料 Apple ID の証明書失効。Xcode から再ビルド (`Cmd + R`)。恒久対応は Apple Developer Program |
-| ビルドは通るが古い画面のまま | Metro のキャッシュ。`npx expo start --dev-client -c` でキャッシュクリア |
+| 症状                                                | 対処                                                                                                                          |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `Signing for "modrift" requires a development team` | Step 3 で Team を選択する                                                                                                     |
+| Bundle ID 重複でビルド不可 (無料 Apple ID)          | Bundle Identifier の末尾を変えて一意にする (例 `com.nokata.modrift.dev`)                                                      |
+| `Untrusted Developer` でアプリが起動しない          | Step 6 のデバイス信頼を実施                                                                                                   |
+| 開発者モード関連で実機が選べない / インストール不可 | Step 1 の Developer Mode を有効化して再起動                                                                                   |
+| `pod install` 系のエラー                            | `cd ios && pod install` を手動実行。改善しなければ `npx expo prebuild --clean --platform ios`                                 |
+| `Could not connect to development server`           | Mac と iPhone が同じ Wi-Fi か確認。`npx expo start --dev-client` が起動中か確認。ファイアウォールでブロックされていないか確認 |
+| 7 日後にアプリが起動しなくなった                    | 無料 Apple ID の証明書失効。Xcode から再ビルド (`Cmd + R`)。恒久対応は Apple Developer Program                                |
+| ビルドは通るが古い画面のまま                        | Metro のキャッシュ。`npx expo start --dev-client -c` でキャッシュクリア                                                       |
 
 ## 補足: EAS Build という選択肢
 
