@@ -1,0 +1,27 @@
+diff --git a/node_modules/expo-file-system/ios/FileSystemFile.swift b/node_modules/expo-file-system/ios/FileSystemFile.swift
+index bc589eb..4126fbd 100644
+--- a/node_modules/expo-file-system/ios/FileSystemFile.swift
++++ b/node_modules/expo-file-system/ios/FileSystemFile.swift
+@@ -89,7 +89,21 @@ internal final class FileSystemFile: FileSystemPath {
+       if append, let data = content.data(using: .utf8) {
+         try writeAppending(data)
+       } else {
+-        try content.write(to: url, atomically: false, encoding: .utf8) // TODO: better error handling
++        // Coordinate the write so File Providers (e.g. Google Drive) are notified of
++        // the change and sync it to the cloud. A plain write(to:) only updates the
++        // local placeholder and may never be uploaded.
++        let coordinator = NSFileCoordinator()
++        var coordinationError: NSError?
++        var writeError: Error?
++        coordinator.coordinate(writingItemAt: url, options: [], error: &coordinationError) { coordinatedUrl in
++          do {
++            try content.write(to: coordinatedUrl, atomically: false, encoding: .utf8)
++          } catch {
++            writeError = error
++          }
++        }
++        if let coordinationError { throw coordinationError }
++        if let writeError { throw writeError }
+       }
+     }
+   }
