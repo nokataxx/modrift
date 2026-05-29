@@ -6,9 +6,13 @@ This file is the persistent context for Claude Code working on the Modrift proje
 
 **Modrift** は iOS / Android 向けの軽量モバイルクライアントアプリ。
 
-- **コア機能**: Google Drive 上の Obsidian Vault (Markdownファイル) を iPhone でサッと開いて閲覧・編集
+- **コア機能**: クラウドストレージ上の Obsidian Vault (Markdownファイル) を iPhone でサッと開いて閲覧・編集
 - **将来的に**: PDF、xlsx、画像なども横断的に閲覧できる「知的生産ファイルクライアント」へ拡張
 - **コンセプト**: Mo (Mobile / Motion) + drift (流れる、漂う) = モバイルでファイルと思考が流れるように行き来する
+
+**対応ストレージ (重要)**: 編集→保存のクラウド同期は、ファイルが置かれた iOS File Provider に依存する。
+- **iCloud Drive / Dropbox 等の素直なプロバイダ**: 編集がクラウドへ同期される → **編集用途の推奨ストレージ**
+- **Google Drive**: 閲覧は可能だが、**他アプリの in-place 編集をクラウドへアップロードしない**ため編集の保存が同期されない (Google Drive 側の File Provider 制約。Modrift の書き込みコードは正しく、iCloud では同期を実機で確認済み)
 
 **段階的な「Vault 扱い」の進化**:
 - MVP: Vault 内の **個別の Md ファイル** を Document Picker で開いて編集
@@ -132,6 +136,7 @@ Modrift は **2つの起動経路** をフラットに対応する。これは M
 - **Sandbox**: アプリは選択されたファイルにのみアクセス可能
 - **Security-Scoped Bookmark**: Document Picker の URI はセッションを跨ぐと無効化 (v1.1で対応)
 - **File Provider 同期完了は観測不可**: `writeAsStringAsync` はローカル書き込み完了までしか保証しない
+- **クラウド同期はプロバイダ依存**: 書き込みは `NSFileCoordinator` で協調済み。iCloud Drive / Dropbox は編集をクラウドへ同期するが、**Google Drive は他アプリの編集をアップロードしない**ため編集用途では非推奨 (閲覧は可)
 - **UTI 登録が必要 (Open In対応のため)**: `CFBundleDocumentTypes` で `.md` ハンドリングを宣言
 
 ### 環境
