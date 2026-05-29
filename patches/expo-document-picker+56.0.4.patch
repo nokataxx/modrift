@@ -1,8 +1,8 @@
 diff --git a/node_modules/expo-document-picker/ios/DocumentPickerModule.swift b/node_modules/expo-document-picker/ios/DocumentPickerModule.swift
-index 8b093cd..861cf5e 100644
+index 8b093cd..e0d9757 100644
 --- a/node_modules/expo-document-picker/ios/DocumentPickerModule.swift
 +++ b/node_modules/expo-document-picker/ios/DocumentPickerModule.swift
-@@ -57,16 +57,21 @@ public class DocumentPickerModule: Module, PickingResultHandler {
+@@ -57,16 +57,29 @@ public class DocumentPickerModule: Module, PickingResultHandler {
  
      do {
        if options.multiple {
@@ -21,14 +21,22 @@ index 8b093cd..861cf5e 100644
        } else {
 +        let url = urls[0]
 +        let accessed = url.startAccessingSecurityScopedResource()
-+        defer { if accessed { url.stopAccessingSecurityScopedResource() } }
++        // For in-place editing (copyToCacheDirectory: false) keep the security-scoped
++        // access open for the app session so the file can be read/written later.
++        // Releasing it here (the default) makes later reads fail on strict File
++        // Providers like Google Drive with NSFileReadNoPermissionError.
++        defer {
++          if accessed && options.copyToCacheDirectory {
++            url.stopAccessingSecurityScopedResource()
++          }
++        }
          let asset = try readDocumentDetails(
 -          documentUrl: urls[0],
 +          documentUrl: url,
            copy: options.copyToCacheDirectory
          )
          promise.resolve(DocumentPickerResponse(assets: [asset]))
-@@ -214,13 +219,13 @@ public class DocumentPickerModule: Module, PickingResultHandler {
+@@ -214,13 +227,13 @@ public class DocumentPickerModule: Module, PickingResultHandler {
        let utTypes = options.type.compactMap { toUTType(mimeType: $0) }
        return UIDocumentPickerViewController(
          forOpeningContentTypes: utTypes,
