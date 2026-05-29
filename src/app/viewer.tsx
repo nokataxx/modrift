@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
+import { isInPlaceEditable } from '@/lib/file-location';
 import { recordRecentFile } from '@/lib/recent-files';
 import { Fonts, Spacing } from '@/theme';
 
@@ -146,7 +147,9 @@ export default function ViewerScreen() {
     [theme],
   );
 
-  const canToggle = content !== null && !error;
+  const editable = isInPlaceEditable(fileUri);
+  const loaded = content !== null && !error;
+  const canToggle = loaded && editable;
   const toggleLabel =
     mode === 'preview' ? t('screens.viewer.edit') : t('screens.viewer.preview');
 
@@ -163,7 +166,13 @@ export default function ViewerScreen() {
                   <ThemedText type="link">{toggleLabel}</ThemedText>
                 </Pressable>
               )
-            : undefined,
+            : loaded && !editable
+              ? () => (
+                  <ThemedText themeColor="textSecondary">
+                    {t('screens.viewer.viewOnly')}
+                  </ThemedText>
+                )
+              : undefined,
         }}
       />
       <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
@@ -188,6 +197,11 @@ export default function ViewerScreen() {
           </KeyboardAvoidingView>
         ) : (
           <ScrollView contentContainerStyle={styles.scrollContent}>
+            {loaded && !editable && (
+              <ThemedText themeColor="textSecondary" style={styles.viewOnlyNote}>
+                {t('screens.viewer.viewOnlyNote')}
+              </ThemedText>
+            )}
             <EnrichedMarkdownText
               key={fileUri}
               markdown={processedMarkdown ?? ''}
@@ -224,6 +238,10 @@ const styles = StyleSheet.create({
   },
   loading: {
     marginTop: Spacing.three,
+  },
+  viewOnlyNote: {
+    marginBottom: Spacing.three,
+    fontSize: 13,
   },
   editor: {
     flex: 1,

@@ -19,7 +19,9 @@
       "edit": "Edit",
       "preview": "Preview",
       "loading": "Loading…",
-      "imagePlaceholder": "[Image: {{filename}}]"
+      "imagePlaceholder": "[Image: {{filename}}]",
+      "viewOnly": "View only",
+      "viewOnlyNote": "This file can't be edited here. Open an iCloud or local file to edit."
     }
   },
   "picker": {
