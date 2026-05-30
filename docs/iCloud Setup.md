@@ -5,7 +5,7 @@ Modrift の **FR-03「iCloud コピー編集」** を有効化するための環
 - **対象**: 開発者本人 (solo dev)
 - **作成日**: 2026-05-30
 - **前提**: Apple Developer Program ($99/年) に加入済み
-- **関連**: [Requirements.md](Requirements.md) FR-03, [Xcode Device Setup.md](Xcode%20Device%20Setup.md)
+- **関連**: [Requirements.md](Requirements.md) FR-03
 
 ## なぜこの手順が必要か
 
@@ -146,7 +146,7 @@ open ios/modrift.xcworkspace
 
 ## Step 7: 実機での動作確認
 
-[Xcode Device Setup.md](Xcode%20Device%20Setup.md) の Step 1〜8 に従って実機ビルド・実行。
+Xcode で実機にビルド・インストールして起動 (`Cmd + R`)。
 
 確認項目:
 
