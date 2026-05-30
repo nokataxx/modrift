@@ -153,7 +153,7 @@ iOS の標準的なメンタルモデルに合わせ、ユーザーの好みで�
 - PDFのページ追加・削除等の本格編集 (Files App や Apple Books に委ねる)
 - xlsx の数式編集や複雑な編集 (Numbers や Excel に委ねる)
 - 画像の編集機能 (写真アプリや専用編集ツールに委ねる)
-- Google Drive 等 (書き戻し非対応の File Provider) への編集の直接書き戻し — 編集は iCloud コピーで行う (将来 Google Drive API 連携を検討、v2 候補)
+- Google Drive 等 (書き戻し非対応の File Provider) への編集の直接書き戻し — 編集は iCloud コピーで行う (**Google Drive API 連携は採用しない**)
 - 編集用 iCloud コピーと元ファイルの永続リンク・双方向同期 — コピーは作成時点のスナップショット (FR-03)
 
 ## 6. 主要な設計判断
@@ -466,7 +466,7 @@ iOS の File Provider はプロバイダにより書き戻し可否が異なる 
   `writeAsStringAsync` は「ローカルファイルへの書き込み完了」までしか保証しない。クラウドへのアップロード完了はFile Provider内部で進行し、Modriftからは観測できない。MVP は状態 UI を出さないサイレント保存方針なので、この差を表示で誤魔化す必要はない (Apple Notes 流)
 
 - **Google Drive は他アプリの編集をクラウドへ上げない (実機確認 2026-05-29)**:
-  Google Drive の iOS File Provider は、外部アプリ (Modrift 含む) の in-place 編集をクラウドへアップロードしない (ローカル / Files アプリには反映されるが Google Drive web には反映されない)。iCloud Drive / Dropbox では同期される。Modrift の書き込みは `NSFileCoordinator` で協調済みで、原因は Google Drive 側。**対応方針 (FR-03)**: Google Drive 等は閲覧は直接行い、編集は iCloud Drive 内 `Modrift/` へコピーを作成して行う。in-place 編集は iCloud / アプリローカルのみ。Google Drive への直接書き戻しは Drive API 連携が必要なため将来検討 (v2 候補)。Dropbox 等が in-place で同期可能かは未検証
+  Google Drive の iOS File Provider は、外部アプリ (Modrift 含む) の in-place 編集をクラウドへアップロードしない (ローカル / Files アプリには反映されるが Google Drive web には反映されない)。iCloud Drive / Dropbox では同期される。Modrift の書き込みは `NSFileCoordinator` で協調済みで、原因は Google Drive 側。**対応方針 (FR-03)**: Google Drive 等は閲覧は直接行い、編集は iCloud Drive 内 `Modrift/` へコピーを作成して行う。in-place 編集は iCloud / アプリローカルのみ。Google Drive への直接書き戻し (Drive API 連携) は採用しない方針。Dropbox 等が in-place で同期可能かは未検証
 
 - **オフライン時の挙動 (FR-05で対応方針確定)**:
   オフラインで保存すると、書き込みはローカルキャッシュに成功、Driveへの反映はオンライン復帰時。MVPではUI上は明示しない (機能のみオフライン許可)。v1.1でネットワーク監視バッジを追加
