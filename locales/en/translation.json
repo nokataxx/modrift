@@ -21,7 +21,16 @@
       "loading": "Loading…",
       "imagePlaceholder": "[Image: {{filename}}]",
       "viewOnly": "View only",
-      "viewOnlyNote": "This file can't be edited here. Open an iCloud or local file to edit."
+      "viewOnlyNote": "This file can't be edited here. Open an iCloud or local file to edit.",
+      "copyToIcloudButton": "Copy to iCloud and edit",
+      "copyToIcloudDialogTitle": "Copy to iCloud to edit",
+      "copyToIcloudDialogMessage": "This file can't be edited in place. A copy will be created in iCloud Drive › Modrift for editing.",
+      "copyToIcloudDialogConfirm": "Copy and edit",
+      "copyToIcloudDialogConfirmDontAsk": "Copy and edit (don't ask again)",
+      "copyToIcloudErrorTitle": "Couldn't copy",
+      "copyToIcloudErrorIcloudUnavailable": "Enable iCloud Drive and try again.",
+      "copyToIcloudErrorFailed": "Failed to create a copy.",
+      "icloudCopyBanner": "Editing iCloud copy"
     }
   },
   "picker": {
