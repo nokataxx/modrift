@@ -8,9 +8,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
+import { classifyFileLocation, type FileLocationKind } from '@/lib/file-location';
 import { loadRecentFiles, removeRecentFile, type RecentFile } from '@/lib/recent-files';
 import { Spacing } from '@/theme';
 import FileBookmarkModule from '@modules/file-bookmark';
+
+const LOCATION_KEY: Record<FileLocationKind, string> = {
+  icloudCopy: 'screens.recentFiles.locationIcloudCopy',
+  icloudDrive: 'screens.recentFiles.locationIcloudDrive',
+  appSandbox: 'screens.recentFiles.locationAppSandbox',
+  external: 'screens.recentFiles.locationExternal',
+};
 
 const SUPPORTED_EXTENSIONS = ['.md', '.markdown', '.txt'] as const;
 
@@ -98,16 +106,25 @@ export default function HomeScreen() {
             ItemSeparatorComponent={() => (
               <View style={[styles.separator, { backgroundColor: theme.backgroundElement }]} />
             )}
-            renderItem={({ item }) => (
-              <Pressable
-                onPress={() => handleRecentPress(item)}
-                style={({ pressed }) => [
-                  styles.row,
-                  pressed && { backgroundColor: theme.backgroundElement },
-                ]}>
-                <ThemedText numberOfLines={1}>{item.name}</ThemedText>
-              </Pressable>
-            )}
+            renderItem={({ item }) => {
+              const locationKey = LOCATION_KEY[classifyFileLocation(item.uri)];
+              return (
+                <Pressable
+                  onPress={() => handleRecentPress(item)}
+                  style={({ pressed }) => [
+                    styles.row,
+                    pressed && { backgroundColor: theme.backgroundElement },
+                  ]}>
+                  <ThemedText numberOfLines={1}>{item.name}</ThemedText>
+                  <ThemedText
+                    themeColor="textSecondary"
+                    numberOfLines={1}
+                    style={styles.rowSubtitle}>
+                    {t(locationKey)}
+                  </ThemedText>
+                </Pressable>
+              );
+            }}
             style={styles.list}
           />
         )}
@@ -150,6 +167,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.two,
     marginHorizontal: -Spacing.two,
     borderRadius: Spacing.two,
+  },
+  rowSubtitle: {
+    fontSize: 12,
+    marginTop: 2,
   },
   separator: {
     height: StyleSheet.hairlineWidth,

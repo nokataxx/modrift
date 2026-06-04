@@ -15,7 +15,11 @@
       "title": "Recent Files",
       "empty": "No files opened yet. Tap Open to pick one.",
       "reopenFailedTitle": "Couldn't re-open",
-      "reopenFailedMessage": "The file may have been moved or deleted. Tap Open to pick it again."
+      "reopenFailedMessage": "The file may have been moved or deleted. Tap Open to pick it again.",
+      "locationIcloudCopy": "iCloud Drive › Modrift",
+      "locationIcloudDrive": "iCloud Drive",
+      "locationAppSandbox": "Modrift",
+      "locationExternal": "Other app"
     },
     "viewer": {
       "edit": "Edit",

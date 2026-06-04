@@ -15,6 +15,14 @@ export type RecentFile = {
   bookmark?: string;
 };
 
+// iOS reports the same file as both `file:///var/...` and `file:///private/var/...`
+// depending on how the URL was constructed. Both resolve to the same on-disk
+// file but they are different strings, which breaks naive URI dedup. Normalize
+// to the `/private/var/` form before storage and comparison.
+function normalizeUri(uri: string): string {
+  return uri.replace(/^file:\/\/\/var\//, 'file:///private/var/');
+}
+
 function isRecentFile(value: unknown): value is RecentFile {
   if (typeof value !== 'object' || value === null) return false;
   const v = value as Record<string, unknown>;
@@ -38,6 +46,7 @@ export async function loadRecentFiles(): Promise<RecentFile[]> {
 }
 
 export async function recordRecentFile(entry: { uri: string; name: string }): Promise<void> {
+  const normalizedUri = normalizeUri(entry.uri);
   // Refresh the bookmark every time the file is opened so stale bookmarks are
   // healed and newly granted scopes (e.g. fresh Open-In invocations) overwrite
   // older ones. A failed creation keeps the entry but without a bookmark.
@@ -45,18 +54,19 @@ export async function recordRecentFile(entry: { uri: string; name: string }): Pr
   const existing = await loadRecentFiles();
   const next: RecentFile[] = [
     {
-      uri: entry.uri,
+      uri: normalizedUri,
       name: entry.name,
       openedAt: Date.now(),
       ...(bookmark !== null ? { bookmark } : {}),
     },
-    ...existing.filter((item) => item.uri !== entry.uri),
+    ...existing.filter((item) => normalizeUri(item.uri) !== normalizedUri),
   ].slice(0, MAX_ENTRIES);
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
 }
 
 export async function removeRecentFile(uri: string): Promise<void> {
+  const normalizedUri = normalizeUri(uri);
   const existing = await loadRecentFiles();
-  const next = existing.filter((item) => item.uri !== uri);
+  const next = existing.filter((item) => normalizeUri(item.uri) !== normalizedUri);
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
 }

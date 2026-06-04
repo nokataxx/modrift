@@ -27,3 +27,18 @@ export function isInPlaceEditable(uri: string): boolean {
   if (root && uri.startsWith(root)) return true; // app sandbox (e.g. Open-In Inbox copies)
   return false;
 }
+
+export type FileLocationKind = 'icloudCopy' | 'icloudDrive' | 'appSandbox' | 'external';
+
+// Classify the file's storage location for UI labelling in the recent-files
+// list. Drives the small subtitle that lets the user distinguish identically-
+// named files coming from different places (e.g. the original vs. its iCloud
+// editing copy).
+export function classifyFileLocation(uri: string): FileLocationKind {
+  if (!uri) return 'external';
+  if (uri.includes(UBIQUITY_CONTAINER_SEGMENT)) return 'icloudCopy';
+  if (uri.includes(ICLOUD_DRIVE_SEGMENT)) return 'icloudDrive';
+  const root = appContainerRoot();
+  if (root && uri.startsWith(root)) return 'appSandbox';
+  return 'external';
+}

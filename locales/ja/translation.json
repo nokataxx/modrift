@@ -15,7 +15,11 @@
       "title": "最近開いたファイル",
       "empty": "まだファイルがありません。「開く」から選択してください。",
       "reopenFailedTitle": "再オープンできませんでした",
-      "reopenFailedMessage": "ファイルが移動・削除された可能性があります。「開く」から再度選択してください。"
+      "reopenFailedMessage": "ファイルが移動・削除された可能性があります。「開く」から再度選択してください。",
+      "locationIcloudCopy": "iCloud Drive › Modrift",
+      "locationIcloudDrive": "iCloud Drive",
+      "locationAppSandbox": "Modrift",
+      "locationExternal": "他のアプリ"
     },
     "viewer": {
       "edit": "編集",

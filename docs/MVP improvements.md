@@ -1,6 +1,6 @@
 - [x] Copy to iCloud and edit という文言が長過ぎる。editだけでいい(copy to icloud であることはダイアログで伝える)
 - [x] Copy and editのダイアログについて (dont ask again) を別の方法にしてほしい(現在の方法は格好良くない) — 2 ボタンに簡素化、suppress 機能は v1.1 Settings 画面に温存
-- [ ] Bookmarks.md というファイルを開くと 履歴に残るが、同じファイルを開いた場合、Bookmarks.md の表示が2回繰り返される。同じファイルはひとつだけ残れば良い — FR-11 で URI 安定化後に再評価
+- [x] Bookmarks.md というファイルを開くと 履歴に残るが、同じファイルを開いた場合、Bookmarks.md の表示が2回繰り返される。同じファイルはひとつだけ残れば良い — URI の `/private/var` ↔ `/var` 表記揺れで dedup が効いていなかったので正規化、合わせて履歴に保存場所（iCloud Drive › Modrift など）の副タイトル表示を追加
 - [x] editing iCloud copy というバナーは必要か? — 完全に削除
 - [x] edit から Preview に戻っても editing iCloud copy バナーが表示されたままになっている — バナー自体を削除して解消
 - [ ] Preview画面が美しくない(アプリの価値を伝えられない)
