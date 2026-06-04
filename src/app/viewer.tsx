@@ -189,8 +189,9 @@ export default function ViewerScreen() {
         color: theme.text,
         bulletColor: theme.text,
         markerColor: theme.text,
-        marginTop: Spacing.two,
-        marginBottom: Spacing.two,
+        // The library has no per-item margin; widening lineHeight is how we
+        // give consecutive list items vertical breathing room.
+        lineHeight: 28,
       },
       blockquote: { color: theme.text, borderColor: theme.textSecondary },
       code: { color: theme.text, backgroundColor: theme.backgroundElement },
