@@ -162,9 +162,12 @@ export default function ViewerScreen() {
         const normalized = sourceText.replace(/^﻿/, '').replace(/\r\n/g, '\n');
         const result = await createIcloudCopy(normalized, fileName ?? 'note.md');
         deleteInbox();
+        // Open-In path lands in preview by default — the user can flip to
+        // edit from the header. (Drive copy flow still opens in edit mode
+        // because the user explicitly tapped the Edit entry point.)
         router.replace({
           pathname: '/viewer',
-          params: { fileUri: result.uri, fileName: result.name, initialMode: 'edit' },
+          params: { fileUri: result.uri, fileName: result.name },
         });
       } catch (err) {
         const message =

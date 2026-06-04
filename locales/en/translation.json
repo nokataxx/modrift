@@ -16,10 +16,10 @@
       "empty": "No files opened yet. Tap Open to pick one.",
       "reopenFailedTitle": "Couldn't re-open",
       "reopenFailedMessage": "The file may have been moved or deleted. Tap Open to pick it again.",
-      "locationIcloudCopy": "iCloud Drive › Modrift",
+      "locationIcloudCopy": "iCloud",
       "locationIcloudDrive": "iCloud Drive",
       "locationAppSandbox": "From other apps",
-      "locationExternal": "Cloud storage"
+      "locationExternal": "Other Location"
     },
     "viewer": {
       "edit": "Edit",
@@ -29,7 +29,7 @@
       "copyToIcloudButton": "Edit",
       "copyToIcloudDialogTitle": "Copy to iCloud to edit",
       "copyToIcloudDialogMessage": "This file can't be edited in place. A copy will be created in iCloud Drive › Modrift for editing.",
-      "copyToIcloudDialogConfirm": "Copy and edit",
+      "copyToIcloudDialogConfirm": "Edit",
       "copyToIcloudErrorTitle": "Couldn't copy",
       "copyToIcloudErrorIcloudUnavailable": "Enable iCloud Drive and try again.",
       "copyToIcloudErrorFailed": "Failed to create a copy.",
