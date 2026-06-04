@@ -13,7 +13,9 @@
   "screens": {
     "recentFiles": {
       "title": "Recent Files",
-      "empty": "No files opened yet. Tap Open to pick one."
+      "empty": "No files opened yet. Tap Open to pick one.",
+      "reopenFailedTitle": "Couldn't re-open",
+      "reopenFailedMessage": "The file may have been moved or deleted. Tap Open to pick it again."
     },
     "viewer": {
       "edit": "Edit",

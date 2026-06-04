@@ -8,8 +8,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
-import { loadRecentFiles, type RecentFile } from '@/lib/recent-files';
+import { loadRecentFiles, removeRecentFile, type RecentFile } from '@/lib/recent-files';
 import { Spacing } from '@/theme';
+import FileBookmarkModule from '@modules/file-bookmark';
 
 const SUPPORTED_EXTENSIONS = ['.md', '.markdown', '.txt'] as const;
 
@@ -60,6 +61,25 @@ export default function HomeScreen() {
     });
   };
 
+  const handleRecentPress = async (item: RecentFile) => {
+    // Prefer the bookmark when present so the resolved URI carries a current
+    // security scope. If the bookmark is missing or fails to resolve, drop the
+    // stale entry and tell the user to re-open via the picker.
+    if (item.bookmark) {
+      const resolved = await FileBookmarkModule.resolveBookmark(item.bookmark).catch(() => null);
+      if (resolved !== null) {
+        router.push({
+          pathname: '/viewer',
+          params: { fileUri: resolved.uri, fileName: item.name },
+        });
+        return;
+      }
+    }
+    await removeRecentFile(item.uri);
+    setRecent((prev) => (prev === null ? prev : prev.filter((r) => r.uri !== item.uri)));
+    Alert.alert(t('screens.recentFiles.reopenFailedTitle'), t('screens.recentFiles.reopenFailedMessage'));
+  };
+
   const isEmpty = recent !== null && recent.length === 0;
 
   return (
@@ -79,9 +99,14 @@ export default function HomeScreen() {
               <View style={[styles.separator, { backgroundColor: theme.backgroundElement }]} />
             )}
             renderItem={({ item }) => (
-              <View style={styles.row}>
+              <Pressable
+                onPress={() => handleRecentPress(item)}
+                style={({ pressed }) => [
+                  styles.row,
+                  pressed && { backgroundColor: theme.backgroundElement },
+                ]}>
                 <ThemedText numberOfLines={1}>{item.name}</ThemedText>
-              </View>
+              </Pressable>
             )}
             style={styles.list}
           />
@@ -122,6 +147,9 @@ const styles = StyleSheet.create({
   },
   row: {
     paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.two,
+    marginHorizontal: -Spacing.two,
+    borderRadius: Spacing.two,
   },
   separator: {
     height: StyleSheet.hairlineWidth,

@@ -1,0 +1,7 @@
+{
+  "name": "file-bookmark",
+  "version": "1.0.0",
+  "description": "Security-Scoped Bookmark creation and resolution for persistent file access",
+  "main": "index.ts",
+  "private": true
+}

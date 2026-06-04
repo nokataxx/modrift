@@ -110,7 +110,7 @@ iOS の標準的なメンタルモデルに合わせ、ユーザーの好みで�
 - **編集の保存先はストレージで分岐: iCloud / ローカルは in-place 編集、Google Drive 等は iCloud にコピーして編集** ← FR-03
 - **自動保存 (3秒 debounce、サイレント) — 保存先は編集対象 (in-place の元ファイル or iCloud コピー)** ← FR-04
 - **オフライン編集を許可** ← FR-05
-- 最近開いたファイルのリスト (表示のみ、再オープンはピッカー経由)
+- 最近開いたファイルのリスト + **タップで再オープン (Security-Scoped Bookmark)** ← FR-11
 - 日英の UI 切り替え (デバイス言語に追従)
 
 ### 5.2 v1.1 (Phase 2)
@@ -118,7 +118,6 @@ iOS の標準的なメンタルモデルに合わせ、ユーザーの好みで�
 - Share Extension対応 — Drive アプリや他アプリの「共有」シートから Modrift で直接開ける (Open In と異なり、複数アプリ共通の共有メニュー対応)
 - ダーク/ライトモード
 - フォントサイズ調整
-- Security-Scoped Bookmark による「最近開いたファイル」の再オープン対応
 - ネットワーク状態の監視UI (オンライン/オフラインバッジ)
 - 競合警告UI (Drive側のタイムスタンプ確認)
 - Undo / Redo
@@ -265,8 +264,9 @@ iOS の File Provider はプロバイダにより書き戻し可否が異なる 
 
 ### FR-06: 最近開いたファイルリスト [MVP]
 
-- 過去に開いたファイル名を AsyncStorage に保存し、ホーム画面に表示
-- MVPでは「表示のみ」(タップしても再オープン不可、ピッカー経由で再選択)
+- 過去に開いたファイルを AsyncStorage に保存し、ホーム画面に表示
+- **タップで再オープン対応** — Security-Scoped Bookmark を URI と一緒に保存し、再オープン時に bookmark を解決して security scope を取得する (FR-11)
+- 解決失敗時 (ファイル移動・削除) はエントリを削除して再オープンエラーを表示
 
 ### FR-07: 国際化 (i18n) [MVP]
 
@@ -291,11 +291,13 @@ iOS の File Provider はプロバイダにより書き戻し可否が異なる 
 - アプリ内設定でMdレンダリングおよび編集時のフォントサイズを変更可能
 - Dynamic Type にも追従
 
-### FR-11: 再オープン対応 (Security-Scoped Bookmark) [v1.1]
+### FR-11: 再オープン対応 (Security-Scoped Bookmark) [MVP]
 
 - 最近開いたファイルをリストからタップして再オープン可能に
 - iOSの `URL.bookmarkData()` を使用、Expo Modules API でネイティブモジュール (Swift) を実装
-- Bookmark は `expo-secure-store` に保存
+- Bookmark は base64 文字列化して **AsyncStorage** に保存 (Bookmark データ自体は機微情報ではないため Keychain は使わない)
+- ファイル取得時に毎回 Bookmark を再生成 (stale 状態の自己回復)
+- 解決失敗時 (ファイル移動・削除) はエントリを削除して再オープンエラーを表示
 
 ### FR-12: ネットワーク監視UI [v1.1]
 
@@ -375,8 +377,7 @@ iOS の File Provider はプロバイダにより書き戻し可否が異なる 
 
 - ユーザーが選択したファイルのみアクセス可能 (iOS Sandbox 制約に従う)
 - ファイル内容のクラウド送信なし (Drive 同期は File Provider 経由のみ)
-- AsyncStorage には機微情報を保存しない (ファイル名のみ)
-- Bookmark は `expo-secure-store` に保存 (v1.1以降)
+- AsyncStorage には機微情報を保存しない (ファイル名・Security-Scoped Bookmark の base64 文字列のみ。Bookmark データはファイル参照情報で機微情報ではない)
 
 ### NFR-05: 互換性
 
@@ -429,7 +430,7 @@ iOS の File Provider はプロバイダにより書き戻し可否が異なる 
 
 ### ローカル永続化
 
-- expo-secure-store: Security-Scoped Bookmark等のセキュア情報 (v1.1で使用開始)
+- Security-Scoped Bookmark (FR-11): URI と一緒に base64 化して AsyncStorage に保存。expo-secure-store は使わない (Bookmark データは機微情報ではないため)
 - AsyncStorage (@react-native-async-storage/async-storage): 最近開いたファイル履歴、ユーザー設定
 
 ### 自動保存制御
@@ -454,10 +455,11 @@ iOS の File Provider はプロバイダにより書き戻し可否が異なる 
 - **`copyToCacheDirectory: false` を必ず指定**:
   trueにするとアプリのキャッシュへ独立コピーされ、編集してもDriveに反映されない。
 
-- **Security-Scoped Bookmark の保存が必須 (v1.1以降)**:
+- **Security-Scoped Bookmark の保存が必須 (FR-11)**:
   Document Pickerで開いたファイルURIは**セッションを跨ぐと無効化**される。「最近開いたファイル」の再オープンを実装するには、URIをそのまま保存しても次回起動時に開けない。iOSの `URL.bookmarkData()` 相当の処理が必要
-  - Expoだとこれが少し厄介。`expo-document-picker` 単体ではBookmark生成APIが露出していないので、**Expo Modules APIで自作のネイティブモジュール** (Swift数十行) を書く必要が出る可能性が高い (推定5-10営業日)
-  - **MVPでの妥協案**: 「最近開いた」は表示のみで、再オープンはピッカー経由という設計にすればBookmark不要。v1.1以降でネイティブモジュールを追加実装
+  - `modules/file-bookmark/` で Expo Modules API の Swift ネイティブモジュールとして実装済み
+  - Bookmark は base64 文字列で AsyncStorage に保存。ファイルを開くたびに再生成して stale 状態を自己回復
+  - resolveBookmark 失敗時 (ファイル移動・削除等) はエントリを削除して再オープンエラーを表示
 
 - **Google Drive公式アプリが未インストールだとピッカーにDriveが出ない**:
   オンボーディングで明示する必要あり
@@ -579,7 +581,6 @@ iOS の File Provider はプロバイダにより書き戻し可否が異なる 
 
 - Share Extension 実装
 - ダーク/ライトモード・フォントサイズ調整
-- Security-Scoped Bookmark によるネイティブモジュール追加
 - ネットワーク監視UI・競合警告UI・Undo/Redo
 
 ### Phase 3: 公開準備 (1-2週)
@@ -611,7 +612,7 @@ iOS の File Provider はプロバイダにより書き戻し可否が異なる 
 
 ### 技術リスク
 
-- **R-01: Security-Scoped Bookmark の Swift ネイティブモジュール実装** (v1.1の難所、推定5-10営業日)
+- **R-01: Security-Scoped Bookmark の Swift ネイティブモジュール実装** (FR-11、実装済み)
 - **R-02: 日本語IMEと自動保存の組み合わせでの挙動崩れ** (実機検証必須)
 - **R-03: react-native-enriched-markdown の Obsidian Vault 互換性** (大規模Vaultで未検証)
 - **R-04: 競合発生時のユーザー体験** (last-write-winsの許容範囲は要検証)
