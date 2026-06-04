@@ -11,18 +11,25 @@ public class FileBookmarkModule: Module {
       defer {
         if didStart { url.stopAccessingSecurityScopedResource() }
       }
-      do {
-        // getIdentifierForUserVisibleFile throws for files that aren't
-        // surfaced by a third-party File Provider (our own sandbox, iCloud
-        // copies in our ubiquity container, etc.) — caller falls back to
-        // the URI-based classification in those cases.
-        let (_, domainIdentifier) = try await NSFileProviderManager
-          .getIdentifierForUserVisibleFile(at: url)
-        let domains = try await NSFileProviderManager.domains()
-        return domains.first(where: { $0.identifier == domainIdentifier })?.displayName
-      } catch {
-        return nil
+
+      // Both APIs use completion handlers across the iOS versions we target;
+      // wrap each in a continuation so the function stays async/await-friendly.
+      let domainIdentifier: NSFileProviderDomainIdentifier? = await withCheckedContinuation { continuation in
+        NSFileProviderManager.getIdentifierForUserVisibleFile(at: url) { _, identifier, _ in
+          // For files outside any third-party File Provider (our own sandbox,
+          // iCloud copies in our ubiquity container, etc.) the callback yields
+          // nil identifiers + a non-nil error; we just surface that as nil.
+          continuation.resume(returning: identifier)
+        }
       }
+      guard let domainIdentifier else { return nil }
+
+      let domains: [NSFileProviderDomain] = await withCheckedContinuation { continuation in
+        NSFileProviderManager.getDomainsWithCompletionHandler { domains, _ in
+          continuation.resume(returning: domains)
+        }
+      }
+      return domains.first(where: { $0.identifier == domainIdentifier })?.displayName
     }
 
     AsyncFunction("createBookmark") { (uri: String) -> String? in
