@@ -20,6 +20,14 @@ const LOCATION_KEY: Record<FileLocationKind, string> = {
   external: 'screens.recentFiles.locationExternal',
 };
 
+function locationLabel(uri: string, t: (key: string) => string): string {
+  const location = classifyFileLocation(uri);
+  if (location.kind === 'external' && location.providerName) {
+    return location.providerName;
+  }
+  return t(LOCATION_KEY[location.kind]);
+}
+
 const SUPPORTED_EXTENSIONS = ['.md', '.markdown', '.txt'] as const;
 
 export default function HomeScreen() {
@@ -106,25 +114,22 @@ export default function HomeScreen() {
             ItemSeparatorComponent={() => (
               <View style={[styles.separator, { backgroundColor: theme.backgroundElement }]} />
             )}
-            renderItem={({ item }) => {
-              const locationKey = LOCATION_KEY[classifyFileLocation(item.uri)];
-              return (
-                <Pressable
-                  onPress={() => handleRecentPress(item)}
-                  style={({ pressed }) => [
-                    styles.row,
-                    pressed && { backgroundColor: theme.backgroundElement },
-                  ]}>
-                  <ThemedText numberOfLines={1}>{item.name}</ThemedText>
-                  <ThemedText
-                    themeColor="textSecondary"
-                    numberOfLines={1}
-                    style={styles.rowSubtitle}>
-                    {t(locationKey)}
-                  </ThemedText>
-                </Pressable>
-              );
-            }}
+            renderItem={({ item }) => (
+              <Pressable
+                onPress={() => handleRecentPress(item)}
+                style={({ pressed }) => [
+                  styles.row,
+                  pressed && { backgroundColor: theme.backgroundElement },
+                ]}>
+                <ThemedText numberOfLines={1}>{item.name}</ThemedText>
+                <ThemedText
+                  themeColor="textSecondary"
+                  numberOfLines={1}
+                  style={styles.rowSubtitle}>
+                  {locationLabel(item.uri, t)}
+                </ThemedText>
+              </Pressable>
+            )}
             style={styles.list}
           />
         )}
