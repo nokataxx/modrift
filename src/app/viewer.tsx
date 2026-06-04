@@ -201,7 +201,7 @@ export default function ViewerScreen() {
         headerTextColor: theme.text,
         headerBackgroundColor: theme.backgroundElement,
         rowEvenBackgroundColor: theme.background,
-        rowOddBackgroundColor: theme.backgroundElement,
+        rowOddBackgroundColor: theme.background,
         borderColor: theme.textSecondary,
       },
     }),
