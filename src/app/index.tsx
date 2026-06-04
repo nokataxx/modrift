@@ -3,6 +3,7 @@ import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -19,6 +20,8 @@ const LOCATION_KEY: Record<FileLocationKind, string> = {
   appSandbox: 'screens.recentFiles.locationAppSandbox',
   external: 'screens.recentFiles.locationExternal',
 };
+
+const DELETE_RED = '#FF3B30';
 
 function locationLabel(file: RecentFile, t: (key: string) => string): string {
   const location = classifyFileLocation(file.uri);
@@ -101,6 +104,11 @@ export default function HomeScreen() {
     Alert.alert(t('screens.recentFiles.reopenFailedTitle'), t('screens.recentFiles.reopenFailedMessage'));
   };
 
+  const handleRecentDelete = useCallback(async (item: RecentFile) => {
+    setRecent((prev) => (prev === null ? prev : prev.filter((r) => r.uri !== item.uri)));
+    await removeRecentFile(item.uri);
+  }, []);
+
   const isEmpty = recent !== null && recent.length === 0;
 
   return (
@@ -120,20 +128,34 @@ export default function HomeScreen() {
               <View style={[styles.separator, { backgroundColor: theme.backgroundElement }]} />
             )}
             renderItem={({ item }) => (
-              <Pressable
-                onPress={() => handleRecentPress(item)}
-                style={({ pressed }) => [
-                  styles.row,
-                  pressed && { backgroundColor: theme.backgroundElement },
-                ]}>
-                <ThemedText numberOfLines={1}>{item.name}</ThemedText>
-                <ThemedText
-                  themeColor="textSecondary"
-                  numberOfLines={1}
-                  style={styles.rowSubtitle}>
-                  {locationLabel(item, t)}
-                </ThemedText>
-              </Pressable>
+              <ReanimatedSwipeable
+                friction={2}
+                rightThreshold={40}
+                renderRightActions={() => (
+                  <Pressable
+                    style={styles.deleteAction}
+                    onPress={() => handleRecentDelete(item)}>
+                    <ThemedText style={styles.deleteActionText}>
+                      {t('common.delete')}
+                    </ThemedText>
+                  </Pressable>
+                )}>
+                <Pressable
+                  onPress={() => handleRecentPress(item)}
+                  style={({ pressed }) => [
+                    styles.row,
+                    { backgroundColor: theme.background },
+                    pressed && { backgroundColor: theme.backgroundElement },
+                  ]}>
+                  <ThemedText numberOfLines={1}>{item.name}</ThemedText>
+                  <ThemedText
+                    themeColor="textSecondary"
+                    numberOfLines={1}
+                    style={styles.rowSubtitle}>
+                    {locationLabel(item, t)}
+                  </ThemedText>
+                </Pressable>
+              </ReanimatedSwipeable>
             )}
             style={styles.list}
           />
@@ -175,8 +197,6 @@ const styles = StyleSheet.create({
   row: {
     paddingVertical: Spacing.three,
     paddingHorizontal: Spacing.two,
-    marginHorizontal: -Spacing.two,
-    borderRadius: Spacing.two,
   },
   rowSubtitle: {
     fontSize: 12,
@@ -184,6 +204,15 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: StyleSheet.hairlineWidth,
+  },
+  deleteAction: {
+    backgroundColor: DELETE_RED,
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.four,
+  },
+  deleteActionText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   openButton: {
     paddingVertical: Spacing.three,

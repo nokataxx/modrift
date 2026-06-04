@@ -8,7 +8,8 @@
     "ok": "OK",
     "save": "保存",
     "edit": "編集",
-    "preview": "プレビュー"
+    "preview": "プレビュー",
+    "delete": "削除"
   },
   "screens": {
     "recentFiles": {
