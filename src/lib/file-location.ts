@@ -27,11 +27,3 @@ export function isInPlaceEditable(uri: string): boolean {
   if (root && uri.startsWith(root)) return true; // app sandbox (e.g. Open-In Inbox copies)
   return false;
 }
-
-// Whether the file lives inside the app's iCloud ubiquity container — i.e. it is an
-// iCloud editing copy created via the FR-03 copy flow. Used to surface the "editing
-// an iCloud copy" banner. A file at the user's iCloud Drive root is NOT in our container.
-export function isIcloudCopyLocation(uri: string): boolean {
-  if (!uri) return false;
-  return uri.includes(UBIQUITY_CONTAINER_SEGMENT);
-}

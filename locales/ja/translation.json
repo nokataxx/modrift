@@ -28,8 +28,7 @@
       "copyToIcloudDialogConfirm": "コピーして編集",
       "copyToIcloudErrorTitle": "コピーできませんでした",
       "copyToIcloudErrorIcloudUnavailable": "iCloud Drive を有効にしてからもう一度お試しください。",
-      "copyToIcloudErrorFailed": "ファイルのコピーに失敗しました。",
-      "icloudCopyBanner": "iCloud の編集用コピーを編集中"
+      "copyToIcloudErrorFailed": "ファイルのコピーに失敗しました。"
     }
   },
   "picker": {

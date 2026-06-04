@@ -1,8 +1,8 @@
 - [x] Copy to iCloud and edit という文言が長過ぎる。editだけでいい(copy to icloud であることはダイアログで伝える)
 - [x] Copy and editのダイアログについて (dont ask again) を別の方法にしてほしい(現在の方法は格好良くない) — 2 ボタンに簡素化、suppress 機能は v1.1 Settings 画面に温存
 - [ ] Bookmarks.md というファイルを開くと 履歴に残るが、同じファイルを開いた場合、Bookmarks.md の表示が2回繰り返される。同じファイルはひとつだけ残れば良い — FR-11 で URI 安定化後に再評価
-- [x] editing iCloud copy というバナーは必要か? — 編集モード時のみ表示する形で残す
-- [x] edit から Preview に戻っても editing iCloud copy バナーが表示されたままになっている — 編集モード時のみ表示するよう修正
+- [x] editing iCloud copy というバナーは必要か? — 完全に削除
+- [x] edit から Preview に戻っても editing iCloud copy バナーが表示されたままになっている — バナー自体を削除して解消
 - [ ] Preview画面が美しくない(アプリの価値を伝えられない)
   - [x] ダークモード時、箇条書きフォント色が暗くて見づらい
   - [x] ダークモード時、表の表示のバックが 白色で見づらい

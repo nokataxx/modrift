@@ -28,8 +28,7 @@
       "copyToIcloudDialogConfirm": "Copy and edit",
       "copyToIcloudErrorTitle": "Couldn't copy",
       "copyToIcloudErrorIcloudUnavailable": "Enable iCloud Drive and try again.",
-      "copyToIcloudErrorFailed": "Failed to create a copy.",
-      "icloudCopyBanner": "Editing iCloud copy"
+      "copyToIcloudErrorFailed": "Failed to create a copy."
     }
   },
   "picker": {

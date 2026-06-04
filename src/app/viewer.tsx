@@ -12,7 +12,6 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
-  View,
 } from 'react-native';
 import { EnrichedMarkdownText, type MarkdownStyle } from 'react-native-enriched-markdown';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,7 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
-import { isIcloudCopyLocation, isInPlaceEditable } from '@/lib/file-location';
+import { isInPlaceEditable } from '@/lib/file-location';
 import {
   createIcloudCopy,
   IcloudUnavailableError,
@@ -212,7 +211,6 @@ export default function ViewerScreen() {
   const loaded = content !== null && !error;
   const canToggle = loaded && editable;
   const showCopyButton = loaded && !editable;
-  const showIcloudCopyBanner = loaded && mode === 'edit' && isIcloudCopyLocation(fileUri);
   const toggleLabel =
     mode === 'preview' ? t('screens.viewer.edit') : t('screens.viewer.preview');
 
@@ -244,13 +242,6 @@ export default function ViewerScreen() {
         }}
       />
       <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
-        {showIcloudCopyBanner && (
-          <View style={[styles.banner, { backgroundColor: theme.backgroundElement }]}>
-            <ThemedText themeColor="textSecondary" style={styles.bannerText}>
-              {t('screens.viewer.icloudCopyBanner')}
-            </ThemedText>
-          </View>
-        )}
         {error ? (
           <ThemedText themeColor="textSecondary">{error}</ThemedText>
         ) : mode === 'edit' ? (
@@ -308,16 +299,6 @@ const styles = StyleSheet.create({
   },
   loading: {
     marginTop: Spacing.three,
-  },
-  banner: {
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.two,
-    marginBottom: Spacing.three,
-  },
-  bannerText: {
-    fontSize: 13,
-    textAlign: 'center',
   },
   editor: {
     flex: 1,
