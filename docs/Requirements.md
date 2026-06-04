@@ -101,7 +101,7 @@ iOS の標準的なメンタルモデルに合わせ、ユーザーの好みで�
 
 ### 5.1 MVP (Phase 1)
 
-- ファイルを開く (`.md` / `.txt` / `.markdown` 対応)
+- ファイルを開く (`.md` / `.markdown` / `.txt` / `.text` 対応)
 - Document Pickerからの選択
 - **iOS Files App や他アプリから「Modrift で開く」(Open In) 対応** ← FR-08
 - Mdプレビュー表示 (見出し、リスト、リンク、コード、引用、HTTPS画像)
@@ -174,7 +174,7 @@ Modrift は **2つの起動経路** からファイルを開けるよう対応�
 #### 経路A: アプリ内 Document Picker
 
 - Modrift のホーム画面から「ファイルを開く」をタップ
-- iOS Document Picker で `.md` / `.txt` / `.markdown` ファイルを選択して開く
+- iOS Document Picker で `.md` / `.markdown` / `.txt` / `.text` ファイルを選択して開く
 - `expo-document-picker` を使用、`copyToCacheDirectory: false` を指定 (File Provider経由の直接編集を維持)
 
 #### 経路B: 他アプリからの Open In (UTIハンドリング)

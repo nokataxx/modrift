@@ -36,7 +36,11 @@ function locationLabel(file: RecentFile, t: (key: string) => string): string {
   return t(LOCATION_KEY[location.kind]);
 }
 
-const SUPPORTED_EXTENSIONS = ['.md', '.markdown', '.txt'] as const;
+// Mirrors the public.plain-text UTI we declare in CFBundleDocumentTypes so the
+// in-app picker accepts the same file shapes the Files App "Modrift で開く"
+// path already does — notably .text, which iCloud sometimes assigns to plain
+// text files instead of .txt.
+const SUPPORTED_EXTENSIONS = ['.md', '.markdown', '.txt', '.text'] as const;
 
 export default function HomeScreen() {
   const { t } = useTranslation();
