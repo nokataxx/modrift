@@ -199,7 +199,7 @@ export default function ViewerScreen() {
       table: {
         color: theme.text,
         headerTextColor: theme.text,
-        headerBackgroundColor: theme.backgroundElement,
+        headerBackgroundColor: theme.background,
         rowEvenBackgroundColor: theme.background,
         rowOddBackgroundColor: theme.background,
         borderColor: theme.textSecondary,
