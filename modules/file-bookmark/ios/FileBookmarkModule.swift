@@ -5,14 +5,14 @@ public class FileBookmarkModule: Module {
   public func definition() -> ModuleDefinition {
     Name("FileBookmark")
 
-    AsyncFunction("getProviderDisplayName") { (uri: String) -> String? in
+    AsyncFunction("getProviderDisplayName") { (uri: String) async -> String? in
       guard let url = URL(string: uri) else { return nil }
       let didStart = url.startAccessingSecurityScopedResource()
       defer {
         if didStart { url.stopAccessingSecurityScopedResource() }
       }
       do {
-        // getIdentifierForUserVisibleFile returns nil for files that aren't
+        // getIdentifierForUserVisibleFile throws for files that aren't
         // surfaced by a third-party File Provider (our own sandbox, iCloud
         // copies in our ubiquity container, etc.) — caller falls back to
         // the URI-based classification in those cases.
