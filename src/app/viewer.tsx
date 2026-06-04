@@ -26,7 +26,6 @@ import {
   IcloudUnavailableError,
 } from '@/lib/icloud-copy';
 import { recordRecentFile } from '@/lib/recent-files';
-import { getSuppressIcloudCopyDialog, setSuppressIcloudCopyDialog } from '@/lib/settings';
 import { Fonts, Spacing } from '@/theme';
 
 const IMAGE_RE = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
@@ -153,13 +152,8 @@ export default function ViewerScreen() {
     }
   }, [content, fileName, router, t]);
 
-  const handleCopyToIcloud = useCallback(async () => {
+  const handleCopyToIcloud = useCallback(() => {
     if (content === null || copying) return;
-    const suppressed = await getSuppressIcloudCopyDialog();
-    if (suppressed) {
-      performCopy();
-      return;
-    }
     Alert.alert(
       t('screens.viewer.copyToIcloudDialogTitle'),
       t('screens.viewer.copyToIcloudDialogMessage'),
@@ -168,13 +162,6 @@ export default function ViewerScreen() {
         {
           text: t('screens.viewer.copyToIcloudDialogConfirm'),
           onPress: () => performCopy(),
-        },
-        {
-          text: t('screens.viewer.copyToIcloudDialogConfirmDontAsk'),
-          onPress: () => {
-            setSuppressIcloudCopyDialog(true).catch(() => {});
-            performCopy();
-          },
         },
       ],
     );
@@ -197,11 +184,25 @@ export default function ViewerScreen() {
       h5: { color: theme.text },
       h6: { color: theme.text },
       strong: { color: theme.text },
-      emphasis: { color: theme.text },
-      unorderedList: { color: theme.text },
-      orderedList: { color: theme.text },
+      em: { color: theme.text },
+      list: {
+        color: theme.text,
+        bulletColor: theme.text,
+        markerColor: theme.text,
+        marginTop: Spacing.two,
+        marginBottom: Spacing.two,
+      },
       blockquote: { color: theme.text, borderColor: theme.textSecondary },
+      code: { color: theme.text, backgroundColor: theme.backgroundElement },
       codeBlock: { color: theme.text, backgroundColor: theme.backgroundElement },
+      table: {
+        color: theme.text,
+        headerTextColor: theme.text,
+        headerBackgroundColor: theme.backgroundElement,
+        rowEvenBackgroundColor: theme.background,
+        rowOddBackgroundColor: theme.backgroundElement,
+        borderColor: theme.textSecondary,
+      },
     }),
     [theme],
   );
@@ -210,7 +211,7 @@ export default function ViewerScreen() {
   const loaded = content !== null && !error;
   const canToggle = loaded && editable;
   const showCopyButton = loaded && !editable;
-  const showIcloudCopyBanner = loaded && isIcloudCopyLocation(fileUri);
+  const showIcloudCopyBanner = loaded && mode === 'edit' && isIcloudCopyLocation(fileUri);
   const toggleLabel =
     mode === 'preview' ? t('screens.viewer.edit') : t('screens.viewer.preview');
 
