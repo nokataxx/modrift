@@ -13,6 +13,11 @@ export type RecentFile = {
   // — the entry is still listed but tap-to-reopen falls back to the raw URI,
   // which may or may not still be valid across launches.
   bookmark?: string;
+  // Display name of the File Provider that hosts this file ("Google Drive",
+  // "Dropbox", etc.), captured at record time via NSFileProviderManager.
+  // Absent for files in our own sandbox / iCloud copy / iCloud Drive — the
+  // UI falls back to a kind-based label in that case.
+  providerName?: string;
 };
 
 // iOS reports the same file as both `file:///var/...` and `file:///private/var/...`
@@ -30,6 +35,7 @@ function isRecentFile(value: unknown): value is RecentFile {
     return false;
   }
   if (v.bookmark !== undefined && typeof v.bookmark !== 'string') return false;
+  if (v.providerName !== undefined && typeof v.providerName !== 'string') return false;
   return true;
 }
 
@@ -47,10 +53,13 @@ export async function loadRecentFiles(): Promise<RecentFile[]> {
 
 export async function recordRecentFile(entry: { uri: string; name: string }): Promise<void> {
   const normalizedUri = normalizeUri(entry.uri);
-  // Refresh the bookmark every time the file is opened so stale bookmarks are
-  // healed and newly granted scopes (e.g. fresh Open-In invocations) overwrite
-  // older ones. A failed creation keeps the entry but without a bookmark.
-  const bookmark = await FileBookmarkModule.createBookmark(entry.uri).catch(() => null);
+  // Refresh both pieces of metadata on every open so stale bookmarks heal
+  // themselves and provider renames flow through to the recent-files list.
+  // Failures keep the entry but without the missing piece.
+  const [bookmark, providerName] = await Promise.all([
+    FileBookmarkModule.createBookmark(entry.uri).catch(() => null),
+    FileBookmarkModule.getProviderDisplayName(entry.uri).catch(() => null),
+  ]);
   const existing = await loadRecentFiles();
   const next: RecentFile[] = [
     {
@@ -58,6 +67,7 @@ export async function recordRecentFile(entry: { uri: string; name: string }): Pr
       name: entry.name,
       openedAt: Date.now(),
       ...(bookmark !== null ? { bookmark } : {}),
+      ...(providerName !== null ? { providerName } : {}),
     },
     ...existing.filter((item) => normalizeUri(item.uri) !== normalizedUri),
   ].slice(0, MAX_ENTRIES);

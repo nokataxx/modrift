@@ -19,6 +19,12 @@ export interface FileBookmarkModuleType {
   // (file deleted, container removed, etc.). Access is held for the rest of
   // the app's lifetime — iOS reclaims it at termination.
   resolveBookmark(base64: string): Promise<ResolvedBookmark | null>;
+
+  // Returns the human-readable display name of the File Provider that hosts
+  // this file (e.g. "Google Drive", "Dropbox") via iOS's NSFileProviderManager.
+  // Returns null when the URI is not hosted by a third-party File Provider —
+  // the caller should fall back to URI-based classification in that case.
+  getProviderDisplayName(uri: string): Promise<string | null>;
 }
 
 const FileBookmarkModule = requireNativeModule<FileBookmarkModuleType>('FileBookmark');

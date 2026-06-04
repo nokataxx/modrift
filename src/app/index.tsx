@@ -20,10 +20,15 @@ const LOCATION_KEY: Record<FileLocationKind, string> = {
   external: 'screens.recentFiles.locationExternal',
 };
 
-function locationLabel(uri: string, t: (key: string) => string): string {
-  const location = classifyFileLocation(uri);
-  if (location.kind === 'external' && location.providerName) {
-    return location.providerName;
+function locationLabel(file: RecentFile, t: (key: string) => string): string {
+  const location = classifyFileLocation(file.uri);
+  // For files coming from a third-party File Provider, prefer the display
+  // name that NSFileProviderManager handed us at record time — it knows
+  // "Google Drive" / "Dropbox" reliably across install variants. Fall
+  // back to URI-pattern detection only when the native lookup didn't
+  // produce a name (e.g. for files opened before this code shipped).
+  if (location.kind === 'external') {
+    return file.providerName ?? location.providerName ?? t(LOCATION_KEY.external);
   }
   return t(LOCATION_KEY[location.kind]);
 }
@@ -126,7 +131,7 @@ export default function HomeScreen() {
                   themeColor="textSecondary"
                   numberOfLines={1}
                   style={styles.rowSubtitle}>
-                  {locationLabel(item.uri, t)}
+                  {locationLabel(item, t)}
                 </ThemedText>
               </Pressable>
             )}

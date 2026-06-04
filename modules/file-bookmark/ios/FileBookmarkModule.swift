@@ -1,8 +1,29 @@
 import ExpoModulesCore
+import FileProvider
 
 public class FileBookmarkModule: Module {
   public func definition() -> ModuleDefinition {
     Name("FileBookmark")
+
+    AsyncFunction("getProviderDisplayName") { (uri: String) -> String? in
+      guard let url = URL(string: uri) else { return nil }
+      let didStart = url.startAccessingSecurityScopedResource()
+      defer {
+        if didStart { url.stopAccessingSecurityScopedResource() }
+      }
+      do {
+        // getIdentifierForUserVisibleFile returns nil for files that aren't
+        // surfaced by a third-party File Provider (our own sandbox, iCloud
+        // copies in our ubiquity container, etc.) — caller falls back to
+        // the URI-based classification in those cases.
+        let (_, domainIdentifier) = try await NSFileProviderManager
+          .getIdentifierForUserVisibleFile(at: url)
+        let domains = try await NSFileProviderManager.domains()
+        return domains.first(where: { $0.identifier == domainIdentifier })?.displayName
+      } catch {
+        return nil
+      }
+    }
 
     AsyncFunction("createBookmark") { (uri: String) -> String? in
       guard let url = URL(string: uri) else { return nil }
