@@ -25,7 +25,14 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <Stack />
+        <Stack
+          screenOptions={{
+            // Hide the parent screen's title next to the back arrow — iOS
+            // otherwise shows "< Recent Files" or just "<" depending on
+            // header width and we want the chevron alone every time.
+            headerBackButtonDisplayMode: 'minimal',
+          }}
+        />
       </ThemeProvider>
     </GestureHandlerRootView>
   );
