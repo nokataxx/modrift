@@ -7,6 +7,11 @@ public class FileBookmarkModule: Module {
 
     AsyncFunction("getProviderDisplayName") { (uri: String) async -> String? in
       guard let url = URL(string: uri) else { return nil }
+      // getIdentifierForUserVisibleFile requires iOS 16+. Modrift's app target
+      // is iOS 16+ (Requirements NFR-05) but the pod target is lower, so guard
+      // explicitly for the compiler.
+      guard #available(iOS 16.0, *) else { return nil }
+
       let didStart = url.startAccessingSecurityScopedResource()
       defer {
         if didStart { url.stopAccessingSecurityScopedResource() }
