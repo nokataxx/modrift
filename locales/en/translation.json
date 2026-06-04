@@ -19,7 +19,7 @@
       "locationIcloudCopy": "iCloud Drive › Modrift",
       "locationIcloudDrive": "iCloud Drive",
       "locationAppSandbox": "Modrift",
-      "locationExternal": "Other app"
+      "locationExternal": "Cloud storage"
     },
     "viewer": {
       "edit": "Edit",

@@ -69,32 +69,22 @@ function canonicalize(base: string): string {
   return base.replace(/([a-z])([A-Z])/g, '$1 $2');
 }
 
-// AppGroup container UUIDs are derived from a fixed hash of the group
-// identifier ("group.com.google.Drive..." → fixed UUID), so the same provider
-// app yields the same UUID on every iOS device. NSFileProviderManager only
-// returns domains your own app registered, which leaves us no public API to
-// look up third-party providers — fall back to known-UUID mapping instead.
-const KNOWN_APPGROUP_PROVIDERS: { [uuid: string]: string } = {
-  '6574EA41-4584-4087-98B6-04C563D447C4': 'Google Drive',
-};
-
 function detectProvider(uri: string): string | undefined {
   // iOS 16+ third-party File Providers mount under /Library/CloudStorage/<name>/
   // when accessed in place (Files-App view). Folder names look like
-  // "GoogleDrive-name@example.com" or just "Drive".
+  // "GoogleDrive-name@example.com" or just "Drive" so split on "-" first.
   const cs = uri.match(/\/CloudStorage\/([^/]+)/);
   if (cs) {
     const decoded = decodeURIComponent(cs[1]);
     const base = decoded.split('-')[0];
     return canonicalize(base) || undefined;
   }
-  // Document Picker (non-in-place) returns the third-party File Provider's
-  // on-disk AppGroup storage path, which has the provider's AppGroup UUID:
-  // /Containers/Shared/AppGroup/<UUID>/File Provider Storage/.../file
-  const ag = uri.match(/\/AppGroup\/([0-9A-Fa-f-]+)\//);
-  if (ag) return KNOWN_APPGROUP_PROVIDERS[ag[1].toUpperCase()];
-  // Legacy: /Library/Mobile Documents/<container>/ where container is the
-  // provider's reverse-DNS like "com~google~Drive" or "com~getdropbox~Dropbox".
+  // Document Picker URIs go to the third-party provider's AppGroup storage
+  // (/Containers/Shared/AppGroup/<UUID>/File Provider Storage/...). The UUID
+  // is randomly generated per fresh install of the provider app — there is
+  // no public API to map it back to "Google Drive", so we deliberately do
+  // not try to identify these. The caller surfaces them as cloud storage.
+  // Legacy reverse-DNS Mobile Documents: "com~google~Drive" → "Google Drive".
   const mob = uri.match(/\/Mobile Documents\/([^/]+)/);
   if (mob) return providerNameFromContainerId(mob[1]) || undefined;
   return undefined;
