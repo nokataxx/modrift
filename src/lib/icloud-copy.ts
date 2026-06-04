@@ -23,6 +23,15 @@ function splitFileName(name: string): { base: string; ext: string } {
   return { base: name.slice(0, dot), ext: name.slice(dot) };
 }
 
+// Modrift treats the iCloud editing copy as the user's "real" file going
+// forward, and we always read/write it as Markdown — normalize any source
+// extension (.txt, .text, .markdown, none) to .md so the iCloud Drive >
+// Modrift folder stays uniformly Markdown.
+function normalizeToMarkdownName(originalName: string): string {
+  const { base, ext } = splitFileName(originalName);
+  return ext.toLowerCase() === '.md' ? originalName : `${base}.md`;
+}
+
 // Pick `originalName` if it isn't taken, otherwise `${base}-1${ext}`, `${base}-2${ext}`, ...
 // `exists` decides whether a candidate name is already taken in the destination directory.
 export function findAvailableCopyName(
@@ -54,7 +63,7 @@ export async function createIcloudCopy(
     const dir = new Directory(documentsUri);
     if (!dir.exists) dir.create({ intermediates: true, idempotent: true });
 
-    const name = findAvailableCopyName(originalName, (candidate) => {
+    const name = findAvailableCopyName(normalizeToMarkdownName(originalName), (candidate) => {
       return new File(dir, candidate).exists;
     });
     const file = new File(dir, name);
