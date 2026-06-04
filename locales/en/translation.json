@@ -18,7 +18,7 @@
       "reopenFailedMessage": "The file may have been moved or deleted. Tap Open to pick it again.",
       "locationIcloudCopy": "iCloud Drive › Modrift",
       "locationIcloudDrive": "iCloud Drive",
-      "locationAppSandbox": "Modrift",
+      "locationAppSandbox": "From other apps",
       "locationExternal": "Cloud storage"
     },
     "viewer": {
@@ -32,7 +32,10 @@
       "copyToIcloudDialogConfirm": "Copy and edit",
       "copyToIcloudErrorTitle": "Couldn't copy",
       "copyToIcloudErrorIcloudUnavailable": "Enable iCloud Drive and try again.",
-      "copyToIcloudErrorFailed": "Failed to create a copy."
+      "copyToIcloudErrorFailed": "Failed to create a copy.",
+      "openInDialogTitle": "Open in iCloud Drive",
+      "openInDialogMessage": "This file will be saved to the iCloud Drive folder and opened.",
+      "openInDialogConfirm": "Open"
     }
   },
   "picker": {

@@ -44,11 +44,14 @@ export default function ViewerScreen() {
   const theme = useTheme();
   const router = useRouter();
   const headerHeight = useHeaderHeight();
-  const { fileUri, fileName, initialMode } = useLocalSearchParams<{
+  const { fileUri, fileName, initialMode, openInPending } = useLocalSearchParams<{
     fileUri: string;
     fileName: string;
     initialMode?: string;
+    openInPending?: string;
   }>();
+
+  const isOpenInPending = openInPending === 'true';
 
   const [content, setContent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -58,12 +61,18 @@ export default function ViewerScreen() {
   const contentRef = useRef<string | null>(null);
   const isDirtyRef = useRef(false);
   const pendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openInResolvedRef = useRef(false);
 
   useEffect(() => {
     contentRef.current = content;
   }, [content]);
 
   useEffect(() => {
+    // Skip the normal load + recent-files record while an Open-In confirmation
+    // is still pending. The confirm path reads the file, copies it to iCloud,
+    // deletes the Inbox source, and navigates to the iCloud copy URI which
+    // mounts a fresh viewer without the flag and runs the normal load.
+    if (isOpenInPending) return;
     let cancelled = false;
     (async () => {
       try {
@@ -82,7 +91,7 @@ export default function ViewerScreen() {
     return () => {
       cancelled = true;
     };
-  }, [fileUri, fileName, t]);
+  }, [fileUri, fileName, t, isOpenInPending]);
 
   const saveNow = useCallback(() => {
     if (!isDirtyRef.current || contentRef.current === null) return;
@@ -131,6 +140,71 @@ export default function ViewerScreen() {
       saveNow();
     };
   }, [saveNow]);
+
+  useEffect(() => {
+    // Open-In confirmation flow. iOS copied the file into our Inbox; ask the
+    // user before saving the editing copy into iCloud Drive. Either branch
+    // deletes the Inbox source so we don't leave a stale sandbox copy.
+    if (!isOpenInPending || openInResolvedRef.current) return;
+    openInResolvedRef.current = true;
+
+    const deleteInbox = () => {
+      try {
+        new File(fileUri).delete();
+      } catch {
+        // Non-fatal — iOS will reclaim the Inbox eventually anyway.
+      }
+    };
+
+    const runCopy = async () => {
+      try {
+        const sourceText = await new File(fileUri).text();
+        const normalized = sourceText.replace(/^﻿/, '').replace(/\r\n/g, '\n');
+        const result = await createIcloudCopy(normalized, fileName ?? 'note.md');
+        deleteInbox();
+        router.replace({
+          pathname: '/viewer',
+          params: { fileUri: result.uri, fileName: result.name, initialMode: 'edit' },
+        });
+      } catch (err) {
+        const message =
+          err instanceof IcloudUnavailableError
+            ? t('screens.viewer.copyToIcloudErrorIcloudUnavailable')
+            : t('screens.viewer.copyToIcloudErrorFailed');
+        Alert.alert(t('screens.viewer.copyToIcloudErrorTitle'), message, [
+          {
+            text: t('common.ok'),
+            onPress: () => {
+              deleteInbox();
+              router.replace('/');
+            },
+          },
+        ]);
+      }
+    };
+
+    Alert.alert(
+      t('screens.viewer.openInDialogTitle'),
+      t('screens.viewer.openInDialogMessage'),
+      [
+        {
+          text: t('common.cancel'),
+          style: 'cancel',
+          onPress: () => {
+            deleteInbox();
+            router.replace('/');
+          },
+        },
+        {
+          text: t('screens.viewer.openInDialogConfirm'),
+          onPress: () => {
+            runCopy();
+          },
+        },
+      ],
+      { cancelable: false },
+    );
+  }, [isOpenInPending, fileUri, fileName, router, t]);
 
   const performCopy = useCallback(async () => {
     if (content === null) return;

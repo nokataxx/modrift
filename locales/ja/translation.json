@@ -18,7 +18,7 @@
       "reopenFailedMessage": "ファイルが移動・削除された可能性があります。「開く」から再度選択してください。",
       "locationIcloudCopy": "iCloud Drive › Modrift",
       "locationIcloudDrive": "iCloud Drive",
-      "locationAppSandbox": "Modrift",
+      "locationAppSandbox": "他のアプリから",
       "locationExternal": "クラウドストレージ"
     },
     "viewer": {
@@ -32,7 +32,10 @@
       "copyToIcloudDialogConfirm": "コピーして編集",
       "copyToIcloudErrorTitle": "コピーできませんでした",
       "copyToIcloudErrorIcloudUnavailable": "iCloud Drive を有効にしてからもう一度お試しください。",
-      "copyToIcloudErrorFailed": "ファイルのコピーに失敗しました。"
+      "copyToIcloudErrorFailed": "ファイルのコピーに失敗しました。",
+      "openInDialogTitle": "iCloud Drive で開く",
+      "openInDialogMessage": "このファイルを iCloud Drive フォルダに保存して開きます。",
+      "openInDialogConfirm": "開く"
     }
   },
   "picker": {

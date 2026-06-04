@@ -14,17 +14,18 @@ function appContainerRoot(): string | null {
   }
 }
 
-// Whether a file can be edited in place so that writes actually persist / sync.
-// iCloud Drive, the app's iCloud ubiquity container, and the app's own sandbox qualify.
-// Third-party File Providers (e.g. Google Drive) do NOT upload third-party in-place edits,
-// so those files are treated as view-only — editing happens via an iCloud copy instead
-// (Requirements.md FR-03).
+// Whether a file can be edited in place so that writes actually persist somewhere
+// the user can reach. iCloud Drive and the app's iCloud ubiquity container qualify.
+//
+// Files in the app's own sandbox — primarily Open-In Inbox copies — are NOT
+// treated as in-place editable: writes succeed but never leave the sandbox, so
+// the user's "edit" is invisible from any other device or app. Route them
+// through the same copy-to-iCloud flow as third-party File Providers
+// (Requirements.md FR-03) so the editing copy lives in iCloud Drive › Modrift.
 export function isInPlaceEditable(uri: string): boolean {
   if (!uri) return false;
   if (uri.includes(ICLOUD_DRIVE_SEGMENT)) return true; // iCloud Drive
   if (uri.includes(UBIQUITY_CONTAINER_SEGMENT)) return true; // app's iCloud ubiquity container
-  const root = appContainerRoot();
-  if (root && uri.startsWith(root)) return true; // app sandbox (e.g. Open-In Inbox copies)
   return false;
 }
 
