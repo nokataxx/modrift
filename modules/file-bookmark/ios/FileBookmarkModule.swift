@@ -7,34 +7,31 @@ public class FileBookmarkModule: Module {
 
     AsyncFunction("getProviderDisplayName") { (uri: String) async -> String? in
       guard let url = URL(string: uri) else { return nil }
-      // getIdentifierForUserVisibleFile requires iOS 16+. Modrift's app target
-      // is iOS 16+ (Requirements NFR-05) but the pod target is lower, so guard
-      // explicitly for the compiler.
-      guard #available(iOS 16.0, *) else { return nil }
-
       let didStart = url.startAccessingSecurityScopedResource()
       defer {
         if didStart { url.stopAccessingSecurityScopedResource() }
       }
 
-      // Both APIs use completion handlers across the iOS versions we target;
-      // wrap each in a continuation so the function stays async/await-friendly.
-      let domainIdentifier: NSFileProviderDomainIdentifier? = await withCheckedContinuation { continuation in
-        NSFileProviderManager.getIdentifierForUserVisibleFile(at: url) { _, identifier, _ in
-          // For files outside any third-party File Provider (our own sandbox,
-          // iCloud copies in our ubiquity container, etc.) the callback yields
-          // nil identifiers + a non-nil error; we just surface that as nil.
-          continuation.resume(returning: identifier)
-        }
-      }
-      guard let domainIdentifier else { return nil }
-
+      // Document Picker URIs point at the third-party File Provider's on-disk
+      // AppGroup storage (e.g. /Containers/Shared/AppGroup/<UUID>/File Provider
+      // Storage/...), not at the user-visible Files-App URL. Walk every
+      // installed domain, compare the URL prefix against each domain's
+      // documentStorageURL, and return the matching domain's display name.
       let domains: [NSFileProviderDomain] = await withCheckedContinuation { continuation in
         NSFileProviderManager.getDomainsWithCompletionHandler { domains, _ in
           continuation.resume(returning: domains)
         }
       }
-      return domains.first(where: { $0.identifier == domainIdentifier })?.displayName
+
+      let urlPath = url.standardizedFileURL.path
+      for domain in domains {
+        guard let manager = NSFileProviderManager(for: domain) else { continue }
+        let storagePath = manager.documentStorageURL.standardizedFileURL.path
+        if urlPath.hasPrefix(storagePath) {
+          return domain.displayName
+        }
+      }
+      return nil
     }
 
     AsyncFunction("createBookmark") { (uri: String) -> String? in
