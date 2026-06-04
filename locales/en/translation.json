@@ -20,8 +20,6 @@
       "preview": "Preview",
       "loading": "Loading…",
       "imagePlaceholder": "[Image: {{filename}}]",
-      "viewOnly": "View only",
-      "viewOnlyNote": "This file can't be edited here. Open an iCloud or local file to edit.",
       "copyToIcloudButton": "Copy to iCloud and edit",
       "copyToIcloudDialogTitle": "Copy to iCloud to edit",
       "copyToIcloudDialogMessage": "This file can't be edited in place. A copy will be created in iCloud Drive › Modrift for editing.",

@@ -1,0 +1,7 @@
+{
+  "name": "icloud-container",
+  "version": "1.0.0",
+  "description": "Resolves the app's iCloud ubiquity container Documents folder URL",
+  "main": "index.ts",
+  "private": true
+}

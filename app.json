@@ -10,6 +10,15 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.nokata.modrift",
+      "entitlements": {
+        "com.apple.developer.icloud-container-identifiers": [
+          "iCloud.com.nokata.modrift"
+        ],
+        "com.apple.developer.icloud-services": ["CloudDocuments"],
+        "com.apple.developer.ubiquity-container-identifiers": [
+          "iCloud.com.nokata.modrift"
+        ]
+      },
       "infoPlist": {
         "LSSupportsOpeningDocumentsInPlace": true,
         "CFBundleDocumentTypes": [
@@ -21,7 +30,14 @@
               "public.plain-text"
             ]
           }
-        ]
+        ],
+        "NSUbiquitousContainers": {
+          "iCloud.com.nokata.modrift": {
+            "NSUbiquitousContainerIsDocumentScopePublic": true,
+            "NSUbiquitousContainerSupportedFolderLevels": "Any",
+            "NSUbiquitousContainerName": "Modrift"
+          }
+        }
       }
     },
     "android": {
