@@ -9,7 +9,8 @@
     "save": "保存",
     "edit": "編集",
     "preview": "プレビュー",
-    "delete": "削除"
+    "delete": "削除",
+    "back": "戻る"
   },
   "screens": {
     "recentFiles": {

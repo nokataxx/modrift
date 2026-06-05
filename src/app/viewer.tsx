@@ -1,8 +1,9 @@
-import { File } from 'expo-file-system';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useHeaderHeight } from 'expo-router/build/react-navigation/elements';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { File } from "expo-file-system";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { useHeaderHeight } from "expo-router/build/react-navigation/elements";
+import { SymbolView } from "expo-symbols";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Alert,
   AppState,
@@ -12,50 +13,56 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
-} from 'react-native';
-import { EnrichedMarkdownText, type MarkdownStyle } from 'react-native-enriched-markdown';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { useTheme } from '@/hooks/use-theme';
-import { isInPlaceEditable } from '@/lib/file-location';
+} from "react-native";
 import {
-  createIcloudCopy,
-  IcloudUnavailableError,
-} from '@/lib/icloud-copy';
-import { recordRecentFile } from '@/lib/recent-files';
-import { Fonts, Spacing } from '@/theme';
+  EnrichedMarkdownText,
+  type MarkdownStyle,
+} from "react-native-enriched-markdown";
+import { SafeAreaView } from "react-native-safe-area-context";
+
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { useTheme } from "@/hooks/use-theme";
+import { isInPlaceEditable } from "@/lib/file-location";
+import { createIcloudCopy, IcloudUnavailableError } from "@/lib/icloud-copy";
+import { recordRecentFile } from "@/lib/recent-files";
+import { Fonts, Spacing } from "@/theme";
 
 const IMAGE_RE = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
 
-function replaceLocalImages(md: string, placeholder: (filename: string) => string): string {
+function replaceLocalImages(
+  md: string,
+  placeholder: (filename: string) => string,
+): string {
   return md.replace(IMAGE_RE, (match, _alt, url) => {
-    if (url.startsWith('https://')) return match;
-    const filename = url.split('/').pop() || url;
+    if (url.startsWith("https://")) return match;
+    const filename = url.split("/").pop() || url;
     return placeholder(filename);
   });
 }
 
-type Mode = 'preview' | 'edit';
+type Mode = "preview" | "edit";
 
 export default function ViewerScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
   const router = useRouter();
   const headerHeight = useHeaderHeight();
-  const { fileUri, fileName, initialMode, openInPending } = useLocalSearchParams<{
-    fileUri: string;
-    fileName: string;
-    initialMode?: string;
-    openInPending?: string;
-  }>();
+  const { fileUri, fileName, initialMode, openInPending } =
+    useLocalSearchParams<{
+      fileUri: string;
+      fileName: string;
+      initialMode?: string;
+      openInPending?: string;
+    }>();
 
-  const isOpenInPending = openInPending === 'true';
+  const isOpenInPending = openInPending === "true";
 
   const [content, setContent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<Mode>(initialMode === 'edit' ? 'edit' : 'preview');
+  const [mode, setMode] = useState<Mode>(
+    initialMode === "edit" ? "edit" : "preview",
+  );
   const [copying, setCopying] = useState(false);
 
   const contentRef = useRef<string | null>(null);
@@ -78,14 +85,14 @@ export default function ViewerScreen() {
       try {
         const file = new File(fileUri);
         const text = await file.text();
-        const normalized = text.replace(/^﻿/, '').replace(/\r\n/g, '\n');
+        const normalized = text.replace(/^﻿/, "").replace(/\r\n/g, "\n");
         if (cancelled) return;
         setContent(normalized);
-        recordRecentFile({ uri: fileUri, name: fileName ?? '' }).catch(() => {
+        recordRecentFile({ uri: fileUri, name: fileName ?? "" }).catch(() => {
           // Non-fatal: history is for display only.
         });
       } catch {
-        if (!cancelled) setError(t('picker.errorReadFailed'));
+        if (!cancelled) setError(t("picker.errorReadFailed"));
       }
     })();
     return () => {
@@ -119,8 +126,8 @@ export default function ViewerScreen() {
   );
 
   useEffect(() => {
-    const subscription = AppState.addEventListener('change', (next) => {
-      if (next === 'background' || next === 'inactive') {
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next === "background" || next === "inactive") {
         if (pendingTimeoutRef.current !== null) {
           clearTimeout(pendingTimeoutRef.current);
           pendingTimeoutRef.current = null;
@@ -159,27 +166,30 @@ export default function ViewerScreen() {
     const runCopy = async () => {
       try {
         const sourceText = await new File(fileUri).text();
-        const normalized = sourceText.replace(/^﻿/, '').replace(/\r\n/g, '\n');
-        const result = await createIcloudCopy(normalized, fileName ?? 'note.md');
+        const normalized = sourceText.replace(/^﻿/, "").replace(/\r\n/g, "\n");
+        const result = await createIcloudCopy(
+          normalized,
+          fileName ?? "note.md",
+        );
         deleteInbox();
         // Open-In path lands in preview by default — the user can flip to
         // edit from the header. (Drive copy flow still opens in edit mode
         // because the user explicitly tapped the Edit entry point.)
         router.replace({
-          pathname: '/viewer',
+          pathname: "/viewer",
           params: { fileUri: result.uri, fileName: result.name },
         });
       } catch (err) {
         const message =
           err instanceof IcloudUnavailableError
-            ? t('screens.viewer.copyToIcloudErrorIcloudUnavailable')
-            : t('screens.viewer.copyToIcloudErrorFailed');
-        Alert.alert(t('screens.viewer.copyToIcloudErrorTitle'), message, [
+            ? t("screens.viewer.copyToIcloudErrorIcloudUnavailable")
+            : t("screens.viewer.copyToIcloudErrorFailed");
+        Alert.alert(t("screens.viewer.copyToIcloudErrorTitle"), message, [
           {
-            text: t('common.ok'),
+            text: t("common.ok"),
             onPress: () => {
               deleteInbox();
-              router.replace('/');
+              router.replace("/");
             },
           },
         ]);
@@ -187,19 +197,19 @@ export default function ViewerScreen() {
     };
 
     Alert.alert(
-      t('screens.viewer.openInDialogTitle'),
-      t('screens.viewer.openInDialogMessage'),
+      t("screens.viewer.openInDialogTitle"),
+      t("screens.viewer.openInDialogMessage"),
       [
         {
-          text: t('common.cancel'),
-          style: 'cancel',
+          text: t("common.cancel"),
+          style: "cancel",
           onPress: () => {
             deleteInbox();
-            router.replace('/');
+            router.replace("/");
           },
         },
         {
-          text: t('screens.viewer.openInDialogConfirm'),
+          text: t("screens.viewer.openInDialogConfirm"),
           onPress: () => {
             runCopy();
           },
@@ -213,17 +223,21 @@ export default function ViewerScreen() {
     if (content === null) return;
     setCopying(true);
     try {
-      const result = await createIcloudCopy(content, fileName ?? 'note.md');
+      const result = await createIcloudCopy(content, fileName ?? "note.md");
       router.replace({
-        pathname: '/viewer',
-        params: { fileUri: result.uri, fileName: result.name, initialMode: 'edit' },
+        pathname: "/viewer",
+        params: {
+          fileUri: result.uri,
+          fileName: result.name,
+          initialMode: "edit",
+        },
       });
     } catch (err) {
       const message =
         err instanceof IcloudUnavailableError
-          ? t('screens.viewer.copyToIcloudErrorIcloudUnavailable')
-          : t('screens.viewer.copyToIcloudErrorFailed');
-      Alert.alert(t('screens.viewer.copyToIcloudErrorTitle'), message);
+          ? t("screens.viewer.copyToIcloudErrorIcloudUnavailable")
+          : t("screens.viewer.copyToIcloudErrorFailed");
+      Alert.alert(t("screens.viewer.copyToIcloudErrorTitle"), message);
       setCopying(false);
     }
   }, [content, fileName, router, t]);
@@ -231,12 +245,12 @@ export default function ViewerScreen() {
   const handleCopyToIcloud = useCallback(() => {
     if (content === null || copying) return;
     Alert.alert(
-      t('screens.viewer.copyToIcloudDialogTitle'),
-      t('screens.viewer.copyToIcloudDialogMessage'),
+      t("screens.viewer.copyToIcloudDialogTitle"),
+      t("screens.viewer.copyToIcloudDialogMessage"),
       [
-        { text: t('common.cancel'), style: 'cancel' },
+        { text: t("common.cancel"), style: "cancel" },
         {
-          text: t('screens.viewer.copyToIcloudDialogConfirm'),
+          text: t("screens.viewer.copyToIcloudDialogConfirm"),
           onPress: () => performCopy(),
         },
       ],
@@ -246,7 +260,7 @@ export default function ViewerScreen() {
   const processedMarkdown = useMemo(() => {
     if (content === null) return null;
     return replaceLocalImages(content, (filename) =>
-      t('screens.viewer.imagePlaceholder', { filename }),
+      t("screens.viewer.imagePlaceholder", { filename }),
     );
   }, [content, t]);
 
@@ -271,7 +285,10 @@ export default function ViewerScreen() {
       },
       blockquote: { color: theme.text, borderColor: theme.textSecondary },
       code: { color: theme.text, backgroundColor: theme.backgroundElement },
-      codeBlock: { color: theme.text, backgroundColor: theme.backgroundElement },
+      codeBlock: {
+        color: theme.text,
+        backgroundColor: theme.backgroundElement,
+      },
       table: {
         color: theme.text,
         headerTextColor: theme.text,
@@ -289,19 +306,47 @@ export default function ViewerScreen() {
   const canToggle = loaded && editable;
   const showCopyButton = loaded && !editable;
   const toggleLabel =
-    mode === 'preview' ? t('screens.viewer.edit') : t('screens.viewer.preview');
+    mode === "preview" ? t("screens.viewer.edit") : t("screens.viewer.preview");
 
   return (
     <ThemedView style={styles.container}>
       <Stack.Screen
         options={{
-          title: fileName ?? '',
+          title: fileName ?? "",
+          // Replace the system back button with our own chevron so it renders
+          // at the exact same size/weight/tint as the headerRight icon — the
+          // native back chevron ignores size and draws larger.
+          headerLeft: () => (
+            <Pressable
+              onPress={() => router.back()}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t("common.back")}
+            >
+              <SymbolView
+                name="chevron.backward"
+                size={20}
+                weight="semibold"
+                tintColor={theme.text}
+              />
+            </Pressable>
+          ),
           headerRight: canToggle
             ? () => (
                 <Pressable
-                  onPress={() => setMode((m) => (m === 'preview' ? 'edit' : 'preview'))}
-                  hitSlop={8}>
-                  <ThemedText type="link">{toggleLabel}</ThemedText>
+                  onPress={() =>
+                    setMode((m) => (m === "preview" ? "edit" : "preview"))
+                  }
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={toggleLabel}
+                >
+                  <SymbolView
+                    name={mode === "preview" ? "square.and.pencil" : "eye"}
+                    size={26}
+                    weight="semibold"
+                    tintColor={theme.text}
+                  />
                 </Pressable>
               )
             : showCopyButton
@@ -309,27 +354,34 @@ export default function ViewerScreen() {
                   <Pressable
                     onPress={handleCopyToIcloud}
                     hitSlop={8}
-                    disabled={copying}>
-                    <ThemedText type="link">
-                      {t('screens.viewer.copyToIcloudButton')}
-                    </ThemedText>
+                    disabled={copying}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("screens.viewer.copyToIcloudButton")}
+                  >
+                    <SymbolView
+                      name="square.and.pencil"
+                      size={26}
+                      weight="semibold"
+                      tintColor={theme.text}
+                    />
                   </Pressable>
                 )
               : undefined,
         }}
       />
-      <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
+      <SafeAreaView style={styles.safeArea} edges={["bottom", "left", "right"]}>
         {error ? (
           <ThemedText themeColor="textSecondary">{error}</ThemedText>
-        ) : mode === 'edit' ? (
+        ) : mode === "edit" ? (
           <KeyboardAvoidingView
             style={styles.flex}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            keyboardVerticalOffset={headerHeight}>
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            keyboardVerticalOffset={headerHeight}
+          >
             <TextInput
               multiline
               autoFocus
-              value={content ?? ''}
+              value={content ?? ""}
               onChangeText={handleEdit}
               style={[styles.editor, { color: theme.text }]}
               textAlignVertical="top"
@@ -342,14 +394,14 @@ export default function ViewerScreen() {
           <ScrollView contentContainerStyle={styles.scrollContent}>
             <EnrichedMarkdownText
               key={fileUri}
-              markdown={processedMarkdown ?? ''}
+              markdown={processedMarkdown ?? ""}
               flavor="github"
               markdownStyle={markdownStyle}
               selectable
             />
             {processedMarkdown === null && (
               <ThemedText themeColor="textSecondary" style={styles.loading}>
-                {t('screens.viewer.loading')}
+                {t("screens.viewer.loading")}
               </ThemedText>
             )}
           </ScrollView>

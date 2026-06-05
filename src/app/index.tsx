@@ -127,6 +127,7 @@ export default function HomeScreen() {
           <FlatList
             data={recent ?? []}
             keyExtractor={(item) => item.uri}
+            showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
             ItemSeparatorComponent={() => (
               <View style={[styles.separator, { backgroundColor: theme.backgroundElement }]} />

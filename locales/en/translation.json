@@ -9,7 +9,8 @@
     "save": "Save",
     "edit": "Edit",
     "preview": "Preview",
-    "delete": "Delete"
+    "delete": "Delete",
+    "back": "Back"
   },
   "screens": {
     "recentFiles": {
