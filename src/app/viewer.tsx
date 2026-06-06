@@ -8,6 +8,7 @@ import {
   Alert,
   AppState,
   KeyboardAvoidingView,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -283,8 +284,20 @@ export default function ViewerScreen() {
         // give consecutive list items vertical breathing room.
         lineHeight: 28,
       },
-      blockquote: { color: theme.text, borderColor: theme.textSecondary },
-      code: { color: theme.text, backgroundColor: theme.backgroundElement },
+      blockquote: {
+        color: theme.text,
+        borderColor: theme.textSecondary,
+        // Without an explicit background the library's default fill renders the
+        // quote text unreadable (looked inverted). Pin it to the element tint.
+        backgroundColor: theme.backgroundElement,
+      },
+      link: { color: theme.tint, underline: true },
+      code: {
+        color: theme.text,
+        backgroundColor: theme.backgroundElement,
+        // Drop the default outline so inline code reads as a tint, not a box.
+        borderColor: "transparent",
+      },
       codeBlock: {
         color: theme.text,
         backgroundColor: theme.backgroundElement,
@@ -397,6 +410,11 @@ export default function ViewerScreen() {
               markdown={processedMarkdown ?? ""}
               flavor="github"
               markdownStyle={markdownStyle}
+              onLinkPress={({ url }) => {
+                Linking.openURL(url).catch(() => {
+                  // Malformed or unsupported scheme — nothing actionable to show.
+                });
+              }}
               selectable
             />
             {processedMarkdown === null && (
