@@ -26,7 +26,7 @@ import { ThemedView } from "@/components/themed-view";
 import { useTheme } from "@/hooks/use-theme";
 import { classifyFileLocation, isInPlaceEditable } from "@/lib/file-location";
 import { createIcloudCopy, IcloudUnavailableError } from "@/lib/icloud-copy";
-import { recordRecentFile } from "@/lib/recent-files";
+import { recordRecentFile, removeRecentFile } from "@/lib/recent-files";
 import { Fonts, Spacing } from "@/theme";
 
 const IMAGE_RE = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
@@ -128,7 +128,11 @@ export default function ViewerScreen() {
 
   const handleEdit = useCallback(
     (next: string) => {
-      setContent(next);
+      // Uncontrolled editor: write straight to the ref without setContent, so
+      // the TextInput isn't re-rendered (and re-scrolled) on every keystroke —
+      // that re-render is what made the Japanese IME jump the view mid-input.
+      // The preview pulls the latest text from the ref on mode switch.
+      contentRef.current = next;
       isDirtyRef.current = true;
       if (pendingTimeoutRef.current !== null) {
         clearTimeout(pendingTimeoutRef.current);
@@ -140,6 +144,17 @@ export default function ViewerScreen() {
     },
     [saveNow],
   );
+
+  const handleToggleMode = useCallback(() => {
+    if (mode === "edit") {
+      // Leaving the uncontrolled editor — lift the live text into state so the
+      // preview renders the latest edit.
+      setContent(contentRef.current);
+      setMode("preview");
+    } else {
+      setMode("edit");
+    }
+  }, [mode]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (next) => {
@@ -195,6 +210,11 @@ export default function ViewerScreen() {
         }
         inboxConsumedRef.current = true;
       }
+      // The editable iCloud copy supersedes the original — drop the source from
+      // history so the user isn't shown both the read-only original and the
+      // copy. Awaited before navigating so the new screen's record (the copy)
+      // doesn't race this removal on the same AsyncStorage key.
+      await removeRecentFile(fileUri).catch(() => {});
       router.replace({
         pathname: "/viewer",
         params: {
@@ -318,9 +338,7 @@ export default function ViewerScreen() {
           headerRight: canToggle
             ? () => (
                 <Pressable
-                  onPress={() =>
-                    setMode((m) => (m === "preview" ? "edit" : "preview"))
-                  }
+                  onPress={handleToggleMode}
                   hitSlop={8}
                   accessibilityRole="button"
                   accessibilityLabel={toggleLabel}
@@ -362,17 +380,21 @@ export default function ViewerScreen() {
             behavior={Platform.OS === "ios" ? "padding" : undefined}
             keyboardVerticalOffset={headerHeight}
           >
-            <TextInput
-              multiline
-              autoFocus
-              value={content ?? ""}
-              onChangeText={handleEdit}
-              style={[styles.editor, { color: theme.text }]}
-              textAlignVertical="top"
-              autoCapitalize="none"
-              autoCorrect={false}
-              spellCheck={false}
-            />
+            {content !== null && (
+              <TextInput
+                // Remount per file so the uncontrolled defaultValue re-seeds.
+                key={fileUri}
+                multiline
+                autoFocus
+                defaultValue={content}
+                onChangeText={handleEdit}
+                style={[styles.editor, { color: theme.text }]}
+                textAlignVertical="top"
+                autoCapitalize="none"
+                autoCorrect={false}
+                spellCheck={false}
+              />
+            )}
           </KeyboardAvoidingView>
         ) : (
           <ScrollView contentContainerStyle={styles.scrollContent}>
