@@ -8,7 +8,6 @@
     "scheme": "modrift",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.nokata.modrift",
       "entitlements": {
         "com.apple.developer.icloud-container-identifiers": [
