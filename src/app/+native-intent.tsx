@@ -7,9 +7,10 @@
 //
 // Files that iOS copied into our Inbox (i.e. came from apps without File
 // Provider in-place support — Mail attachments, AirDrop, etc.) carry an
-// `openInPending=true` flag so the viewer can prompt the user to save the
-// file into iCloud Drive before reading or editing it, and avoid leaving a
-// stale copy in the sandbox.
+// `openInPending=true` flag. These are throwaway sandbox copies: the viewer
+// opens them in preview like any other file, keeps them out of history, and
+// deletes them on leave — or, if the user edits, turns them into a durable
+// iCloud copy and removes the Inbox source.
 export function redirectSystemPath({ path }: { path: string; initial: boolean }): string {
   try {
     if (!path.startsWith('file://')) return path;

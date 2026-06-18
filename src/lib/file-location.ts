@@ -3,6 +3,15 @@ import { Paths } from 'expo-file-system';
 const UBIQUITY_CONTAINER_SEGMENT = '/iCloud~com~nokata~modrift/';
 const ICLOUD_DRIVE_SEGMENT = '/com~apple~CloudDocs/';
 
+// iOS reports the same file as both `file:///var/...` and `file:///private/var/...`
+// depending on how the URL was constructed. They point at the same file but are
+// different strings, so a naive startsWith() comparison between the document
+// dir and an Open-In Inbox URI can miss. Normalize to the `/private/var/` form
+// before comparing (mirrors normalizeUri in recent-files.ts).
+function normalizePrivate(uri: string): string {
+  return uri.replace(/^file:\/\/\/var\//, 'file:///private/var/');
+}
+
 // The app's container root, e.g. file://.../Application/<UUID>/, derived from the document dir.
 function appContainerRoot(): string | null {
   try {
@@ -47,7 +56,9 @@ export function classifyFileLocation(uri: string): FileLocation {
   if (uri.includes(UBIQUITY_CONTAINER_SEGMENT)) return { kind: 'icloudCopy' };
   if (uri.includes(ICLOUD_DRIVE_SEGMENT)) return { kind: 'icloudDrive' };
   const root = appContainerRoot();
-  if (root && uri.startsWith(root)) return { kind: 'appSandbox' };
+  if (root && normalizePrivate(uri).startsWith(normalizePrivate(root))) {
+    return { kind: 'appSandbox' };
+  }
   return { kind: 'external', providerName: detectProvider(uri) };
 }
 

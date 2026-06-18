@@ -24,7 +24,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useTheme } from "@/hooks/use-theme";
-import { isInPlaceEditable } from "@/lib/file-location";
+import { classifyFileLocation, isInPlaceEditable } from "@/lib/file-location";
 import { createIcloudCopy, IcloudUnavailableError } from "@/lib/icloud-copy";
 import { recordRecentFile } from "@/lib/recent-files";
 import { Fonts, Spacing } from "@/theme";
@@ -49,12 +49,16 @@ export default function ViewerScreen() {
   const theme = useTheme();
   const router = useRouter();
   const headerHeight = useHeaderHeight();
-  const { fileUri, fileName, initialMode, openInPending } =
+  const { fileUri, fileName, initialMode, openInPending, source } =
     useLocalSearchParams<{
       fileUri: string;
       fileName: string;
       initialMode?: string;
       openInPending?: string;
+      // How the viewer was reached: "picker" (in-app Open File), "history"
+      // (recent-files tap), or "icloudCopy" (a copy we just created). Open-In /
+      // share-sheet launches carry no source. Drives whether we record history.
+      source?: string;
     }>();
 
   const isOpenInPending = openInPending === "true";
@@ -69,18 +73,18 @@ export default function ViewerScreen() {
   const contentRef = useRef<string | null>(null);
   const isDirtyRef = useRef(false);
   const pendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const openInResolvedRef = useRef(false);
+  // True once an Open-In Inbox file has been copied to iCloud, so the unmount
+  // cleanup doesn't try to delete an already-consumed source.
+  const inboxConsumedRef = useRef(false);
 
   useEffect(() => {
     contentRef.current = content;
   }, [content]);
 
   useEffect(() => {
-    // Skip the normal load + recent-files record while an Open-In confirmation
-    // is still pending. The confirm path reads the file, copies it to iCloud,
-    // deletes the Inbox source, and navigates to the iCloud copy URI which
-    // mounts a fresh viewer without the flag and runs the normal load.
-    if (isOpenInPending) return;
+    // Every entry path lands in preview first (preview-first model). Inbox
+    // Open-In files load and render like any other source — they're just not
+    // in-place editable, so editing them goes through the copy-to-iCloud button.
     let cancelled = false;
     (async () => {
       try {
@@ -89,9 +93,20 @@ export default function ViewerScreen() {
         const normalized = text.replace(/^﻿/, "").replace(/\r\n/g, "\n");
         if (cancelled) return;
         setContent(normalized);
-        recordRecentFile({ uri: fileUri, name: fileName ?? "" }).catch(() => {
-          // Non-fatal: history is for display only.
-        });
+        // Record history only for files we can reliably re-open: opened via the
+        // in-app picker, reopened from history, or an iCloud copy we made. Files
+        // arriving through iOS Open-In / share are deliberately not recorded —
+        // third-party providers (Google Drive) can't be re-opened by bookmark,
+        // and Inbox copies are throwaway, so an entry would just be a dead link.
+        const recordable =
+          source === "picker" ||
+          source === "history" ||
+          classifyFileLocation(fileUri).kind === "icloudCopy";
+        if (recordable) {
+          recordRecentFile({ uri: fileUri, name: fileName ?? "" }).catch(() => {
+            // Non-fatal: history is for display only.
+          });
+        }
       } catch {
         if (!cancelled) setError(t("picker.errorReadFailed"));
       }
@@ -99,7 +114,7 @@ export default function ViewerScreen() {
     return () => {
       cancelled = true;
     };
-  }, [fileUri, fileName, t, isOpenInPending]);
+  }, [fileUri, fileName, t, source]);
 
   const saveNow = useCallback(() => {
     if (!isDirtyRef.current || contentRef.current === null) return;
@@ -150,87 +165,43 @@ export default function ViewerScreen() {
   }, [saveNow]);
 
   useEffect(() => {
-    // Open-In confirmation flow. iOS copied the file into our Inbox; ask the
-    // user before saving the editing copy into iCloud Drive. Either branch
-    // deletes the Inbox source so we don't leave a stale sandbox copy.
-    if (!isOpenInPending || openInResolvedRef.current) return;
-    openInResolvedRef.current = true;
-
-    const deleteInbox = () => {
-      try {
-        new File(fileUri).delete();
-      } catch {
-        // Non-fatal — iOS will reclaim the Inbox eventually anyway.
+    // An Open-In Inbox copy is a throwaway sandbox file. If the user reads it
+    // and leaves without turning it into an iCloud copy, delete it so we don't
+    // leave a stale sandbox file behind. When it was copied, performCopy already
+    // removed it (inboxConsumedRef guards against a double delete).
+    return () => {
+      if (isOpenInPending && !inboxConsumedRef.current) {
+        try {
+          new File(fileUri).delete();
+        } catch {
+          // Non-fatal — iOS reclaims the Inbox eventually anyway.
+        }
       }
     };
-
-    const runCopy = async () => {
-      try {
-        const sourceText = await new File(fileUri).text();
-        const normalized = sourceText.replace(/^﻿/, "").replace(/\r\n/g, "\n");
-        const result = await createIcloudCopy(
-          normalized,
-          fileName ?? "note.md",
-        );
-        deleteInbox();
-        // Open-In path lands in preview by default — the user can flip to
-        // edit from the header. (Drive copy flow still opens in edit mode
-        // because the user explicitly tapped the Edit entry point.)
-        router.replace({
-          pathname: "/viewer",
-          params: { fileUri: result.uri, fileName: result.name },
-        });
-      } catch (err) {
-        const message =
-          err instanceof IcloudUnavailableError
-            ? t("screens.viewer.copyToIcloudErrorIcloudUnavailable")
-            : t("screens.viewer.copyToIcloudErrorFailed");
-        Alert.alert(t("screens.viewer.copyToIcloudErrorTitle"), message, [
-          {
-            text: t("common.ok"),
-            onPress: () => {
-              deleteInbox();
-              router.replace("/");
-            },
-          },
-        ]);
-      }
-    };
-
-    Alert.alert(
-      t("screens.viewer.openInDialogTitle"),
-      t("screens.viewer.openInDialogMessage"),
-      [
-        {
-          text: t("common.cancel"),
-          style: "cancel",
-          onPress: () => {
-            deleteInbox();
-            router.replace("/");
-          },
-        },
-        {
-          text: t("screens.viewer.openInDialogConfirm"),
-          onPress: () => {
-            runCopy();
-          },
-        },
-      ],
-      { cancelable: false },
-    );
-  }, [isOpenInPending, fileUri, fileName, router, t]);
+  }, [isOpenInPending, fileUri]);
 
   const performCopy = useCallback(async () => {
     if (content === null) return;
     setCopying(true);
     try {
       const result = await createIcloudCopy(content, fileName ?? "note.md");
+      if (isOpenInPending) {
+        // Source was a throwaway Inbox copy — remove it now that a durable
+        // iCloud copy exists.
+        try {
+          new File(fileUri).delete();
+        } catch {
+          // Non-fatal — iOS reclaims the Inbox eventually anyway.
+        }
+        inboxConsumedRef.current = true;
+      }
       router.replace({
         pathname: "/viewer",
         params: {
           fileUri: result.uri,
           fileName: result.name,
           initialMode: "edit",
+          source: "icloudCopy",
         },
       });
     } catch (err) {
@@ -241,7 +212,7 @@ export default function ViewerScreen() {
       Alert.alert(t("screens.viewer.copyToIcloudErrorTitle"), message);
       setCopying(false);
     }
-  }, [content, fileName, router, t]);
+  }, [content, fileName, router, t, isOpenInPending, fileUri]);
 
   const handleCopyToIcloud = useCallback(() => {
     if (content === null || copying) return;

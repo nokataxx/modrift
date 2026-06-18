@@ -1,4 +1,5 @@
 import * as DocumentPicker from 'expo-document-picker';
+import { File } from 'expo-file-system';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -85,24 +86,37 @@ export default function HomeScreen() {
 
     router.push({
       pathname: '/viewer',
-      params: { fileUri: asset.uri, fileName: asset.name },
+      params: { fileUri: asset.uri, fileName: asset.name, source: 'picker' },
     });
   };
 
   const handleRecentPress = async (item: RecentFile) => {
     // Prefer the bookmark when present so the resolved URI carries a current
-    // security scope. If the bookmark is missing or fails to resolve, drop the
-    // stale entry and tell the user to re-open via the picker.
+    // security scope — needed for files that live outside our sandbox
+    // (iCloud Drive, third-party File Providers).
     if (item.bookmark) {
       const resolved = await FileBookmarkModule.resolveBookmark(item.bookmark).catch(() => null);
       if (resolved !== null) {
         router.push({
           pathname: '/viewer',
-          params: { fileUri: resolved.uri, fileName: item.name },
+          params: { fileUri: resolved.uri, fileName: item.name, source: 'history' },
         });
         return;
       }
     }
+    // No usable bookmark: our own iCloud copies (ubiquity container) open by URI
+    // directly without a security scope, so try that before giving up — this
+    // avoids dropping a perfectly valid entry that simply has no bookmark.
+    if (new File(item.uri).exists) {
+      router.push({
+        pathname: '/viewer',
+        params: { fileUri: item.uri, fileName: item.name, source: 'history' },
+      });
+      return;
+    }
+    // Genuinely unreachable (moved, deleted, or not yet downloaded from iCloud).
+    // Drop the dead entry so it can't be tapped again, and tell the user without
+    // asserting the file is gone for good.
     await removeRecentFile(item.uri);
     setRecent((prev) => (prev === null ? prev : prev.filter((r) => r.uri !== item.uri)));
     Alert.alert(t('screens.recentFiles.reopenFailedTitle'), t('screens.recentFiles.reopenFailedMessage'));

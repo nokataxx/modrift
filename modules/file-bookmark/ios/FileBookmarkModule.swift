@@ -47,8 +47,13 @@ public class FileBookmarkModule: Module {
       }
 
       do {
+        // Use a full bookmark (not .minimalBookmark): the minimal form can drop
+        // the persisted security scope, which iCloud tolerates (covered by the
+        // app's iCloud entitlement) but third-party File Providers like Google
+        // Drive do not — their bookmarks then resolve to a URL that
+        // startAccessingSecurityScopedResource() can't actually open.
         let data = try url.bookmarkData(
-          options: [.minimalBookmark],
+          options: [],
           includingResourceValuesForKeys: nil,
           relativeTo: nil
         )

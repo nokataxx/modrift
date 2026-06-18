@@ -224,11 +224,21 @@ iOS の File Provider はプロバイダにより書き戻し可否が異なる 
   - **元の Google Drive ファイルは更新されない** (書き戻し不可。10.1 参照)
   - 以前作った編集用コピーの続きを編集したい場合は、ユーザーが iCloud から直接そのファイルを開く (= in-place 編集)
 
+**全経路 preview-first に統一 (確定)**:
+
+開く経路 (経路A Document Picker / 経路B Open In / Files) や iOS の配送方式 (in-place か Inbox コピーか) に関わらず、**すべて preview で開く**。コピーは「開いたこと」ではなく**編集意思 (編集ボタン)** に紐づく ([FR-20](#fr-20-enrichedmarkdowntextinput-への移行-v2) と同じ原則)。これにより「同じファイルが開き方で違う挙動になる」非一貫を解消する。
+
+- **in-place 編集可 (iCloud / ローカル)**: preview → 編集モードでそのまま in-place 編集・保存。
+- **非 in-place ソース (Google Drive 等)**: preview → 編集ボタンで iCloud コピー → コピーを編集。
+- **Open-In の Inbox コピー (Mail 添付・AirDrop 等の使い捨て)**: 他と同様に preview で開く (in-place 編集不可なので編集は iCloud コピー経由)。
+  - **読み捨て** (編集せず離脱) なら Inbox の使い捨てコピーは削除。**編集** したら iCloud コピーを作成し Inbox 元を削除。
+  - 受信時に即コピーする旧フロー (eager copy + ダイアログ) は廃止。
+
 **UI (誤解を防ぐ)**:
 
-- 編集不可ソース (Google Drive 等) で「編集」を押したとき、「このファイルは直接編集できないため iCloud にコピーを作成します」と明示するダイアログを表示
-  - 「次回から表示しない」オプション付き (選択は AsyncStorage に保存)
-- コピーを編集中は viewer に「iCloud の編集用コピーを編集中」インジケータを表示
+- 編集不可ソース (Google Drive 等) で「編集」を押したとき、「このファイルは直接編集できないため iCloud にコピーを作成して編集します」と明示するダイアログを表示 (2 ボタン: キャンセル / 編集)
+  - 「次回から表示しない」suppress 機能は MVP では持たず、v1.1 の Settings 画面に温存
+- 「iCloud の編集用コピーを編集中」バナーは**表示しない** (実装初期に廃止)
 
 **実装段階 (重要)**:
 - iCloud コピー編集 (上記) は iCloud コンテナの entitlement が必要 → **有料 Apple Developer Program 加入後に実装**（無料 Personal Team では iCloud capability を使えない）
@@ -267,8 +277,15 @@ iOS の File Provider はプロバイダにより書き戻し可否が異なる 
 ### FR-06: 最近開いたファイルリスト [MVP]
 
 - 過去に開いたファイルを AsyncStorage に保存し、ホーム画面に表示
+- **記録するのは「Modrift が確実に再オープンできる入口」で開いたものだけ** (入口で判定):
+  - ✅ 記録: アプリ内「ファイルを開く」(Document Picker, `source=picker`) / 履歴からの再オープン (`source=history`) / 編集で生成した iCloud コピー (`source=icloudCopy`)
+  - ❌ 記録しない: **iOS の Open In / 共有シート経由 (source なし)** — 全部記録しない。理由:
+    - 外部 File Provider (Google Drive 等) を Files から in-place で開いた URI (`/Library/CloudStorage/…`) は **bookmark が起動を跨いで解決できず再オープン不可**。同じファイルでも **Document Picker 経由 (アプリグループの File Provider Storage 実体) なら再オープンできる**ため、入口で差が出る
+    - Inbox の使い捨てコピーは読み捨てで削除されるため死リンクになる
+  - 結果: **Google Drive 等を履歴に残したいなら「ファイルを開く」から開く**。Files の Open In は「今だけ開く」。iCloud Drive のファイルも Open In では記録しない (記録したいなら「ファイルを開く」か、編集して iCloud コピー化)
 - **タップで再オープン対応** — Security-Scoped Bookmark を URI と一緒に保存し、再オープン時に bookmark を解決して security scope を取得する (FR-11)
-- 解決失敗時 (ファイル移動・削除) はエントリを削除して再オープンエラーを表示
+- **再オープンの判定順**: bookmark 解決 → 失敗時は `uri` 直接オープンを試す (アプリ自身の iCloud コピーは bookmark 不要で開けるため、有効なエントリを誤削除しない) → それでも開けなければエントリを削除しエラー表示
+- エラー文言は断定を避ける (移動・削除のほか「iCloud から未ダウンロード」の可能性も示し、後で再試行できることを伝える)
 
 ### FR-07: 国際化 (i18n) [MVP]
 
@@ -299,7 +316,7 @@ iOS の File Provider はプロバイダにより書き戻し可否が異なる 
 - iOSの `URL.bookmarkData()` を使用、Expo Modules API でネイティブモジュール (Swift) を実装
 - Bookmark は base64 文字列化して **AsyncStorage** に保存 (Bookmark データ自体は機微情報ではないため Keychain は使わない)
 - ファイル取得時に毎回 Bookmark を再生成 (stale 状態の自己回復)
-- 解決失敗時 (ファイル移動・削除) はエントリを削除して再オープンエラーを表示
+- **解決失敗時のフォールバック**: いきなり削除せず `uri` 直接オープンを試す (アプリ自身の iCloud コピーは bookmark なしで開けるため)。それでも開けないエントリだけ削除し、断定を避けた再オープンエラーを表示 (FR-06 参照)
 
 ### FR-12: ネットワーク監視UI [v1.1]
 
