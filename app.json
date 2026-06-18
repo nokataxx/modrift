@@ -21,6 +21,8 @@
       },
       "infoPlist": {
         "LSSupportsOpeningDocumentsInPlace": true,
+        "CFBundleDevelopmentRegion": "en",
+        "CFBundleLocalizations": ["en", "ja"],
         "CFBundleDocumentTypes": [
           {
             "CFBundleTypeName": "Markdown Document",
