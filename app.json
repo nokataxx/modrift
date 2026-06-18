@@ -19,6 +19,7 @@
         ]
       },
       "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
         "LSSupportsOpeningDocumentsInPlace": true,
         "CFBundleDevelopmentRegion": "en",
         "CFBundleLocalizations": ["en", "ja"],
