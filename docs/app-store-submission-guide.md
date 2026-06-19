@@ -1,7 +1,7 @@
 # App Store 提出手順（一般公開・要 Apple 審査）
 
 目的: 一般公開のため App Store の本審査に提出する。
-位置づけ: まず [testflight-internal-guide.md](testflight-internal-guide.md) で内部テスト → 問題なければ本ガイドで審査提出、という順番。**同じ本番ビルドを審査に使える**（再ビルド不要）。
+位置づけ: まず [Build and Run.md](Build%20and%20Run.md) のビルド〜TestFlight 内部テスト → 問題なければ本ガイドで審査提出、という順番。**同じ本番ビルドを審査に使える**（再ビルド不要）。
 
 ## TestFlight 内部テストに「追加で」必要なもの
 

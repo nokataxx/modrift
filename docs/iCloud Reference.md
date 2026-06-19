@@ -2,7 +2,9 @@
 
 Modrift の **FR-03「iCloud コピー編集」** に関する iCloud 構成の参照ドキュメント。
 
-初期セットアップ (Apple Developer サイトでの App ID / Container 作成、`app.json` への entitlements 追記、`expo prebuild`) は **完了済み**。設定はすべて [app.json](../app.json) の `ios` ブロックと `ios/modrift/modrift.entitlements` にコード化されている。
+初期セットアップ (Apple Developer サイトでの App ID / Container 作成、`app.json` への entitlements 追記、`expo prebuild`) は **完了済み**。entitlements は [app.json](../app.json) の `ios` ブロックと `ios/modrift/modrift.entitlements` にコード化されている。
+
+> ⚠️ **Container ID は entitlements だけでなくアプリコードにもハードコードされている**。Bundle ID / Container ID を変えるときは下記「Container ID を変更するとき」の手順で**コードも合わせて更新**しないと iCloud が動かなくなる。
 
 このファイルは、再セットアップ (新しい Mac / Apple アカウント) やトラブル時の参照用として、確定事項とトラブルシュートのみを残す。
 
@@ -36,6 +38,24 @@ entitlements / `NSUbiquitousContainers` は [app.json](../app.json) の `ios` �
 | `NSUbiquitousContainerIsDocumentScopePublic` | `true` で Files App に「Modrift」フォルダが見える |
 | `NSUbiquitousContainerSupportedFolderLevels` | `Any` でユーザーが自由にサブフォルダを作れる |
 | `NSUbiquitousContainerName` | Files App 上に表示される名前 |
+
+## Container ID を変更するとき（重要）
+
+Bundle ID を変えると Container ID（`iCloud.<Bundle ID>`）も変わる。**entitlements(app.json) だけでなく、コンテナIDをハードコードしている以下のコードも必ず更新**する。漏れると iCloud コピー機能が無言で壊れる（コンテナが見つからず null）。
+
+| 更新箇所 | 形式 | 例（`com.modrift.app` の場合）|
+| --- | --- | --- |
+| [app.json](../app.json) `ios.entitlements` / `NSUbiquitousContainers` | ドット区切り | `iCloud.com.modrift.app` |
+| [modules/icloud-container/ios/IcloudContainerModule.swift](../modules/icloud-container/ios/IcloudContainerModule.swift) `containerIdentifier` | ドット区切り | `"iCloud.com.modrift.app"` |
+| [src/lib/file-location.ts](../src/lib/file-location.ts) `UBIQUITY_CONTAINER_SEGMENT` | **チルダ区切り**（iOS のパス表記）| `/iCloud~com~modrift~app/` |
+
+手順:
+1. 上記3箇所を新しい Container ID に更新（Swift はドット、file-location.ts はチルダ区切りに注意）
+2. `npx expo prebuild --platform ios --clean`
+3. 新 Bundle ID は初回プロビジョニングが必要（→ [Build and Run.md](Build%20and%20Run.md) の「No profiles found」対処）
+4. **実機で iCloud コピー／同期が動くか確認**（コンテナ変更の影響が一番出る箇所）
+
+> 検索の落とし穴: `grep "com.nokata.modrift"` ではコード側のチルダ表記（`com~nokata~modrift`）がヒットしない。両表記で検索すること。
 
 ## 再セットアップ時の要点 (新 Mac / 新アカウント)
 

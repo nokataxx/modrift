@@ -1,207 +1,233 @@
-# ビルドと配布 (ローカル実機 / TestFlight / App Store)
+# ビルド・実行・配布ガイド（Debug / Release / TestFlight）
 
-Modrift をビルドして実機・テスター・一般ユーザーに届けるまでの **4 つの方法** (Debug / Release ローカル / TestFlight / App Store) の違いと使い分け、コマンド、トラブルシュートをまとめる。
+Modrift をビルドして実機・テスターに届けるまでの方法と使い分け・コマンド・つまずきポイントをまとめた決定版。
+**App Store の一般公開（本審査）は別ドキュメント** → [app-store-submission-guide.md](app-store-submission-guide.md)。
 
-- **対象**: 開発者本人 (solo dev)
-- **作成日**: 2026-06-05
-- **前提**: Expo Dev Client / `expo run:ios` でローカルビルド (`ios/` フォルダあり)。iOS 26 実機 (nokata iPhone)。配布は EAS Build / App Store Connect
-- **関連**: [Requirements.md](Requirements.md) 11章 (受け入れ基準・配布面)
+- 対象: 開発者本人（solo dev）
+- 前提: Expo Dev Client / `expo run:ios` でローカルビルド（`ios/` あり）。実機は nokata iPhone（iOS 26）。配布は EAS。Bundle ID `com.modrift.app`
 
-## 配布方法の全体像と役割
+---
 
-ビルドの届け先は大きく **ローカル実機 / TestFlight / App Store** の 3 系統。ローカルはさらに Debug / Release に分かれるので、実質 4 つ。
+## 0. 全体像
 
-| 方法 | ビルド場所 | 届け方 | 署名 | ケーブル | 主な用途 |
-| --- | --- | --- | --- | --- | --- |
-| **Debug + Metro** | ローカル (Mac) | ケーブルで実機に直接 | development | **起動中ずっと** | コードを書いて即確認 (開発中) |
-| **Release (焼付)** | ローカル (Mac) | ケーブルで実機に直接 | development | インストール時だけ | 自分の実機で素早く検証・持ち歩き |
-| **TestFlight** | クラウド (EAS Build) or Xcode Archive | App Store Connect 経由で **OTA 配信** | **Distribution (配布署名)** | 不要 | テスター配布・**App Store 提出前の必須ゲート** |
-| **App Store** | 同上 | 審査通過後に一般公開 | Distribution | 不要 | 一般リリース |
+届け先は **ローカル実機 / TestFlight / App Store** の3系統。ローカルは Debug / Release に分かれる。
 
-### 役割の違い (なぜ使い分けるか)
-
-- **Debug / Release (ローカル)** は「**Mac から自分の実機へケーブルで入れる**」点が共通。手元で完結し、待ち時間がほぼないので、**開発と一次検証**に向く。TestFlight のようなアップロード・審査処理待ちがない。
-- **TestFlight** は「**配布署名でビルドして App Store Connect 経由で OTA 配信する**」もの。ローカル焼付では検証できない次の点を確認できる:
-  - 本番と同じ **Distribution provisioning / 配布署名** が通るか
-  - ケーブルなし・OTA でのインストール体験 (実ユーザーと同じ経路)
-  - クラッシュレポート収集、ビルド番号管理
-  - これは [Requirements.md](Requirements.md) 11章の配布基準 `TestFlight に内部配布できている` を満たすステップでもある。
-- **App Store** は TestFlight と同じ成果物 (アーカイブ) を **審査に出して一般公開**する最終段階。
-
-### 進める順序
+| 方法 | ビルド場所 | 反復速度 | 本番忠実度 | ケーブル | 署名 | 主な用途 |
+| --- | --- | --- | --- | --- | --- | --- |
+| **Debug + Metro** | ローカル(Mac) | 最速(保存で即反映) | 低(Expoアイコン等) | 起動中ずっと | development | 開発中の即確認 |
+| **Release(焼付)** | ローカル(Mac) | 遅(変更ごと再ビルド) | 高(実アイコン) | インストール時だけ | development | 本番挙動の一次検証・持ち歩き |
+| **TestFlight** | クラウド(EAS) | 最遅(処理待ち) | 最高(ストアと同一) | 不要(OTA) | Distribution | 配布・最終確認・提出前ゲート |
+| **App Store** | クラウド(EAS) | — | 最高 | 不要 | Distribution | 一般公開(要審査) |
 
 ```
-1. Debug + Metro     … コードを書いて即確認 (開発ループ)
-       ↓ 機能が固まる
-2. Release ローカル   … 自分の実機で受け入れ基準を素早く潰す ← 一次検証はここが速い
-       ↓ バグが落ち着く
-3. TestFlight        … 配布署名で内部配布、本番に近い経路で検証 (提出前の必須ゲート)
-       ↓ 安定
-4. App Store 申請     … スクショ・申請文・Privacy Manifest を添えて審査へ
+Debug + Metro   … 書きながら即確認（開発ループ）
+     ↓ 機能が固まる
+Release ローカル … 自分の実機で本番相当を一次検証（実アイコン・署名・iCloud 等）
+     ↓ 落ち着く
+TestFlight      … 配布署名で内部配布。本番経路で最終確認（提出前の必須ゲート）
+     ↓ 安定
+App Store 申請   … 審査へ（別ドキュメント）
 ```
 
-> **要点**: ローカル焼付と TestFlight は競合せず**順番**。ローカルで素早く一次検証 → 落ち着いたら TestFlight で配布経路ごと検証、という流れ。TestFlight をスキップして App Store には出せない (11章の配布基準に含まれる)。
+> 要点: ローカルと TestFlight は競合せず**順番**。速さ＝ローカル、忠実度＝TestFlight。
 
-> TestFlight 配布の具体手順 (EAS Build、`eas submit`、App Store Connect) は後半の [TestFlight 配布手順](#testflight-配布手順) を参照。
+---
 
-## ローカルビルドの使い分け (Debug / Release)
+## 1. EAS とは
 
-ここから先は、上表のうち **ローカル実機ビルド (Debug / Release)** の詳細。TestFlight / App Store は範囲外。
+**EAS = Expo Application Services**。Expo 製アプリの**ビルド・提出をクラウドで肩代わり**するサービス。特に面倒な **iOS 署名（証明書・プロビジョニングプロファイル）を自動管理**してくれるのが価値。
+
+| サービス | 役割 |
+| --- | --- |
+| **EAS Build** | クラウドで `.ipa` をビルド。署名情報を生成・保管 |
+| **EAS Submit** | ビルドを App Store Connect へアップロード |
+| EAS Update | JS だけの変更を**審査なしで OTA 配信**（ネイティブ非変更時に再ビルド不要）|
+
+- **ローカル `expo run:ios`** = 自分の Mac でビルド（開発用）
+- **`eas build`** = クラウドでビルド（配布用、署名を EAS が管理）
+
+---
+
+## 2. 使い分け（迷ったらここ）
+
+| やりたいこと | 使うもの |
+| --- | --- |
+| 画面・ロジックをサクサク作る | **Debug + Metro**（シミュレータが最速）|
+| **iCloud 同期 / Open In / File Provider** を試す | Debug + Metro（**実機＋ケーブル必須**。シミュレータ不可）|
+| アイコン・パフォーマンス・本番挙動の確認、ケーブル抜き常用 | **Release ローカル**（実機）|
+| 署名・entitlements（iCloud コンテナ等）を変えた後の検証 | Release ローカル（実機）|
+| 配布・他人テスト・提出前の最終確認 | **TestFlight** |
+
+> ざっくり: **書いてる最中は Debug+Metro、出す前に Release で本番確認、配るなら TestFlight。**
+> Modrift はコア機能（iCloud / Open In）が実機必須なので「実機 Debug で機能確認 → Release/TestFlight で最終確認」の2段構え。
+
+---
+
+## 3. ローカルビルド詳細（Debug / Release）
 
 | 用途 | ビルド | コマンド | ケーブル | コード変更の反映 |
 | --- | --- | --- | --- | --- |
-| 開発中 (コードを直して即確認) | **Debug + Metro** | `npx expo run:ios --device` ＋ `npx expo start` | **起動中ずっと必要** | 保存で即反映 (Fast Refresh) |
-| 普段使い (Mac なしで単体起動) | **Release (焼き込み)** | `npx expo run:ios --device --configuration Release` | **インストール時だけ** | 再ビルドが必要 |
+| 開発中 | **Debug + Metro** | `npx expo run:ios --device` ＋ `npx expo start` | 起動中ずっと | 保存で即反映(Fast Refresh) |
+| 普段使い | **Release** | `npx expo run:ios --device --configuration Release` | インストール時だけ | 再ビルドが必要 |
 
-迷ったら: **コードをいじる間は Debug、完成したものを持ち歩くなら Release**。
+### Debug + Metro の手順（開発ループ）
 
-## なぜ 2 種類あるのか
+1. **iPhone をケーブル接続**（このプロジェクトは Wi-Fi で Metro に繋がらないため有線必須）
+2. **Debug ビルドを実機に入れる**
+   ```bash
+   npx expo run:ios --device
+   # 端末を明示するなら: npx expo run:ios --device "00008150-0002131E217A401C"
+   ```
+3. **Metro を起動**（上のビルドが自動で起動することも多い。別途なら）
+   ```bash
+   npx expo start
+   ```
+4. アプリ起動後、**コードを保存するたび即反映**（Fast Refresh）
+   - 反映されない時（ナビ設定等）は iPhone を**シェイク → Reload**
+5. 開発中は**ケーブルを繋ぎっぱなし**。抜くと Metro 接続が切れて起動できない（正常）
 
-React Native アプリは「ネイティブの殻 (.app)」と「JS コード (バンドル)」の 2 層でできている。この JS をどう供給するかが Debug と Release で違う。
+> UI だけならシミュレータが最速: `npx expo run:ios`（`--device` なし）。ただし **iCloud / Open In は実機が必要**。
 
-### Debug ビルド = JS を Metro から読む
+### Release（単体）の手順（本番相当の確認・持ち歩き）
 
-- JS を **Mac の Metro サーバー (`expo start`) からネットワーク越しに読み込む**。
-- アプリ内に JS を埋め込まないので、**起動のたびに Metro への接続が必要**。
-- 接続が生きていればコードを保存するたび即反映される (Fast Refresh)。開発に最適。
-- 接続できないと「**Error loading app**」「**No development servers found**」になる。
+1. **iPhone をケーブル接続**
+2. **Release ビルド＆インストール**
+   ```bash
+   npx expo run:ios --device --configuration Release
+   ```
+3. **アプリが iPhone で自動起動するまで待つ**（ビルド〜インストール完了の合図）
+4. 自動起動を確認したら **ケーブルを抜いてOK**。以降はホーム画面のアイコンから単体起動
+   - 本物のアイコン（M）で起動する（Debug の Expo アイコンとは別物）
+5. コードを直したら、反映には**再ビルド**（手順2を再実行）
+
+> ⚠️ 新しい Bundle ID の初回や署名変更後は、`expo run:ios` がプロファイルを自動生成できず「No profiles found」で失敗することがある（→ 5章）。その場合は一度だけ
+> `xcodebuild -workspace ios/modrift.xcworkspace -scheme modrift -configuration Release -destination 'id=<UDID>' -allowProvisioningUpdates build`
+> でプロファイル・App ID・iCloud コンテナを作成してから、`xcrun devicectl device install app` で入れる。
+
+### なぜ2種類あるのか
+RN アプリは「ネイティブの殻(.app)」＋「JS バンドル」の2層。JS の供給方法が違う。
+
+- **Debug** = JS を **Mac の Metro(`expo start`) からネット越しに読む**。起動のたび Metro 接続が必要。繋がっていれば保存で即反映。切れると「Error loading app」「No development servers found」。
+- **Release** = JS を **アプリ内に焼き込む**。Metro も Mac も不要で単体起動。そのぶん変更は再ビルドしないと反映されない。
+
+> このプロジェクトの注意: 本機環境では **Wi-Fi 経由で Metro に繋がらない**（LAN自動検出・手動URL・tunnel いずれも不通）。Debug 開発中は**ケーブルを繋ぎっぱなし**にするのが確実。抜くと起動できなくなる(正常な挙動)。
+
+> アイコンの注意: **Debug 開発ビルドはホーム画面が Expo アイコン**（dev-client の仕様）。**本物のアイコン(M)は Release / TestFlight でのみ**表示される。
+
+### Release のケーブル
+- 必要なのは **ビルド〜インストールの瞬間だけ**。アプリが iPhone で自動起動したのを確認したら**抜いてOK**。
+- 途中で抜くと入りきらず古い版が残る → 自動起動まで待つ。
+
+---
+
+## 4. TestFlight 配信
+
+クラウド(EAS)で配布署名のビルドを作り、App Store Connect 経由で内部配布する。
+
+### 4-1. 一度きりの登録（セットアップ）
+
+| # | やること | 頻度 |
+| --- | --- | --- |
+| 1 | Apple Developer Program 加入（年 $99）| 1回(年更新) |
+| 2 | **App レコード作成**（App Store Connect で Bundle ID `com.modrift.app` を登録。User Access は **Full Access**）| アプリごと1回 |
+| 3 | **PLA（使用許諾契約）に同意**（developer.apple.com のバナー）| 契約更新時 |
+| 4 | **EAS プロジェクトをリンク**（`eas init`）| プロジェクトごと1回 |
+| 5 | **署名情報生成**（証明書・プロファイル。`eas build` 初回に Apple ログイン→EAS が自動生成・保管）| 1回 |
+| 6 | **ASC API キー生成**（`eas submit` 初回に「Generate? → Yes」「role: ADMIN」）| 1回 |
+
+> **5・6 の Apple 認証(2FA)は一度きり**。以降 EAS が保管し非対話で回せる。
+> ⚠️ 新しい Bundle ID で初めてビルドするときは **PLA 同意が未だと「PLA Update available」で失敗**する（新規 App ID/プロファイル作成がブロックされる）。先に同意しておく。
+
+### 4-2. 毎回の配信フロー
 
 ```bash
-# 1. Debug ビルドを実機に入れる (ケーブル接続)
-npx expo run:ios --device
+# 1. クラウドで本番ビルド（.ipa 生成、約5〜40分）
+eas build --platform ios --profile production
 
-# 2. Metro を起動しておく (ビルドが自動で起動することも多い)
-npx expo start
+# 2. App Store Connect へアップロード（数分）
+eas submit --platform ios --profile production --latest
+
+# まとめてやるなら
+eas build --platform ios --profile production --auto-submit
 ```
 
-> **このプロジェクトの注意**: 本機の環境では **Wi-Fi 経由で Metro に繋がらない** (LAN 自動検出・手動 URL・tunnel いずれも不通)。そのため Debug で開発する間は **ケーブルを繋ぎっぱなし**にして Metro へ繋ぐのが確実。ケーブルを抜くと Metro 接続が切れて起動できなくなる (これは正常な挙動)。
+3. **Apple の処理(Processing)**: 数分〜30分。終わるまで TestFlight に **「No Builds」** 表示（＝処理中で正常）。
+4. **内部テストグループ**: EAS が「Team (Expo)」グループを自動作成・割当。
+5. **テスター招待メール**（"…has invited you to test Modrift"）が届く＝配信準備完了の合図。
 
-### Release ビルド = JS を焼き込む (埋め込む)
+- `eas.json` は `appVersionSource: remote` + `production.autoIncrement: true`。**ビルド番号は EAS が自動採番**（TestFlight は同番号を二度受け付けないため重要）。
+- バージョン表記(1.0.0→1.0.1)を上げるのは公開の節目だけ。TestFlight 反復はビルド番号自動採番で回る。
 
-- ビルド時に **JS をアプリ内に埋め込む (焼き込む)**。
-- 起動に **Metro も Mac も不要**。ケーブルを抜いても単体で動く。
-- そのぶん **コードを変更しても反映されない** → 反映するには再ビルドが必要。
+### 4-3. 内部テストでは「不要」なもの
 
-```bash
-# ケーブル接続した状態で実行
-npx expo run:ios --device --configuration Release
-```
+内部テスト（自分・チーム）では、App Store 審査で要るものが**不要**:
+- スクリーンショット / ストア掲載文 / プライバシー・サポートURL公開 / App プライバシー申告 / カテゴリ・価格・年齢制限
+- 「Add Test Information」⚠️ は**外部テスト用**。内部では無視でOK
+- 輸出コンプライアンスは `ITSAppUsesNonExemptEncryption: false` 済みで自動スキップ
 
-- ケーブルが必要なのは **ビルド〜インストールの瞬間だけ**。
-- インストール後、iPhone でアプリが自動起動したのを確認したら **ケーブルを抜いてOK**。以降はホーム画面のアイコンからいつでも起動できる。
-- **重要**: ビルド完了 (アプリが iPhone で自動起動) まで待ってからケーブルを抜く。途中で抜くと入りきらず、古い Debug 版のまま残る。
+### 4-4. 実機での実行（インストール）
 
-## 署名と有効期限
+1. iPhone に **TestFlight アプリ**（App Store から無料）を入れてサインイン
+2. 招待メールの「View in TestFlight」or TestFlight アプリを開く
+3. Modrift が **「Ready to Test」** → **INSTALL**（既存なら UPDATE / OPEN）
+4. **OPEN** で起動 → 動作確認（iCloud同期 / Open In / 自動保存）
 
-- 署名が **無料の Apple ID** の場合、Debug / Release どちらのビルドでもアプリは **7 日で期限切れ** になり、再インストールが必要。
-- **有料の Apple Developer Program ($99/年)** なら 1 年持つ。
-- 期限切れ時はアイコンをタップしても一瞬で閉じる / 「App を検証できません」等が出る → 同じコマンドで入れ直す。
+- すべて**無線**（ケーブル不要）。
+- 同じ Bundle ID `com.modrift.app` なので、ローカル版があっても**上書き**（二重にならない）。
 
-## トラブルシュート
+---
+
+## 5. つまずきポイント（今回の学び）
+
+| 表示・状況 | 意味・対処 |
+| --- | --- |
+| App Store タブ「**Prepare for Submission**」 | 一般公開用の初期状態。TestFlight とは無関係、今は無視 |
+| TestFlight「**No Builds**」 | アップロード後の**処理中**。10〜30分待つ |
+| メール「**invited you to test**」 | テスター招待＝配信準備完了 |
+| TestFlight「**Ready to Test**」 | インストール可能 |
+| 実機に **Modrift が2つ** | Bundle ID を変えると iOS 上は別アプリ。旧 ID を削除（`xcrun devicectl device uninstall app --device <id> com.nokata.modrift`）|
+| ローカルビルドが「**No profiles for 'com.modrift.app'**」 | 新 Bundle ID の初回プロビジョニング。`expo run:ios` は `-allowProvisioningUpdates` を渡さないので失敗 → 直接 `xcodebuild ... -allowProvisioningUpdates build` で作成、または EAS に任せる |
+| 「**PLA Update available**」 | 使用許諾契約が未同意。developer.apple.com で同意 |
+| Bundle ID を変えた時 | `app.json` だけでなく、**iCloud コンテナをハードコードしている箇所**（`modules/icloud-container/ios/IcloudContainerModule.swift`、`src/lib/file-location.ts`）も更新が必要。漏れると iCloud が動かない |
+
+---
+
+## 6. 署名と有効期限
+
+- 無料の Apple ID 署名: Debug/Release とも **7日で期限切れ** → 入れ直し。
+- **有料 Apple Developer Program**: 1年持つ。
+- ローカル(development 署名・自分の実機専用)と TestFlight(Distribution 署名・EAS 管理)は**別物**。同じ Release configuration でも経路が違う。
+- ネイティブ設定（`app.json` の `ios.*`、ネイティブモジュール、Bundle ID 等）を変えたら **`expo prebuild --clean` ＋ 再ビルド**が必須（JS の Fast Refresh では反映されない）。
+
+---
+
+## 7. トラブルシュート
 
 | 症状 | 原因 | 対処 |
 | --- | --- | --- |
-| 「Error loading app」 | Debug 版が Metro に繋がっていない | Mac で `npx expo start` を起動し、ケーブル接続のまま再読み込み |
-| 「No development servers found」 | 同上 (Metro 未検出) | ケーブル接続を確認。Metro 起動を確認。Debug の宿命なので、単体起動したいなら Release にする |
-| Xcode「The debug session ended because … disconnected」 | ケーブルを抜いてデバッガが切断されただけ | **故障ではない**。OK で閉じてよい。アプリ本体には影響なし |
-| コードを直したのに反映されない | Release (焼き込み) 版で動いている | Debug + Metro に切り替える。または Release を再ビルド |
-| ヘッダー等の変更が Fast Refresh で出ない | ナビゲーション設定は Fast Refresh で更新されないことがある | iPhone を**シェイク → Reload**、またはアプリを完全終了→再起動 |
+| 「Error loading app」「No development servers found」 | Debug 版が Metro に繋がっていない | `expo start` を起動し、ケーブル接続のまま再読み込み。単体起動したいなら Release |
+| Xcode「debug session ended … disconnected」 | ケーブルを抜いてデバッガ切断 | 故障ではない。OK で閉じてよい |
+| コードを直したのに反映されない | Release(焼付)版で動いている | Debug+Metro に切替、または Release 再ビルド |
+| `submit` で「build number already used」 | 同じビルド番号を再提出 | `autoIncrement: true` を確認 |
+| TestFlight にビルドが出ない | Processing 中 or 輸出コンプライアンス未回答 | 10〜30分待つ。`ITSAppUsesNonExemptEncryption: false` を確認 |
+| 認証の対話が毎回出る | API キー未登録 | `eas submit` 初回で API キーを生成・保管させる |
 
-## 開発フローの目安
+---
 
-1. **コードを試行錯誤する間** → Debug をケーブル接続したまま使う。`expo start` を起動 → 保存で即反映 (反映されなければシェイク→Reload)。
-2. **数値や見た目が確定** → Release で焼き直して、ケーブルなしで普段使い。
-3. **次に修正したくなったら** → また Debug に戻すか、Release を再ビルド。
+## 8. App Store 一般公開（次の段階）
 
-## TestFlight 配布手順
+TestFlight で安定したら、**同じ production ビルド**を審査に出す（再ビルド不要）。追加で必要なのはスクショ・掲載文・プライバシー申告・審査メモなど。
+→ 手順は [app-store-submission-guide.md](app-store-submission-guide.md) を参照。
 
-ここからは、上の「ローカルビルド」とは別系統。**クラウド (EAS Build) で配布署名のビルドを作り、App Store Connect 経由で TestFlight に内部配布する**手順。ローカルで受け入れ基準を一次検証し終えた後に行う ([Requirements.md](Requirements.md) 11章の配布基準を満たすステップ)。
+---
 
-### 前提
+## 9. 次回からは速い
 
-- **Apple Developer Program ($99/年) 加入済み** (配布署名に必須)
-- **Expo (EAS) アカウント** にログイン済み
-- `eas.json` に `production` ビルドプロファイルと `submit.production` がある (本リポジトリは設定済み)
-  - `appVersionSource: "remote"` … バージョン/ビルド番号は EAS 側で管理
-  - `production.autoIncrement: true` … ビルド番号は毎回自動で +1 (TestFlight は同じビルド番号を二度受け付けないため重要)
+セットアップ（4-1）は完了済み。2回目以降は:
 
-### Step 1: eas-cli を用意してログイン
-
-eas-cli はローカル未インストールなので `npx eas-cli` で実行する (グローバル導入なら `npm install -g eas-cli`)。
-
-```bash
-npx eas-cli login        # Expo アカウントでログイン
-npx eas-cli whoami       # ログイン確認
+```
+コード修正 → eas build → eas submit → (処理待ち) → TestFlight で更新
 ```
 
-### Step 2: 本番ビルドを作成 (配布署名)
-
-```bash
-npx eas-cli build --platform ios --profile production
-```
-
-- **初回は対話で iOS の認証情報セットアップが走る**。EAS に Apple アカウントでログインすると、**Distribution 証明書**と **App Store 用 Provisioning Profile** を EAS が自動生成・管理する (ローカル焼付の development 署名とは別物)。
-- ビルドはクラウドで実行され、完了すると `.ipa` が EAS 上に生成される (数分〜十数分)。
-- `appVersionSource: remote` + `autoIncrement` により、ビルド番号は EAS が自動採番する。
-
-> App Store Connect にアプリレコード (Bundle ID `com.modrift.app`) がまだ無い場合は、次の `submit` 時に対話で作成できる。手動で作るなら [App Store Connect](https://appstoreconnect.apple.com) → My Apps → + で先に登録しておく。
-
-### Step 3: TestFlight に提出 (submit)
-
-ビルド完了後、最新ビルドを App Store Connect に送る:
-
-```bash
-npx eas-cli submit --platform ios --latest --profile production
-```
-
-- 初回は **App Store Connect API キー** (推奨) か Apple ID を対話で設定。API キーを使うと以降は非対話で回せる。設定値は `eas.json` の `submit.production` に `ascApiKeyPath` / `ascApiKeyId` / `ascApiKeyIssuerId` / `ascAppId` / `appleTeamId` として記録できる。
-- 内部テストグループに直接追加するなら `-g`:
-  ```bash
-  npx eas-cli submit --platform ios --latest -g "Internal Testers" --what-to-test "iCloud コピー編集と自動保存の確認"
-  ```
-
-**ビルドと提出をまとめて**行うなら `--auto-submit`:
-
-```bash
-npx eas-cli build --platform ios --profile production --auto-submit
-```
-
-### Step 4: App Store Connect での処理 → TestFlight 配信
-
-1. 提出後、**App Store Connect 側で 10〜30 分の処理 (Processing)** が走る。完了するとビルドが TestFlight タブに現れる。
-2. **輸出コンプライアンス** (暗号化の質問) に回答 (標準的な HTTPS のみなら「対象外」で進められることが多い。`app.json` に `ITSAppUsesNonExemptEncryption: false` を入れておくと毎回の質問を省略できる)。
-3. **内部テスト (Internal Testing)**: App Store Connect → TestFlight → 内部テスターに自分の Apple ID を追加。内部テスターは審査不要で即配信される (最大 100 名)。
-4. テスターの iPhone に **TestFlight アプリ**を入れ、招待を受けるとアプリをインストールできる (**ケーブル不要・OTA**)。
-
-> **内部テスト vs 外部テスト**: 自分や少人数の確認は審査不要の**内部テスト**で十分。不特定多数に配るときだけ Apple の**ベータ審査**が要る**外部テスト**を使う。MVP の一次配布は内部テストで OK。
-
-### Step 5: 次のビルドを上げるとき
-
-- コードや `app.json` を直したら **Step 2〜3 を再実行**するだけ。`autoIncrement` でビルド番号は自動更新される。
-- バージョン表記 (`1.0.0` → `1.0.1` 等) を上げるのは App Store 公開の節目で。TestFlight の反復はビルド番号の自動採番だけで回せる。
-
-### TestFlight トラブルシュート
-
-| 症状 | 原因 | 対処 |
-| --- | --- | --- |
-| `submit` で「build number already used」 | 同じビルド番号を再提出した | `production.autoIncrement: true` を確認。ローカルで番号固定していないか確認 |
-| TestFlight にビルドが出てこない | Processing 中、または輸出コンプライアンス未回答 | 10〜30 分待つ。App Store Connect で暗号化の質問に回答 |
-| `Invalid ascAppId` | App Store Connect App ID の指定誤り | 数字のみの App ID を確認 ([expo.fyi/asc-app-id](https://expo.fyi/asc-app-id)) |
-| 認証情報の対話が毎回出る | API キー未登録 | App Store Connect API キーを作成し `eas.json` の `submit.production` に登録 |
-
-## App Store 申請 (TestFlight の後)
-
-TestFlight で安定したら、同じ production ビルドを審査に出す。TestFlight 提出時点で大半の素材は揃っているので、追加で必要なのは主に審査・公開まわり:
-
-- スクリーンショット (6.7" / 6.5" など必須サイズ)、説明文、キーワード、サポート URL
-- **Privacy Manifest / プライバシー情報** (データ収集の有無の申告)
-- レビュアー向けノート (アプリ目的・使い方。シンプルすぎるアプリはここで補足)
-- App Store Connect で「審査へ提出」。`eas submit` で送ったビルドをそのまま審査対象に選べる。
-
-詳細手順は申請時に別途まとめる。
-
-## 関連メモ
-
-- ライブ反映 (Fast Refresh) が効くのは **Debug + Metro** のときだけ。Release は静的スナップショット。
-- ネイティブ設定 (`app.json` の `ios.infoPlist` 等) を変えた場合は、Debug/Release どちらでも **再ビルドが必須** (JS の Fast Refresh では反映されない)。
-- **ローカル焼付 (Release) と TestFlight は署名が別**。ローカルは development 署名 (自分の実機専用)、TestFlight は Distribution 署名 (EAS が管理)。同じ Release configuration でも経路が違う。
+認証は保存済みで 2FA も不要。**コマンド2つで TestFlight 更新**できる。
+JS だけの修正なら `eas update`（OTA）で再ビルドすら省ける。
