@@ -13,7 +13,9 @@
         "com.apple.developer.icloud-container-identifiers": [
           "iCloud.com.modrift.app"
         ],
-        "com.apple.developer.icloud-services": ["CloudDocuments"],
+        "com.apple.developer.icloud-services": [
+          "CloudDocuments"
+        ],
         "com.apple.developer.ubiquity-container-identifiers": [
           "iCloud.com.modrift.app"
         ]
@@ -22,7 +24,10 @@
         "ITSAppUsesNonExemptEncryption": false,
         "LSSupportsOpeningDocumentsInPlace": true,
         "CFBundleDevelopmentRegion": "en",
-        "CFBundleLocalizations": ["en", "ja"],
+        "CFBundleLocalizations": [
+          "en",
+          "ja"
+        ],
         "CFBundleDocumentTypes": [
           {
             "CFBundleTypeName": "Markdown Document",
@@ -72,6 +77,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "52d700ed-7785-4afd-b930-528d7997c0ae"
+      }
+    },
+    "owner": "nokata"
   }
 }
