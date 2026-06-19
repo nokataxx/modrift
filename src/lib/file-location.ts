@@ -1,6 +1,6 @@
 import { Paths } from 'expo-file-system';
 
-const UBIQUITY_CONTAINER_SEGMENT = '/iCloud~com~nokata~modrift/';
+const UBIQUITY_CONTAINER_SEGMENT = '/iCloud~com~modrift~app/';
 const ICLOUD_DRIVE_SEGMENT = '/com~apple~CloudDocs/';
 
 // iOS reports the same file as both `file:///var/...` and `file:///private/var/...`

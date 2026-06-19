@@ -144,7 +144,7 @@ npx eas-cli build --platform ios --profile production
 - ビルドはクラウドで実行され、完了すると `.ipa` が EAS 上に生成される (数分〜十数分)。
 - `appVersionSource: remote` + `autoIncrement` により、ビルド番号は EAS が自動採番する。
 
-> App Store Connect にアプリレコード (Bundle ID `com.nokata.modrift`) がまだ無い場合は、次の `submit` 時に対話で作成できる。手動で作るなら [App Store Connect](https://appstoreconnect.apple.com) → My Apps → + で先に登録しておく。
+> App Store Connect にアプリレコード (Bundle ID `com.modrift.app`) がまだ無い場合は、次の `submit` 時に対話で作成できる。手動で作るなら [App Store Connect](https://appstoreconnect.apple.com) → My Apps → + で先に登録しておく。
 
 ### Step 3: TestFlight に提出 (submit)
 

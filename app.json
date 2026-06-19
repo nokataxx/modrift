@@ -8,14 +8,14 @@
     "scheme": "modrift",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "bundleIdentifier": "com.nokata.modrift",
+      "bundleIdentifier": "com.modrift.app",
       "entitlements": {
         "com.apple.developer.icloud-container-identifiers": [
-          "iCloud.com.nokata.modrift"
+          "iCloud.com.modrift.app"
         ],
         "com.apple.developer.icloud-services": ["CloudDocuments"],
         "com.apple.developer.ubiquity-container-identifiers": [
-          "iCloud.com.nokata.modrift"
+          "iCloud.com.modrift.app"
         ]
       },
       "infoPlist": {
@@ -34,7 +34,7 @@
           }
         ],
         "NSUbiquitousContainers": {
-          "iCloud.com.nokata.modrift": {
+          "iCloud.com.modrift.app": {
             "NSUbiquitousContainerIsDocumentScopePublic": true,
             "NSUbiquitousContainerSupportedFolderLevels": "Any",
             "NSUbiquitousContainerName": "Modrift"

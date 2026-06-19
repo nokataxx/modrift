@@ -168,7 +168,7 @@ Modrift は **2つの起動経路** をフラットに対応する。これは M
 ## Settings (App Configuration)
 
 ### Bundle Identifier
-- **現在**: `com.nokata.modrift` (開発用、App Store 提出前に再検討の余地あり)
+- **Bundle ID**: `com.modrift.app` (個人名を含まない永続ID。iCloud コンテナは `iCloud.com.modrift.app`)
 
 ### App Name
 - 表示名: **Modrift**

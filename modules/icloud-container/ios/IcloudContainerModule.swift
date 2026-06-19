@@ -1,7 +1,7 @@
 import ExpoModulesCore
 
 public class IcloudContainerModule: Module {
-  private static let containerIdentifier = "iCloud.com.nokata.modrift"
+  private static let containerIdentifier = "iCloud.com.modrift.app"
 
   public func definition() -> ModuleDefinition {
     Name("IcloudContainer")

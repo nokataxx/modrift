@@ -18,8 +18,8 @@ iCloud Drive のアプリ専用領域 (ubiquity container) を使うには iClou
 
 | 項目 | 値 |
 | --- | --- |
-| Bundle ID | `com.nokata.modrift` |
-| iCloud Container ID | `iCloud.com.nokata.modrift` |
+| Bundle ID | `com.modrift.app` |
+| iCloud Container ID | `iCloud.com.modrift.app` |
 | Files App 上の表示名 | `Modrift` |
 
 > Container ID は Apple Developer サイトで一度作成すると削除できない。Bundle ID と一致させる Apple 公式の慣例に従う ([Apple Developer Forums](https://developer.apple.com/forums/thread/811970), [InformIT iCloud docs](https://www.informit.com/articles/article.aspx?p=2177650&seqNum=2))。
@@ -39,8 +39,8 @@ entitlements / `NSUbiquitousContainers` は [app.json](../app.json) の `ios` �
 
 ## 再セットアップ時の要点 (新 Mac / 新アカウント)
 
-1. Apple Developer サイト → **Identifiers** で App ID `com.nokata.modrift` に **iCloud** capability を有効化 (CloudKit は不要、CloudDocuments のみ)
-2. **iCloud Containers** に `iCloud.com.nokata.modrift` を作成し、App ID に紐付け
+1. Apple Developer サイト → **Identifiers** で App ID `com.modrift.app` に **iCloud** capability を有効化 (CloudKit は不要、CloudDocuments のみ)
+2. **iCloud Containers** に `iCloud.com.modrift.app` を作成し、App ID に紐付け
 3. `npx expo prebuild --platform ios --clean` で `ios/` を再生成 (entitlements は `app.json` から自動反映)
 4. Xcode の **Signing & Capabilities** で iCloud Documents と Container が緑チェックになっていることを確認
 

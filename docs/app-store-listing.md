@@ -7,7 +7,7 @@ App Store Connect に入力する掲載テキストの下書き。日英2ロケ�
 | 項目                    | 値                                              |
 | ----------------------- | ----------------------------------------------- |
 | 表示名 (App Name)       | Modrift                                         |
-| Bundle ID               | com.nokata.modrift                              |
+| Bundle ID               | com.modrift.app                              |
 | 主カテゴリ              | Productivity                                    |
 | 副カテゴリ              | Utilities（任意・空でも可）                     |
 | 価格                    | Free（無料）                                    |
