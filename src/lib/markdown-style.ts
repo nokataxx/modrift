@@ -39,6 +39,9 @@ export function buildMarkdownStyle(theme: ThemeColors, base: number): MarkdownSt
       backgroundColor: theme.backgroundElement,
     },
     link: { color: theme.tint, underline: true },
+    // The library defaults the rule to #E5E7EB (near-white), which disappears on
+    // a light background. Use the same divider tone as table/blockquote borders.
+    thematicBreak: { color: theme.textSecondary },
     code: {
       color: theme.text,
       fontSize: Math.round(base * 0.9),
@@ -59,6 +62,16 @@ export function buildMarkdownStyle(theme: ThemeColors, base: number): MarkdownSt
       rowEvenBackgroundColor: theme.background,
       rowOddBackgroundColor: theme.background,
       borderColor: theme.textSecondary,
+    },
+    taskList: {
+      // The library defaults checkedTextColor to #000000, which vanishes on a
+      // dark background. Pin every color to the theme so checked text keeps the
+      // normal body color (no strikethrough) in both light and dark modes.
+      checkedColor: theme.tint,
+      checkmarkColor: theme.background,
+      checkedTextColor: theme.text,
+      borderColor: theme.textSecondary,
+      checkedStrikethrough: false,
     },
   };
 }
