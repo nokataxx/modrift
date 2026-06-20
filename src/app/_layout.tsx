@@ -4,6 +4,7 @@ import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import '@/i18n';
+import { NetworkProvider } from '@/hooks/use-network';
 import { SettingsProvider } from '@/hooks/use-settings';
 import { useResolvedColorScheme } from '@/hooks/use-theme';
 import IcloudContainerModule from '@modules/icloud-container';
@@ -43,7 +44,9 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SettingsProvider>
-        <ThemedStack />
+        <NetworkProvider>
+          <ThemedStack />
+        </NetworkProvider>
       </SettingsProvider>
     </GestureHandlerRootView>
   );

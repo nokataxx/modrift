@@ -8,6 +8,7 @@ import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { NetworkBanner } from '@/components/network-banner';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
@@ -152,6 +153,7 @@ export default function HomeScreen() {
         }}
       />
       <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
+        <NetworkBanner />
         {isEmpty ? (
           <ThemedText themeColor="textSecondary" style={styles.empty}>
             {t('screens.recentFiles.empty')}

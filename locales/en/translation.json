@@ -53,6 +53,10 @@
       }
     }
   },
+  "network": {
+    "offline": "Offline",
+    "backOnline": "Back online"
+  },
   "picker": {
     "open": "Open File",
     "errorTitle": "Couldn't open file",

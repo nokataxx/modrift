@@ -53,6 +53,10 @@
       }
     }
   },
+  "network": {
+    "offline": "オフライン",
+    "backOnline": "オンラインに復帰しました"
+  },
   "picker": {
     "open": "ファイルを開く",
     "errorTitle": "ファイルを開けませんでした",

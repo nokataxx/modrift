@@ -21,6 +21,7 @@ import {
 } from "react-native-enriched-markdown";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { NetworkBanner } from "@/components/network-banner";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useSettings } from "@/hooks/use-settings";
@@ -335,6 +336,7 @@ export default function ViewerScreen() {
         }}
       />
       <SafeAreaView style={styles.safeArea} edges={["bottom", "left", "right"]}>
+        <NetworkBanner />
         {error ? (
           <ThemedText themeColor="textSecondary">{error}</ThemedText>
         ) : mode === "edit" ? (
