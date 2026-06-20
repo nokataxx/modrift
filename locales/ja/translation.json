@@ -35,6 +35,22 @@
       "copyToIcloudErrorTitle": "コピーできませんでした",
       "copyToIcloudErrorIcloudUnavailable": "iCloud Drive を有効にしてからもう一度お試しください。",
       "copyToIcloudErrorFailed": "ファイルのコピーに失敗しました。"
+    },
+    "settings": {
+      "title": "設定",
+      "previewSample": "# 見出しのプレビュー\n本文のサンプルテキストです。`インラインコード` も表示されます。\n\n- リスト項目 1\n- リスト項目 2",
+      "appearance": "外観",
+      "appearanceOptions": {
+        "system": "システムに従う",
+        "light": "ライト",
+        "dark": "ダーク"
+      },
+      "fontSize": "文字サイズ",
+      "fontSizeOptions": {
+        "small": "小",
+        "medium": "中",
+        "large": "大"
+      }
     }
   },
   "picker": {

@@ -1,6 +1,7 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
@@ -131,7 +132,25 @@ export default function HomeScreen() {
 
   return (
     <ThemedView style={styles.container}>
-      <Stack.Screen options={{ title: t('screens.recentFiles.title') }} />
+      <Stack.Screen
+        options={{
+          title: t('screens.recentFiles.title'),
+          headerRight: () => (
+            <Pressable
+              onPress={() => router.push('/settings')}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t('screens.settings.title')}>
+              <SymbolView
+                name="gearshape"
+                size={22}
+                weight="semibold"
+                tintColor={theme.text}
+              />
+            </Pressable>
+          ),
+        }}
+      />
       <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
         {isEmpty ? (
           <ThemedText themeColor="textSecondary" style={styles.empty}>

@@ -5,10 +5,20 @@
 
 import { Colors } from '@/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useSettings } from '@/hooks/use-settings';
+
+/**
+ * Resolves the effective color scheme from the user's appearance setting:
+ * 'system' follows the OS, 'light'/'dark' force a fixed scheme (FR-09).
+ */
+export function useResolvedColorScheme(): 'light' | 'dark' {
+  const scheme = useColorScheme();
+  const { settings } = useSettings();
+  if (settings.appearance === 'light') return 'light';
+  if (settings.appearance === 'dark') return 'dark';
+  return scheme === 'dark' ? 'dark' : 'light';
+}
 
 export function useTheme() {
-  const scheme = useColorScheme();
-  const theme = scheme === 'unspecified' ? 'light' : scheme;
-
-  return Colors[theme];
+  return Colors[useResolvedColorScheme()];
 }

@@ -23,10 +23,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { useSettings } from "@/hooks/use-settings";
 import { useTheme } from "@/hooks/use-theme";
 import { classifyFileLocation, isInPlaceEditable } from "@/lib/file-location";
 import { createIcloudCopy, IcloudUnavailableError } from "@/lib/icloud-copy";
+import { buildMarkdownStyle } from "@/lib/markdown-style";
 import { recordRecentFile, removeRecentFile } from "@/lib/recent-files";
+import { FONT_SIZE_BASE } from "@/lib/settings";
 import { Fonts, Spacing } from "@/theme";
 
 const IMAGE_RE = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
@@ -47,6 +50,10 @@ type Mode = "preview" | "edit";
 export default function ViewerScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
+  const { settings } = useSettings();
+  // Base body size from the font-size setting; headings/code derive from it so
+  // the whole document scales together (FR-10).
+  const base = FONT_SIZE_BASE[settings.fontSize];
   const router = useRouter();
   const headerHeight = useHeaderHeight();
   const { fileUri, fileName, initialMode, openInPending, source } =
@@ -257,53 +264,8 @@ export default function ViewerScreen() {
   }, [content, t]);
 
   const markdownStyle: MarkdownStyle = useMemo(
-    () => ({
-      paragraph: { color: theme.text },
-      h1: { color: theme.heading1 },
-      h2: { color: theme.heading2 },
-      h3: { color: theme.heading3 },
-      h4: { color: theme.heading4 },
-      // H5/H6 are rare in notes; reuse the most muted heading tone (heading4).
-      h5: { color: theme.heading4 },
-      h6: { color: theme.heading4 },
-      strong: { color: theme.text },
-      em: { color: theme.text },
-      list: {
-        color: theme.text,
-        bulletColor: theme.text,
-        markerColor: theme.text,
-        // The library has no per-item margin; widening lineHeight is how we
-        // give consecutive list items vertical breathing room.
-        lineHeight: 28,
-      },
-      blockquote: {
-        color: theme.text,
-        borderColor: theme.textSecondary,
-        // Without an explicit background the library's default fill renders the
-        // quote text unreadable (looked inverted). Pin it to the element tint.
-        backgroundColor: theme.backgroundElement,
-      },
-      link: { color: theme.tint, underline: true },
-      code: {
-        color: theme.text,
-        backgroundColor: theme.backgroundElement,
-        // Drop the default outline so inline code reads as a tint, not a box.
-        borderColor: "transparent",
-      },
-      codeBlock: {
-        color: theme.text,
-        backgroundColor: theme.backgroundElement,
-      },
-      table: {
-        color: theme.text,
-        headerTextColor: theme.text,
-        headerBackgroundColor: theme.background,
-        rowEvenBackgroundColor: theme.background,
-        rowOddBackgroundColor: theme.background,
-        borderColor: theme.textSecondary,
-      },
-    }),
-    [theme],
+    () => buildMarkdownStyle(theme, base),
+    [theme, base],
   );
 
   const editable = isInPlaceEditable(fileUri);
@@ -389,7 +351,10 @@ export default function ViewerScreen() {
                 autoFocus
                 defaultValue={content}
                 onChangeText={handleEdit}
-                style={[styles.editor, { color: theme.text }]}
+                style={[
+                  styles.editor,
+                  { color: theme.text, fontSize: base, lineHeight: Math.round(base * 1.4) },
+                ]}
                 textAlignVertical="top"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -446,7 +411,6 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.two,
     paddingBottom: Spacing.four,
     fontFamily: Fonts.mono,
-    fontSize: 14,
-    lineHeight: 22,
+    // fontSize / lineHeight are applied inline from the font-size setting.
   },
 });
