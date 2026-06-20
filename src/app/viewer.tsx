@@ -259,12 +259,13 @@ export default function ViewerScreen() {
   const markdownStyle: MarkdownStyle = useMemo(
     () => ({
       paragraph: { color: theme.text },
-      h1: { color: theme.text },
-      h2: { color: theme.text },
-      h3: { color: theme.text },
-      h4: { color: theme.text },
-      h5: { color: theme.text },
-      h6: { color: theme.text },
+      h1: { color: theme.heading1 },
+      h2: { color: theme.heading2 },
+      h3: { color: theme.heading3 },
+      h4: { color: theme.heading4 },
+      // H5/H6 are rare in notes; reuse the most muted heading tone (heading4).
+      h5: { color: theme.heading4 },
+      h6: { color: theme.heading4 },
       strong: { color: theme.text },
       em: { color: theme.text },
       list: {
