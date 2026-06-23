@@ -29,8 +29,10 @@
       "renameErrorTitle": "名前を変更できませんでした",
       "renameErrorInUse": "同じ名前のファイルが既にあります。別の名前を入力してください。",
       "renameErrorFailed": "ファイル名の変更に失敗しました。",
-      "deleteFileTitle": "ファイルを削除しますか？",
-      "deleteFileMessage": "iCloud Drive の Modrift フォルダからこのファイルを削除します。元に戻せません。"
+      "deleteFileTitle": "「{{name}}」を削除しますか？",
+      "deleteFileMessage": "iCloud Drive の Modrift フォルダからこのファイルを削除します。元に戻せません。",
+      "deleteFileAction": "ファイルを削除",
+      "removeFromListAction": "履歴から削除"
     },
     "viewer": {
       "edit": "編集",

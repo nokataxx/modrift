@@ -29,8 +29,10 @@
       "renameErrorTitle": "Couldn't rename",
       "renameErrorInUse": "A file with that name already exists. Choose a different name.",
       "renameErrorFailed": "Failed to rename the file.",
-      "deleteFileTitle": "Delete file?",
-      "deleteFileMessage": "This deletes the file from iCloud Drive › Modrift. This can't be undone."
+      "deleteFileTitle": "Delete “{{name}}”?",
+      "deleteFileMessage": "This deletes the file from iCloud Drive › Modrift. This can't be undone.",
+      "deleteFileAction": "Delete File",
+      "removeFromListAction": "Remove"
     },
     "viewer": {
       "edit": "Edit",

@@ -24,7 +24,7 @@ export type RecentFile = {
 // depending on how the URL was constructed. Both resolve to the same on-disk
 // file but they are different strings, which breaks naive URI dedup. Normalize
 // to the `/private/var/` form before storage and comparison.
-function normalizeUri(uri: string): string {
+export function normalizeUri(uri: string): string {
   return uri.replace(/^file:\/\/\/var\//, 'file:///private/var/');
 }
 

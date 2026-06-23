@@ -2,10 +2,12 @@ import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
-import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import { ActionSheetIOS, Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
+import ReanimatedSwipeable, {
+  type SwipeableMethods,
+} from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { NetworkBanner } from '@/components/network-banner';
@@ -20,6 +22,7 @@ import {
 } from '@/lib/icloud-copy';
 import {
   loadRecentFiles,
+  normalizeUri,
   removeRecentFile,
   renameRecentFile,
   type RecentFile,
@@ -34,8 +37,12 @@ const LOCATION_KEY: Record<FileLocationKind, string> = {
   external: 'screens.recentFiles.locationExternal',
 };
 
-const DELETE_RED = '#FF3B30';
-const RENAME_GRAY = '#8E8E93';
+// Rename edits the file body on disk, so it gets a distinct accent (iOS system
+// green) rather than sharing the neutral gray of the harmless "remove from
+// history" action. Red is reserved for the destructive file delete, which lives
+// only in the long-press action sheet.
+const RENAME_GREEN = '#34C759';
+const REMOVE_GRAY = '#636366';
 
 function locationLabel(file: RecentFile, t: (key: string) => string): string {
   const location = classifyFileLocation(file.uri);
@@ -55,6 +62,109 @@ function locationLabel(file: RecentFile, t: (key: string) => string): string {
 // path already does — notably .text, which iCloud sometimes assigns to plain
 // text files instead of .txt.
 const SUPPORTED_EXTENSIONS = ['.md', '.markdown', '.txt', '.text'] as const;
+
+// One history row. Each row owns its own swipe handle and an `openRef` flag so a
+// tap while the actions are revealed closes the row instead of opening the file
+// (iOS Mail behaviour). The flag is set the moment an open-drag starts — not on
+// "will open" — so a release that both finishes the swipe and fires the row's
+// press can't sneak a navigation through before the guard is in place.
+//
+// Swipe actions are non-destructive only: "remove from list" (history) for every
+// row, plus "rename" for our own iCloud copies. The one destructive operation —
+// deleting a Modrift-generated copy's file body (FR-22) — lives behind a
+// deliberate long-press action sheet so it can't be triggered by a quick swipe.
+function RecentRow({
+  item,
+  onPress,
+  onRenameCopy,
+  onRemoveHistory,
+  onDeleteFile,
+}: {
+  item: RecentFile;
+  onPress: (item: RecentFile) => void;
+  onRenameCopy: (item: RecentFile) => void;
+  onRemoveHistory: (item: RecentFile) => void;
+  onDeleteFile: (item: RecentFile) => void;
+}) {
+  const { t } = useTranslation();
+  const theme = useTheme();
+  const swipeRef = useRef<SwipeableMethods>(null);
+  const openRef = useRef(false);
+  const isCopy = classifyFileLocation(item.uri).kind === 'icloudCopy';
+
+  const handleLongPress = () => {
+    // FR-22: file deletion is offered only for our own iCloud copies, and only
+    // via this long-press. The action sheet's title/message plus its destructive
+    // button is the required confirmation — no quick gesture deletes a file.
+    if (!isCopy) return;
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        title: t('screens.recentFiles.deleteFileTitle', { name: item.name }),
+        message: t('screens.recentFiles.deleteFileMessage'),
+        options: [t('screens.recentFiles.deleteFileAction'), t('common.cancel')],
+        destructiveButtonIndex: 0,
+        cancelButtonIndex: 1,
+      },
+      (index) => {
+        if (index === 0) onDeleteFile(item);
+      },
+    );
+  };
+
+  return (
+    <ReanimatedSwipeable
+      ref={swipeRef}
+      friction={2}
+      rightThreshold={40}
+      onSwipeableOpenStartDrag={() => {
+        openRef.current = true;
+      }}
+      onSwipeableClose={() => {
+        openRef.current = false;
+      }}
+      renderRightActions={() => (
+        <View style={styles.actions}>
+          {/* Our own iCloud copies can be renamed in place (FR-22); rename is
+              non-destructive so it stays on the swipe. */}
+          {isCopy && (
+            <Pressable style={styles.renameAction} onPress={() => onRenameCopy(item)}>
+              <ThemedText style={styles.actionText}>
+                {t('screens.recentFiles.renameAction')}
+              </ThemedText>
+            </Pressable>
+          )}
+          {/* History-only removal for every row — never touches the file. */}
+          <Pressable style={styles.removeAction} onPress={() => onRemoveHistory(item)}>
+            <ThemedText style={styles.actionText}>
+              {t('screens.recentFiles.removeFromListAction')}
+            </ThemedText>
+          </Pressable>
+        </View>
+      )}>
+      <Pressable
+        onPress={() => {
+          // Swiped open → tap closes the row rather than opening the file, so
+          // the revealed actions stay reachable.
+          if (openRef.current) {
+            swipeRef.current?.close();
+            return;
+          }
+          onPress(item);
+        }}
+        onLongPress={handleLongPress}
+        style={({ pressed }) => [
+          styles.row,
+          { backgroundColor: theme.background },
+          pressed && { backgroundColor: theme.backgroundElement },
+        ]}>
+        <ThemedText numberOfLines={1}>{item.name}</ThemedText>
+        <ThemedText themeColor="textSecondary" numberOfLines={1} style={styles.rowSubtitle}>
+          {locationLabel(item, t)}
+        </ThemedText>
+      </Pressable>
+    </ReanimatedSwipeable>
+  );
+}
 
 export default function HomeScreen() {
   const { t } = useTranslation();
@@ -110,9 +220,18 @@ export default function HomeScreen() {
     if (item.bookmark) {
       const resolved = await FileBookmarkModule.resolveBookmark(item.bookmark).catch(() => null);
       if (resolved !== null) {
+        // Bookmarks track the file across external (iCloud Files App) renames,
+        // so the resolved URI may differ from the stored one. Derive the current
+        // name from it, and retire the stale entry first — otherwise the viewer
+        // would record a fresh entry under the new URI while the old one (with
+        // the old name) lingers, leaving two same-looking history rows.
+        const currentName = decodeURIComponent(resolved.uri.split('/').pop() ?? '') || item.name;
+        if (normalizeUri(resolved.uri) !== normalizeUri(item.uri)) {
+          await removeRecentFile(item.uri);
+        }
         router.push({
           pathname: '/viewer',
-          params: { fileUri: resolved.uri, fileName: item.name, source: 'history' },
+          params: { fileUri: resolved.uri, fileName: currentName, source: 'history' },
         });
         return;
       }
@@ -185,37 +304,23 @@ export default function HomeScreen() {
     [t],
   );
 
-  // FR-22: delete a Modrift-generated iCloud copy's file body, with a required
-  // confirmation. If the file is already gone we still prune the history entry.
-  const handleDeleteCopy = useCallback(
-    (item: RecentFile) => {
-      Alert.alert(
-        t('screens.recentFiles.deleteFileTitle'),
-        t('screens.recentFiles.deleteFileMessage'),
-        [
-          { text: t('common.cancel'), style: 'cancel' },
-          {
-            text: t('common.delete'),
-            style: 'destructive',
-            onPress: () => {
-              try {
-                deleteIcloudCopy(item.uri);
-              } catch {
-                // File may already be deleted externally — fall through and
-                // still remove the now-dead history entry below.
-              }
-              removeRecentFile(item.uri)
-                .then(() => setRecent((prev) =>
-                  prev === null ? prev : prev.filter((r) => r.uri !== item.uri),
-                ))
-                .catch(() => {});
-            },
-          },
-        ],
-      );
-    },
-    [t],
-  );
+  // FR-22: delete a Modrift-generated iCloud copy's file body. Reached only
+  // through the long-press action sheet (RecentRow), which carries the required
+  // confirmation, so this just performs the deletion and prunes the history
+  // entry. If the file is already gone we still drop the now-dead entry.
+  const handleDeleteFile = useCallback((item: RecentFile) => {
+    try {
+      deleteIcloudCopy(item.uri);
+    } catch {
+      // File may have been deleted externally — fall through and still remove
+      // the now-dead history entry below.
+    }
+    removeRecentFile(item.uri)
+      .then(() =>
+        setRecent((prev) => (prev === null ? prev : prev.filter((r) => r.uri !== item.uri))),
+      )
+      .catch(() => {});
+  }, []);
 
   const isEmpty = recent !== null && recent.length === 0;
 
@@ -256,55 +361,13 @@ export default function HomeScreen() {
               <View style={[styles.separator, { backgroundColor: theme.backgroundElement }]} />
             )}
             renderItem={({ item }) => (
-              <ReanimatedSwipeable
-                friction={2}
-                rightThreshold={40}
-                renderRightActions={() => {
-                  // Only our own iCloud copies expose file-level rename/delete
-                  // (FR-22). Every other source keeps the history-only remove.
-                  const isCopy =
-                    classifyFileLocation(item.uri).kind === 'icloudCopy';
-                  return (
-                    <View style={styles.actions}>
-                      {isCopy && (
-                        <Pressable
-                          style={styles.renameAction}
-                          onPress={() => handleRenameCopy(item)}>
-                          <ThemedText style={styles.actionText}>
-                            {t('screens.recentFiles.renameAction')}
-                          </ThemedText>
-                        </Pressable>
-                      )}
-                      <Pressable
-                        style={styles.deleteAction}
-                        onPress={() =>
-                          isCopy
-                            ? handleDeleteCopy(item)
-                            : handleRecentDelete(item)
-                        }>
-                        <ThemedText style={styles.deleteActionText}>
-                          {t('common.delete')}
-                        </ThemedText>
-                      </Pressable>
-                    </View>
-                  );
-                }}>
-                <Pressable
-                  onPress={() => handleRecentPress(item)}
-                  style={({ pressed }) => [
-                    styles.row,
-                    { backgroundColor: theme.background },
-                    pressed && { backgroundColor: theme.backgroundElement },
-                  ]}>
-                  <ThemedText numberOfLines={1}>{item.name}</ThemedText>
-                  <ThemedText
-                    themeColor="textSecondary"
-                    numberOfLines={1}
-                    style={styles.rowSubtitle}>
-                    {locationLabel(item, t)}
-                  </ThemedText>
-                </Pressable>
-              </ReanimatedSwipeable>
+              <RecentRow
+                item={item}
+                onPress={handleRecentPress}
+                onRenameCopy={handleRenameCopy}
+                onRemoveHistory={handleRecentDelete}
+                onDeleteFile={handleDeleteFile}
+              />
             )}
             style={styles.list}
           />
@@ -358,20 +421,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   renameAction: {
-    backgroundColor: RENAME_GRAY,
+    backgroundColor: RENAME_GREEN,
     justifyContent: 'center',
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: Spacing.three,
   },
-  deleteAction: {
-    backgroundColor: DELETE_RED,
+  removeAction: {
+    backgroundColor: REMOVE_GRAY,
     justifyContent: 'center',
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: Spacing.three,
   },
   actionText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-  },
-  deleteActionText: {
     color: '#FFFFFF',
     fontWeight: '600',
   },
