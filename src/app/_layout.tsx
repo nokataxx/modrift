@@ -1,9 +1,11 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { ShareIntentProvider } from 'expo-share-intent';
 import { useEffect } from 'react';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import '@/i18n';
+import { ShareIntentHandler } from '@/components/share-intent-handler';
 import { NetworkProvider } from '@/hooks/use-network';
 import { SettingsProvider } from '@/hooks/use-settings';
 import { useResolvedColorScheme } from '@/hooks/use-theme';
@@ -42,13 +44,16 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <GestureHandlerRootView style={styles.root}>
-      <SettingsProvider>
-        <NetworkProvider>
-          <ThemedStack />
-        </NetworkProvider>
-      </SettingsProvider>
-    </GestureHandlerRootView>
+    <ShareIntentProvider>
+      <GestureHandlerRootView style={styles.root}>
+        <SettingsProvider>
+          <NetworkProvider>
+            <ThemedStack />
+            <ShareIntentHandler />
+          </NetworkProvider>
+        </SettingsProvider>
+      </GestureHandlerRootView>
+    </ShareIntentProvider>
   );
 }
 

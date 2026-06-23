@@ -54,7 +54,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.modrift.app"
     },
     "web": {
       "output": "static",
@@ -72,7 +73,19 @@
           }
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-share-intent",
+        {
+          "iosActivationRules": {
+            "NSExtensionActivationSupportsFileWithMaxCount": 1
+          },
+          "iosShareExtensionName": "Modrift Share",
+          "iosAppGroupIdentifier": "group.com.modrift.app",
+          "disableAndroid": true
+        }
+      ],
+      "./plugins/with-share-extension-xcode-fixes"
     ],
     "experiments": {
       "typedRoutes": true,

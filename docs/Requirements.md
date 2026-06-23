@@ -300,8 +300,14 @@ iOS の File Provider はプロバイダにより書き戻し可否が異なる 
 
 - iOS の共有シート (Share Sheet) から Modrift を選択し、ファイルを直接開ける
 - FR-01 経路Bの「Open In」とは別の仕組み: Open In はファイルタップから直接、Share Extensionは「共有」メニュー経由で複数アプリの選択肢に並ぶ
-- `expo-share-extension` または自前のApp Extensionで実装
 - これにより、メールの添付ファイル、Safariのダウンロード、他Mdアプリからの共有等、より広い起動経路に対応
+- **実装メモ**:
+  - `expo-share-intent` (config plugin) を採用。共有シート用の App Extension ターゲットと App Group (`group.com.modrift.app`) を prebuild が自動生成する。extension 内に独自 UI は持たない軽量構成 (`iosShareExtensionName: "Modrift"`)。
+  - 共有されたファイルは App Group コンテナ内の**使い捨てコピー**として届く。これは Open-In Inbox コピー (経路B) と同じ性質なので、**専用フローを作らず既存の `openInPending` ビューア経路に合流**させる: プレビュー先行で表示・履歴に残さない・離脱で削除・編集時のみ iCloud 編集コピーへ昇格 (FR-03 / FR-06)。viewer 側のロジックはそのまま再利用。
+  - ルートに `ShareIntentProvider` を置き、`ShareIntentHandler` (`useShareIntentContext`) が共有ファイルを `/viewer?...&openInPending=true` へ push して `resetShareIntent()` する。ファイル以外 (選択テキスト・URL 共有) は Modrift の対象外として黙ってクリア。
+  - **iOS のみ対象** (`disableAndroid: true`)。Android の編集→同期は File Provider 前提が異なるため v1.1 ではビルド対象外。
+  - 共有シートでの絞り込みは現状 `NSExtensionActivationSupportsFileWithMaxCount: 1` (単一ファイル全般)。テキスト/Md 以外でも候補に出る。実機で共有シートが煩雑なら、将来 `iosActivationRules` を `public.text` の NSPredicate に絞る (要実機検証)。
+  - **Expo のプレビルド外の native 追加**のため、`app.json` 変更後は `npx expo prebuild --clean` + Dev Client 再ビルドが必須。App Group はサイン時 (自動署名 / EAS) に Developer Portal へ登録される。
 
 ### FR-09: ダーク/ライトモード [v1.1]
 
@@ -695,7 +701,7 @@ v1.1 で実装する固定の見出しカラーリング ([5.2](#52-v11-phase-2)
   システム文字サイズ設定に追従しないと、視覚アクセシビリティ的に減点される。App Store審査で指摘されることがある
 
 - **Share Extension の実装 (v1.1)**:
-  Expoの`expo-share-extension` または自前のApp Extension。**Expoのプレビルド外**の追加実装が必要で、ここで詰まる人が多い
+  `expo-share-intent` (config plugin) を採用。**Expoのプレビルド外**の native 追加 (App Extension + App Group) が必要で、ここで詰まる人が多い。`app.json` 変更後は `prebuild --clean` + Dev Client 再ビルドが前提。詳細は [FR-08](#fr-08-share-extension-v11)
 
 - **審査での「アプリの目的」説明**:
   シンプルすぎるアプリは「機能不足」でリジェクトされることがある。スクリーンショットとレビュアー向けノートでユースケースを明示

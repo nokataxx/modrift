@@ -1,0 +1,73 @@
+diff --git a/node_modules/expo-share-intent/plugin/build/ios/ShareExtensionViewController.swift b/node_modules/expo-share-intent/plugin/build/ios/ShareExtensionViewController.swift
+index f1f4b72..62727bc 100644
+--- a/node_modules/expo-share-intent/plugin/build/ios/ShareExtensionViewController.swift
++++ b/node_modules/expo-share-intent/plugin/build/ios/ShareExtensionViewController.swift
+@@ -32,15 +32,17 @@ class ShareViewController: UIViewController {
+     if hideView {
+       view.backgroundColor = .clear
+       view.isOpaque = false
+-      handleViewLoad()
+     }
+   }
+ 
+   override func viewDidAppear(_ animated: Bool) {
+     super.viewDidAppear(animated)
+-    if !hideView {
+-      handleViewLoad()
+-    }
++    // Always process after the modal presentation has fully settled. The
++    // original hideView path ran handleViewLoad() from viewDidLoad, so the
++    // redirect/completeRequest could fire while the host app's presentation
++    // animation was still in flight — interrupting the transition and leaving
++    // the host (e.g. the Files app) frozen until it is force-relaunched.
++    handleViewLoad()
+   }
+ 
+   private func handleViewLoad() {
+@@ -490,24 +492,31 @@ class ShareViewController: UIViewController {
+   }
+ 
+   private func redirectToHostApp(type: RedirectType) {
+-    let nonce = UUID().uuidString
+-    let url = URL(string: "\(shareProtocol)://dataUrl=\(sharedKey)?nonce=\(nonce)#\(type)")!
+-    var responder = self as UIResponder?
+-
+-    while responder != nil {
+-      if let application = responder as? UIApplication {
+-        if application.canOpenURL(url) {
+-          application.open(url)
+-        } else {
+-          NSLog("redirectToHostApp canOpenURL KO: \(shareProtocol)")
+-          self.dismissWithError(
+-            message: "Application not found, invalid url scheme \(shareProtocol)")
+-          return
++    // Opening the host app and tearing down the extension context are UI
++    // operations that must run on the main thread. handleFileURL (and the other
++    // handlers) call this from async tasks that may resume off-main; doing
++    // application.open()/completeRequest() there leaves the sharing host app
++    // (e.g. the Files app) unresponsive until it is force-relaunched.
++    DispatchQueue.main.async {
++      let nonce = UUID().uuidString
++      let url = URL(string: "\(self.shareProtocol)://dataUrl=\(self.sharedKey)?nonce=\(nonce)#\(type)")!
++      var responder = self as UIResponder?
++
++      while responder != nil {
++        if let application = responder as? UIApplication {
++          if application.canOpenURL(url) {
++            application.open(url)
++          } else {
++            NSLog("redirectToHostApp canOpenURL KO: \(self.shareProtocol)")
++            self.dismissWithError(
++              message: "Application not found, invalid url scheme \(self.shareProtocol)")
++            return
++          }
+         }
++        responder = responder!.next
+       }
+-      responder = responder!.next
++      self.extensionContext!.completeRequest(returningItems: [], completionHandler: nil)
+     }
+-    extensionContext!.completeRequest(returningItems: [], completionHandler: nil)
+   }
+ 
+   enum RedirectType {

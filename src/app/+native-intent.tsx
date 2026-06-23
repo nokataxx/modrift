@@ -13,6 +13,13 @@
 // iCloud copy and removes the Inbox source.
 export function redirectSystemPath({ path }: { path: string; initial: boolean }): string {
   try {
+    // A file shared through the iOS Share Sheet (FR-08) reaches us as a custom-
+    // scheme deep link (modrift://dataUrl=...) from expo-share-intent, not as a
+    // file:// URL. Without this, expo-router treats it as an unknown route
+    // ("Unmatched Route"). Send it to home so ShareIntentHandler can read the
+    // shared file from the share-intent context and route it into the viewer
+    // (the openInPending throwaway-copy flow).
+    if (path.includes('dataUrl=')) return '/';
     if (!path.startsWith('file://')) return path;
     const fileName = decodeURIComponent(path.split('/').pop() ?? 'file');
     const isInbox = path.includes('/Documents/Inbox/');
