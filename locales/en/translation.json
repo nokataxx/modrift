@@ -47,7 +47,9 @@
       "conflictTitle": "File has changed",
       "conflictMessage": "This file was updated by another device or app after you opened it. Overwrite it with your edits, or load the latest version.",
       "conflictKeepMine": "Keep my edits",
-      "conflictLoadLatest": "Load latest (discard edits)"
+      "conflictLoadLatest": "Load latest (discard edits)",
+      "undo": "Undo",
+      "redo": "Redo"
     },
     "settings": {
       "title": "Settings",

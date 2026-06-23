@@ -47,7 +47,9 @@
       "conflictTitle": "ファイルが変更されています",
       "conflictMessage": "このファイルは、開いてから別のデバイスやアプリによって更新されています。編集中の内容で上書きするか、最新版を取得してください。",
       "conflictKeepMine": "編集中の内容を保持",
-      "conflictLoadLatest": "最新版を取得（編集を破棄）"
+      "conflictLoadLatest": "最新版を取得（編集を破棄）",
+      "undo": "元に戻す",
+      "redo": "やり直す"
     },
     "settings": {
       "title": "設定",

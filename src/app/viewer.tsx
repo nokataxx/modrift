@@ -14,6 +14,7 @@ import {
   ScrollView,
   StyleSheet,
   TextInput,
+  View,
 } from "react-native";
 import {
   EnrichedMarkdownText,
@@ -34,6 +35,11 @@ import { FONT_SIZE_BASE } from "@/lib/settings";
 import { Fonts, Spacing } from "@/theme";
 
 const IMAGE_RE = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+
+// FR-14: edits within this many ms of each other are one undo step (so a burst
+// of typing reverts together), and the undo history is capped to bound memory.
+const UNDO_COALESCE_MS = 700;
+const MAX_UNDO_STEPS = 100;
 
 function replaceLocalImages(
   md: string,
@@ -89,15 +95,50 @@ export default function ViewerScreen() {
   // Guards against stacking conflict dialogs when saves fire back to back.
   const conflictOpenRef = useRef(false);
   // Bumped to remount the uncontrolled editor so it re-seeds defaultValue after
-  // we replace the buffer with the on-disk version ("load latest").
+  // we replace the buffer — used by "load latest" (FR-13) and undo/redo (FR-14).
   const [reloadNonce, setReloadNonce] = useState(0);
   // True once an Open-In Inbox file has been copied to iCloud, so the unmount
   // cleanup doesn't try to delete an already-consumed source.
   const inboxConsumedRef = useRef(false);
 
+  // FR-14 undo/redo. Snapshots of the buffer; continuous typing coalesces into
+  // one step (see handleEdit). canUndo/canRedo drive the header buttons; the
+  // ref mirrors let us flip them only on real transitions, never per keystroke,
+  // so we don't re-render the uncontrolled editor mid-input (would jump the IME).
+  const undoStackRef = useRef<string[]>([]);
+  const redoStackRef = useRef<string[]>([]);
+  const lastEditTimeRef = useRef(0);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const canUndoRef = useRef(false);
+  const canRedoRef = useRef(false);
+
   useEffect(() => {
     contentRef.current = content;
   }, [content]);
+
+  // Flip the undo/redo button availability only on real transitions (mirrors in
+  // refs), so typing — which mutates the stacks but rarely changes these flags —
+  // doesn't trigger re-renders that would jump the IME.
+  const syncUndoRedo = useCallback(() => {
+    const undo = undoStackRef.current.length > 0;
+    const redo = redoStackRef.current.length > 0;
+    if (canUndoRef.current !== undo) {
+      canUndoRef.current = undo;
+      setCanUndo(undo);
+    }
+    if (canRedoRef.current !== redo) {
+      canRedoRef.current = redo;
+      setCanRedo(redo);
+    }
+  }, []);
+
+  const resetUndo = useCallback(() => {
+    undoStackRef.current = [];
+    redoStackRef.current = [];
+    lastEditTimeRef.current = 0;
+    syncUndoRedo();
+  }, [syncUndoRedo]);
 
   useEffect(() => {
     // Every entry path lands in preview first (preview-first model). Inbox
@@ -114,6 +155,8 @@ export default function ViewerScreen() {
         // Record the baseline for conflict detection right after the read, so a
         // later external change is detectable at save time (FR-13).
         baselineMtimeRef.current = file.modificationTime;
+        // Fresh file → fresh undo history (FR-14).
+        resetUndo();
         // Record history only for files we can reliably re-open: opened via the
         // in-app picker, reopened from history, or an iCloud copy we made. Files
         // arriving through iOS Open-In / share are deliberately not recorded —
@@ -135,7 +178,7 @@ export default function ViewerScreen() {
     return () => {
       cancelled = true;
     };
-  }, [fileUri, fileName, t, source]);
+  }, [fileUri, fileName, t, source, resetUndo]);
 
   const writeFile = useCallback(
     (text: string) => {
@@ -171,12 +214,14 @@ export default function ViewerScreen() {
       isDirtyRef.current = false;
       baselineMtimeRef.current = file.modificationTime;
       setContent(normalized);
+      // The buffer was replaced wholesale — drop undo history (FR-14).
+      resetUndo();
       // Remount the uncontrolled editor so it re-seeds from the reloaded text.
       setReloadNonce((n) => n + 1);
     } catch {
       // Non-fatal — keep the current buffer if the reread fails.
     }
-  }, [fileUri]);
+  }, [fileUri, resetUndo]);
 
   const promptConflict = useCallback(() => {
     if (conflictOpenRef.current) return;
@@ -219,24 +264,80 @@ export default function ViewerScreen() {
     [hasExternalChange, promptConflict, writeFile],
   );
 
+  // Restart the 3s auto-save debounce (FR-04). Shared by typing and undo/redo.
+  const scheduleSave = useCallback(() => {
+    if (pendingTimeoutRef.current !== null) {
+      clearTimeout(pendingTimeoutRef.current);
+    }
+    pendingTimeoutRef.current = setTimeout(() => {
+      pendingTimeoutRef.current = null;
+      saveNow();
+    }, 3000);
+  }, [saveNow]);
+
   const handleEdit = useCallback(
     (next: string) => {
       // Uncontrolled editor: write straight to the ref without setContent, so
       // the TextInput isn't re-rendered (and re-scrolled) on every keystroke —
       // that re-render is what made the Japanese IME jump the view mid-input.
       // The preview pulls the latest text from the ref on mode switch.
+      const prev = contentRef.current ?? "";
+      const now = Date.now();
+      // Start a new undo step at the beginning of a typing burst (or the very
+      // first edit); keystrokes within UNDO_COALESCE_MS fold into that step so
+      // one undo reverts the whole burst rather than a single character.
+      if (
+        undoStackRef.current.length === 0 ||
+        now - lastEditTimeRef.current > UNDO_COALESCE_MS
+      ) {
+        undoStackRef.current.push(prev);
+        if (undoStackRef.current.length > MAX_UNDO_STEPS) {
+          undoStackRef.current.shift();
+        }
+        redoStackRef.current = [];
+        syncUndoRedo();
+      }
+      lastEditTimeRef.current = now;
       contentRef.current = next;
       isDirtyRef.current = true;
-      if (pendingTimeoutRef.current !== null) {
-        clearTimeout(pendingTimeoutRef.current);
-      }
-      pendingTimeoutRef.current = setTimeout(() => {
-        pendingTimeoutRef.current = null;
-        saveNow();
-      }, 3000);
+      scheduleSave();
     },
-    [saveNow],
+    [scheduleSave, syncUndoRedo],
   );
+
+  // Apply an undo/redo target to the buffer. The editor is uncontrolled, so we
+  // remount it (reloadNonce) to re-seed defaultValue — reliable under the New
+  // Architecture where setNativeProps text updates are not. Only fires on a
+  // button press, never per keystroke, so it doesn't affect typing.
+  const applyValue = useCallback(
+    (value: string) => {
+      contentRef.current = value;
+      isDirtyRef.current = true;
+      setContent(value);
+      setReloadNonce((n) => n + 1);
+      scheduleSave();
+    },
+    [scheduleSave],
+  );
+
+  const handleUndo = useCallback(() => {
+    if (undoStackRef.current.length === 0) return;
+    redoStackRef.current.push(contentRef.current ?? "");
+    const value = undoStackRef.current.pop() as string;
+    // End any active typing burst so the next keystroke opens a fresh step.
+    lastEditTimeRef.current = 0;
+    syncUndoRedo();
+    applyValue(value);
+  }, [applyValue, syncUndoRedo]);
+
+  const handleRedo = useCallback(() => {
+    if (redoStackRef.current.length === 0) return;
+    undoStackRef.current.push(contentRef.current ?? "");
+    const value = redoStackRef.current.pop() as string;
+    lastEditTimeRef.current = 0;
+    syncUndoRedo();
+    applyValue(value);
+  }, [applyValue, syncUndoRedo]);
 
   const handleToggleMode = useCallback(() => {
     if (mode === "edit") {
@@ -386,19 +487,55 @@ export default function ViewerScreen() {
           ),
           headerRight: canToggle
             ? () => (
-                <Pressable
-                  onPress={handleToggleMode}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel={toggleLabel}
-                >
-                  <SymbolView
-                    name={mode === "preview" ? "square.and.pencil" : "eye"}
-                    size={26}
-                    weight="semibold"
-                    tintColor={theme.text}
-                  />
-                </Pressable>
+                <View style={styles.headerActions}>
+                  {mode === "edit" && (
+                    <>
+                      <Pressable
+                        onPress={handleUndo}
+                        disabled={!canUndo}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityState={{ disabled: !canUndo }}
+                        accessibilityLabel={t("screens.viewer.undo")}
+                      >
+                        <SymbolView
+                          name="arrow.uturn.backward"
+                          size={22}
+                          weight="semibold"
+                          tintColor={canUndo ? theme.text : theme.textSecondary}
+                        />
+                      </Pressable>
+                      <Pressable
+                        onPress={handleRedo}
+                        disabled={!canRedo}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityState={{ disabled: !canRedo }}
+                        accessibilityLabel={t("screens.viewer.redo")}
+                      >
+                        <SymbolView
+                          name="arrow.uturn.forward"
+                          size={22}
+                          weight="semibold"
+                          tintColor={canRedo ? theme.text : theme.textSecondary}
+                        />
+                      </Pressable>
+                    </>
+                  )}
+                  <Pressable
+                    onPress={handleToggleMode}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={toggleLabel}
+                  >
+                    <SymbolView
+                      name={mode === "preview" ? "square.and.pencil" : "eye"}
+                      size={26}
+                      weight="semibold"
+                      tintColor={theme.text}
+                    />
+                  </Pressable>
+                </View>
               )
             : showCopyButton
               ? () => (
@@ -493,6 +630,11 @@ const styles = StyleSheet.create({
   },
   loading: {
     marginTop: Spacing.three,
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.four,
   },
   editor: {
     flex: 1,
