@@ -277,6 +277,21 @@ export default function ViewerScreen() {
     [hasExternalChange, promptConflict, writeFile],
   );
 
+  // Re-check on return to foreground (FR-13). iOS often hasn't downloaded a
+  // sibling device's change by the time we save — but by the next time the app
+  // is foregrounded the sync has usually landed, so re-checking here catches the
+  // realistic multi-device flow (edit elsewhere → background → return). With
+  // unsaved edits it's a real conflict → prompt; otherwise just adopt the newer
+  // version since there's nothing local to lose.
+  const recheckExternalChange = useCallback(() => {
+    if (!hasExternalChange()) return;
+    if (isDirtyRef.current) {
+      promptConflict();
+    } else {
+      reloadFromDisk();
+    }
+  }, [hasExternalChange, promptConflict, reloadFromDisk]);
+
   // Restart the 3s auto-save debounce (FR-04). Shared by typing and undo/redo.
   const scheduleSave = useCallback(() => {
     if (pendingTimeoutRef.current !== null) {
@@ -390,10 +405,12 @@ export default function ViewerScreen() {
           pendingTimeoutRef.current = null;
         }
         saveNow(false);
+      } else if (next === "active") {
+        recheckExternalChange();
       }
     });
     return () => subscription.remove();
-  }, [saveNow]);
+  }, [saveNow, recheckExternalChange]);
 
   useEffect(() => {
     return () => {
