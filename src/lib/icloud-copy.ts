@@ -2,6 +2,8 @@ import { Directory, File } from 'expo-file-system';
 
 import IcloudContainerModule from '@modules/icloud-container';
 
+import { classifyFileLocation } from './file-location';
+
 export class IcloudUnavailableError extends Error {
   constructor() {
     super('iCloud Drive is not available on this device');
@@ -14,6 +16,23 @@ export class IcloudCopyFailedError extends Error {
     super('Failed to create iCloud copy');
     this.name = 'IcloudCopyFailedError';
     if (cause instanceof Error) this.cause = cause;
+  }
+}
+
+// Raised when a rename/delete targets a file that isn't a Modrift-generated
+// iCloud copy — a guard against turning into a general file manager (FR-22).
+export class NotAnIcloudCopyError extends Error {
+  constructor() {
+    super('File is not a Modrift iCloud copy');
+    this.name = 'NotAnIcloudCopyError';
+  }
+}
+
+// Raised when a rename target name already exists in the Modrift folder.
+export class NameInUseError extends Error {
+  constructor() {
+    super('A file with that name already exists');
+    this.name = 'NameInUseError';
   }
 }
 
@@ -70,6 +89,54 @@ export async function createIcloudCopy(
     file.create();
     file.write(content);
     return { uri: file.uri, name };
+  } catch (err) {
+    throw new IcloudCopyFailedError(err);
+  }
+}
+
+// Turn a user-typed name into a `.md` filename without mangling interior dots:
+// strip any path separators, drop a trailing `.md`, then re-append it. So
+// "My Notes" → "My Notes.md" and "v1.2 plan" → "v1.2 plan.md".
+function toMarkdownFileName(input: string): string {
+  const cleaned = input.trim().replace(/[/\\]/g, '');
+  return `${cleaned.replace(/\.md$/i, '')}.md`;
+}
+
+function ensureIcloudCopy(uri: string): void {
+  if (classifyFileLocation(uri).kind !== 'icloudCopy') {
+    throw new NotAnIcloudCopyError();
+  }
+}
+
+// Rename a Modrift-generated iCloud copy to a user-chosen name (FR-22).
+// Returns the new uri and name. Throws NotAnIcloudCopyError for anything
+// outside our iCloud container, NameInUseError on collision, and
+// IcloudCopyFailedError for an empty name or filesystem failure.
+export function renameIcloudCopy(
+  uri: string,
+  newBaseName: string,
+): { uri: string; name: string } {
+  ensureIcloudCopy(uri);
+  if (!newBaseName.trim()) throw new IcloudCopyFailedError();
+  const name = toMarkdownFileName(newBaseName);
+  const file = new File(uri);
+  if (name === file.name) return { uri: file.uri, name }; // unchanged
+  try {
+    if (new File(file.parentDirectory, name).exists) throw new NameInUseError();
+    file.rename(name);
+    return { uri: file.uri, name };
+  } catch (err) {
+    if (err instanceof NameInUseError) throw err;
+    throw new IcloudCopyFailedError(err);
+  }
+}
+
+// Delete a Modrift-generated iCloud copy's file body (FR-22). Caller is
+// responsible for the confirmation dialog and for pruning the history entry.
+export function deleteIcloudCopy(uri: string): void {
+  ensureIcloudCopy(uri);
+  try {
+    new File(uri).delete();
   } catch (err) {
     throw new IcloudCopyFailedError(err);
   }

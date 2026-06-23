@@ -13,7 +13,17 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
 import { classifyFileLocation, type FileLocationKind } from '@/lib/file-location';
-import { loadRecentFiles, removeRecentFile, type RecentFile } from '@/lib/recent-files';
+import {
+  deleteIcloudCopy,
+  NameInUseError,
+  renameIcloudCopy,
+} from '@/lib/icloud-copy';
+import {
+  loadRecentFiles,
+  removeRecentFile,
+  renameRecentFile,
+  type RecentFile,
+} from '@/lib/recent-files';
 import { Spacing } from '@/theme';
 import FileBookmarkModule from '@modules/file-bookmark';
 
@@ -25,6 +35,7 @@ const LOCATION_KEY: Record<FileLocationKind, string> = {
 };
 
 const DELETE_RED = '#FF3B30';
+const RENAME_GRAY = '#8E8E93';
 
 function locationLabel(file: RecentFile, t: (key: string) => string): string {
   const location = classifyFileLocation(file.uri);
@@ -129,6 +140,83 @@ export default function HomeScreen() {
     await removeRecentFile(item.uri);
   }, []);
 
+  // FR-22: rename a Modrift-generated iCloud copy (e.g. "Bookmarks-1.md" → a
+  // meaningful name). Renames the file in iCloud Drive › Modrift and updates the
+  // history entry to track its new uri/name. Only offered for icloudCopy rows.
+  const handleRenameCopy = useCallback(
+    (item: RecentFile) => {
+      const currentBase = item.name.replace(/\.md$/i, '');
+      Alert.prompt(
+        t('screens.recentFiles.renameTitle'),
+        t('screens.recentFiles.renameMessage'),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('screens.recentFiles.renameConfirm'),
+            onPress: (value?: string) => {
+              if (!value || !value.trim()) return;
+              try {
+                const result = renameIcloudCopy(item.uri, value);
+                renameRecentFile(item.uri, result)
+                  .then(() => setRecent((prev) =>
+                    prev === null
+                      ? prev
+                      : prev.map((r) =>
+                          r.uri === item.uri
+                            ? { ...r, uri: result.uri, name: result.name }
+                            : r,
+                        ),
+                  ))
+                  .catch(() => {});
+              } catch (err) {
+                const message =
+                  err instanceof NameInUseError
+                    ? t('screens.recentFiles.renameErrorInUse')
+                    : t('screens.recentFiles.renameErrorFailed');
+                Alert.alert(t('screens.recentFiles.renameErrorTitle'), message);
+              }
+            },
+          },
+        ],
+        'plain-text',
+        currentBase,
+      );
+    },
+    [t],
+  );
+
+  // FR-22: delete a Modrift-generated iCloud copy's file body, with a required
+  // confirmation. If the file is already gone we still prune the history entry.
+  const handleDeleteCopy = useCallback(
+    (item: RecentFile) => {
+      Alert.alert(
+        t('screens.recentFiles.deleteFileTitle'),
+        t('screens.recentFiles.deleteFileMessage'),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('common.delete'),
+            style: 'destructive',
+            onPress: () => {
+              try {
+                deleteIcloudCopy(item.uri);
+              } catch {
+                // File may already be deleted externally — fall through and
+                // still remove the now-dead history entry below.
+              }
+              removeRecentFile(item.uri)
+                .then(() => setRecent((prev) =>
+                  prev === null ? prev : prev.filter((r) => r.uri !== item.uri),
+                ))
+                .catch(() => {});
+            },
+          },
+        ],
+      );
+    },
+    [t],
+  );
+
   const isEmpty = recent !== null && recent.length === 0;
 
   return (
@@ -171,15 +259,36 @@ export default function HomeScreen() {
               <ReanimatedSwipeable
                 friction={2}
                 rightThreshold={40}
-                renderRightActions={() => (
-                  <Pressable
-                    style={styles.deleteAction}
-                    onPress={() => handleRecentDelete(item)}>
-                    <ThemedText style={styles.deleteActionText}>
-                      {t('common.delete')}
-                    </ThemedText>
-                  </Pressable>
-                )}>
+                renderRightActions={() => {
+                  // Only our own iCloud copies expose file-level rename/delete
+                  // (FR-22). Every other source keeps the history-only remove.
+                  const isCopy =
+                    classifyFileLocation(item.uri).kind === 'icloudCopy';
+                  return (
+                    <View style={styles.actions}>
+                      {isCopy && (
+                        <Pressable
+                          style={styles.renameAction}
+                          onPress={() => handleRenameCopy(item)}>
+                          <ThemedText style={styles.actionText}>
+                            {t('screens.recentFiles.renameAction')}
+                          </ThemedText>
+                        </Pressable>
+                      )}
+                      <Pressable
+                        style={styles.deleteAction}
+                        onPress={() =>
+                          isCopy
+                            ? handleDeleteCopy(item)
+                            : handleRecentDelete(item)
+                        }>
+                        <ThemedText style={styles.deleteActionText}>
+                          {t('common.delete')}
+                        </ThemedText>
+                      </Pressable>
+                    </View>
+                  );
+                }}>
                 <Pressable
                   onPress={() => handleRecentPress(item)}
                   style={({ pressed }) => [
@@ -245,10 +354,22 @@ const styles = StyleSheet.create({
   separator: {
     height: StyleSheet.hairlineWidth,
   },
+  actions: {
+    flexDirection: 'row',
+  },
+  renameAction: {
+    backgroundColor: RENAME_GRAY,
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.four,
+  },
   deleteAction: {
     backgroundColor: DELETE_RED,
     justifyContent: 'center',
     paddingHorizontal: Spacing.four,
+  },
+  actionText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
   deleteActionText: {
     color: '#FFFFFF',

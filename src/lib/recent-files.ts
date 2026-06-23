@@ -74,6 +74,24 @@ export async function recordRecentFile(entry: { uri: string; name: string }): Pr
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
 }
 
+// Update a history entry in place after its file was renamed (FR-22). The uri
+// and name change; the bookmark is dropped because it no longer resolves — our
+// iCloud copies re-open by uri without one anyway (see handleRecentPress).
+export async function renameRecentFile(
+  oldUri: string,
+  next: { uri: string; name: string },
+): Promise<void> {
+  const normalizedOld = normalizeUri(oldUri);
+  const normalizedNext = normalizeUri(next.uri);
+  const existing = await loadRecentFiles();
+  const updated = existing.map((item) =>
+    normalizeUri(item.uri) === normalizedOld
+      ? { uri: normalizedNext, name: next.name, openedAt: item.openedAt }
+      : item,
+  );
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+}
+
 export async function removeRecentFile(uri: string): Promise<void> {
   const normalizedUri = normalizeUri(uri);
   const existing = await loadRecentFiles();

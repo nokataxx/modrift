@@ -21,7 +21,16 @@
       "locationIcloudCopy": "iCloud",
       "locationIcloudDrive": "iCloud Drive",
       "locationAppSandbox": "他のアプリから",
-      "locationExternal": "他の場所"
+      "locationExternal": "他の場所",
+      "renameAction": "名前を変更",
+      "renameTitle": "名前を変更",
+      "renameMessage": "新しいファイル名を入力してください（.md は自動で付きます）。",
+      "renameConfirm": "変更",
+      "renameErrorTitle": "名前を変更できませんでした",
+      "renameErrorInUse": "同じ名前のファイルが既にあります。別の名前を入力してください。",
+      "renameErrorFailed": "ファイル名の変更に失敗しました。",
+      "deleteFileTitle": "ファイルを削除しますか？",
+      "deleteFileMessage": "iCloud Drive の Modrift フォルダからこのファイルを削除します。元に戻せません。"
     },
     "viewer": {
       "edit": "編集",

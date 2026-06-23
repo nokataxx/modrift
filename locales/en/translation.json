@@ -21,7 +21,16 @@
       "locationIcloudCopy": "iCloud",
       "locationIcloudDrive": "iCloud Drive",
       "locationAppSandbox": "From other apps",
-      "locationExternal": "Other Location"
+      "locationExternal": "Other Location",
+      "renameAction": "Rename",
+      "renameTitle": "Rename file",
+      "renameMessage": "Enter a new file name (.md is added automatically).",
+      "renameConfirm": "Rename",
+      "renameErrorTitle": "Couldn't rename",
+      "renameErrorInUse": "A file with that name already exists. Choose a different name.",
+      "renameErrorFailed": "Failed to rename the file.",
+      "deleteFileTitle": "Delete file?",
+      "deleteFileMessage": "This deletes the file from iCloud Drive › Modrift. This can't be undone."
     },
     "viewer": {
       "edit": "Edit",
