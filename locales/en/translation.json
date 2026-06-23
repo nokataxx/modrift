@@ -34,7 +34,11 @@
       "copyToIcloudDialogConfirm": "Edit",
       "copyToIcloudErrorTitle": "Couldn't copy",
       "copyToIcloudErrorIcloudUnavailable": "Enable iCloud Drive and try again.",
-      "copyToIcloudErrorFailed": "Failed to create a copy."
+      "copyToIcloudErrorFailed": "Failed to create a copy.",
+      "conflictTitle": "File has changed",
+      "conflictMessage": "This file was updated by another device or app after you opened it. Overwrite it with your edits, or load the latest version.",
+      "conflictKeepMine": "Keep my edits",
+      "conflictLoadLatest": "Load latest (discard edits)"
     },
     "settings": {
       "title": "Settings",

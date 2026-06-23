@@ -81,6 +81,16 @@ export default function ViewerScreen() {
   const contentRef = useRef<string | null>(null);
   const isDirtyRef = useRef(false);
   const pendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The file's modificationTime (epoch ms) as of our last read/write — the
+  // baseline for conflict detection (FR-13). If the on-disk mtime grows past
+  // this before we save, the file was changed externally (another device's
+  // cloud sync, another app) and a blind auto-save would clobber it.
+  const baselineMtimeRef = useRef<number | null>(null);
+  // Guards against stacking conflict dialogs when saves fire back to back.
+  const conflictOpenRef = useRef(false);
+  // Bumped to remount the uncontrolled editor so it re-seeds defaultValue after
+  // we replace the buffer with the on-disk version ("load latest").
+  const [reloadNonce, setReloadNonce] = useState(0);
   // True once an Open-In Inbox file has been copied to iCloud, so the unmount
   // cleanup doesn't try to delete an already-consumed source.
   const inboxConsumedRef = useRef(false);
@@ -101,6 +111,9 @@ export default function ViewerScreen() {
         const normalized = text.replace(/^﻿/, "").replace(/\r\n/g, "\n");
         if (cancelled) return;
         setContent(normalized);
+        // Record the baseline for conflict detection right after the read, so a
+        // later external change is detectable at save time (FR-13).
+        baselineMtimeRef.current = file.modificationTime;
         // Record history only for files we can reliably re-open: opened via the
         // in-app picker, reopened from history, or an iCloud copy we made. Files
         // arriving through iOS Open-In / share are deliberately not recorded —
@@ -124,15 +137,87 @@ export default function ViewerScreen() {
     };
   }, [fileUri, fileName, t, source]);
 
-  const saveNow = useCallback(() => {
-    if (!isDirtyRef.current || contentRef.current === null) return;
+  const writeFile = useCallback(
+    (text: string) => {
+      try {
+        new File(fileUri).write(text);
+        // Re-read after writing so our own save becomes the new baseline and
+        // isn't mistaken for an external change on the next save.
+        baselineMtimeRef.current = new File(fileUri).modificationTime;
+        isDirtyRef.current = false;
+      } catch {
+        // Silent per FR-04. Next edit will retry.
+      }
+    },
+    [fileUri],
+  );
+
+  // FR-13: true when the on-disk file changed after our recorded baseline,
+  // i.e. another device or app wrote to it while we held it open.
+  const hasExternalChange = useCallback((): boolean => {
+    const baseline = baselineMtimeRef.current;
+    if (baseline === null) return false;
+    const current = new File(fileUri).modificationTime;
+    if (current === null) return false;
+    return current > baseline;
+  }, [fileUri]);
+
+  const reloadFromDisk = useCallback(async () => {
     try {
-      new File(fileUri).write(contentRef.current);
+      const file = new File(fileUri);
+      const text = await file.text();
+      const normalized = text.replace(/^﻿/, "").replace(/\r\n/g, "\n");
+      contentRef.current = normalized;
       isDirtyRef.current = false;
+      baselineMtimeRef.current = file.modificationTime;
+      setContent(normalized);
+      // Remount the uncontrolled editor so it re-seeds from the reloaded text.
+      setReloadNonce((n) => n + 1);
     } catch {
-      // Silent per FR-04. Next edit will retry.
+      // Non-fatal — keep the current buffer if the reread fails.
     }
   }, [fileUri]);
+
+  const promptConflict = useCallback(() => {
+    if (conflictOpenRef.current) return;
+    conflictOpenRef.current = true;
+    Alert.alert(
+      t("screens.viewer.conflictTitle"),
+      t("screens.viewer.conflictMessage"),
+      [
+        {
+          text: t("screens.viewer.conflictKeepMine"),
+          onPress: () => {
+            conflictOpenRef.current = false;
+            if (contentRef.current !== null) writeFile(contentRef.current);
+          },
+        },
+        {
+          text: t("screens.viewer.conflictLoadLatest"),
+          style: "destructive",
+          onPress: () => {
+            conflictOpenRef.current = false;
+            reloadFromDisk();
+          },
+        },
+      ],
+      { cancelable: false },
+    );
+  }, [t, writeFile, reloadFromDisk]);
+
+  const saveNow = useCallback(
+    // allowPrompt is false for background/unmount saves, where a modal can't be
+    // shown — there we hold the write on conflict instead of clobbering.
+    (allowPrompt = true) => {
+      if (!isDirtyRef.current || contentRef.current === null) return;
+      if (hasExternalChange()) {
+        if (allowPrompt) promptConflict();
+        return;
+      }
+      writeFile(contentRef.current);
+    },
+    [hasExternalChange, promptConflict, writeFile],
+  );
 
   const handleEdit = useCallback(
     (next: string) => {
@@ -171,7 +256,7 @@ export default function ViewerScreen() {
           clearTimeout(pendingTimeoutRef.current);
           pendingTimeoutRef.current = null;
         }
-        saveNow();
+        saveNow(false);
       }
     });
     return () => subscription.remove();
@@ -183,7 +268,7 @@ export default function ViewerScreen() {
         clearTimeout(pendingTimeoutRef.current);
         pendingTimeoutRef.current = null;
       }
-      saveNow();
+      saveNow(false);
     };
   }, [saveNow]);
 
@@ -347,8 +432,9 @@ export default function ViewerScreen() {
           >
             {content !== null && (
               <TextInput
-                // Remount per file so the uncontrolled defaultValue re-seeds.
-                key={fileUri}
+                // Remount per file (and on "load latest" reload) so the
+                // uncontrolled defaultValue re-seeds.
+                key={`${fileUri}:${reloadNonce}`}
                 multiline
                 autoFocus
                 defaultValue={content}
