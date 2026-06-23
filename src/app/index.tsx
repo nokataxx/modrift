@@ -276,16 +276,12 @@ export default function HomeScreen() {
               if (!value || !value.trim()) return;
               try {
                 const result = renameIcloudCopy(item.uri, value);
+                // Reload from storage rather than patching state locally:
+                // renameRecentFile may drop a duplicate destination entry, and
+                // re-reading keeps the list in sync with that dedup.
                 renameRecentFile(item.uri, result)
-                  .then(() => setRecent((prev) =>
-                    prev === null
-                      ? prev
-                      : prev.map((r) =>
-                          r.uri === item.uri
-                            ? { ...r, uri: result.uri, name: result.name }
-                            : r,
-                        ),
-                  ))
+                  .then(() => loadRecentFiles())
+                  .then((items) => setRecent(items))
                   .catch(() => {});
               } catch (err) {
                 const message =

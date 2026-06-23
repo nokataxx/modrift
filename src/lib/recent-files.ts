@@ -89,7 +89,14 @@ export async function renameRecentFile(
       ? { uri: normalizedNext, name: next.name, openedAt: item.openedAt }
       : item,
   );
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  // Renaming onto a uri that another entry already occupies would leave two
+  // rows for the same file. Keep only the first occurrence of each uri so the
+  // rename can't duplicate.
+  const deduped = updated.filter(
+    (item, i) =>
+      updated.findIndex((other) => normalizeUri(other.uri) === normalizeUri(item.uri)) === i,
+  );
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(deduped));
 }
 
 export async function removeRecentFile(uri: string): Promise<void> {

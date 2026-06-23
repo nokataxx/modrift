@@ -416,6 +416,7 @@ FR-03 で Modrift は iCloud Drive の `Modrift/` フォルダに編集用コピ
 
 - **対象は Modrift が生成した iCloud コピーに限定**。任意の iCloud ファイルや他フォルダのファイルは対象外 (= 一般的なファイルマネージャにはしない。[5.6](#56-意図的に実装しないもの) を維持)。
   - 判定: iCloud ubiquity container / `iCloud Drive › Modrift` 配下、かつ Modrift 経由で作成したコピー。
+  - **技術的にも妥当 (実機確認済み)**: iCloud 直下などユーザーの任意ファイルは Document Picker で個別選択するとファイル単位の security scope しか得られない。編集 (ファイルへの書き込み) は通るが、**リネームは親フォルダへのアクセスを要する move 操作**なので `"…couldn't be moved because you don't have permission to access \"iCloud Drive\""` で失敗する。「編集できてリネームできない」のはこのサンドボックス制約による。フォルダ権限は [FR-18](#fr-18-フォルダピッカー対応-ローカル画像表示-v2) のフォルダピッカー (v2) で初めて取得でき、それ以前はユーザーファイルのリネームは原理的に不可。Modrift 自身の ubiquity container はフォルダごとアクセスできるためコピーのリネームは成立する。
 - **リネーム**: コピーの名前を変更 (`-1` のままにせず意味のある名前に)。
 - **削除**: コピーのファイル本体を削除。**確認ダイアログ必須** (誤削除防止)。削除後は履歴からも除去。
 - **Other / Local ソース (非 iCloud)**: ファイル本体は触らず**履歴からの除去のみ** (`removeRecentFile`)。
