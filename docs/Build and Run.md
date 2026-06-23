@@ -4,7 +4,7 @@ Modrift をビルドして実機・テスターに届けるまでの方法と使
 **App Store の一般公開（本審査）は別ドキュメント** → [app-store-submission-guide.md](app-store-submission-guide.md)。
 
 - 対象: 開発者本人（solo dev）
-- 前提: Expo Dev Client / `expo run:ios` でローカルビルド（`ios/` あり）。実機は nokata iPhone（iOS 26）。配布は EAS。Bundle ID `com.modrift.app`
+- 前提: Expo Dev Client / `expo run:ios` でローカルビルド（`ios/` あり）。実機は nokata iPhone（iOS 26）。配布は EAS。Bundle ID は本番 `com.modrift.app`（「Modrift」）と、端末で本番と共存させる開発用 **dev バリアント** `com.modrift.app.dev`（「Modrift Dev」）の2つ（→ [3章のバリアント節](#アプリの名義-本番--dev-バリアント)）
 
 ---
 
@@ -69,6 +69,28 @@ App Store 申請   … 審査へ（別ドキュメント）
 | --- | --- | --- | --- | --- |
 | 開発中 | **Debug + Metro** | `npx expo run:ios --device` ＋ `npx expo start` | 起動中ずっと | 保存で即反映(Fast Refresh) |
 | 普段使い | **Release** | `npx expo run:ios --device --configuration Release` | インストール時だけ | 再ビルドが必要 |
+
+> 上の表のコマンドは**本番名義**（`com.modrift.app`）でビルドする。開発中の v1.1 を TestFlight の本番と並べて検証したい場合は、下記の **dev バリアント** で名義を変える。
+
+### アプリの名義: 本番 / dev バリアント
+
+端末は「1つの Bundle ID = 1つのアプリ枠」で、同じ ID は上書きされる。TestFlight の本番（`com.modrift.app`「Modrift」）と開発中のローカルビルドを**並べて共存**させるため、ローカル開発用に別名義の **dev バリアント**（`com.modrift.app.dev`「Modrift Dev」）を用意している。
+
+- **何が違うか**: Bundle ID / 表示名 / scheme（`modrift-dev`）**だけ**。ビルド方法も中身も同じ。共有拡張の ID（`…app.dev.share-extension`）は自動で追従。iCloud コンテナと共有 App Group は本番と共用（テスト用途では問題なし。だから [iCloud をハードコードした箇所](#5-つまずきポイント今回の学び)の変更は不要）。
+- **どう切り替えるか**: いつものコマンドの**先頭に環境変数 `APP_VARIANT=development` を付けるだけ**。[app.config.js](../app.config.js) がそれを見て名義を差し替える。
+
+| | 本番名義「Modrift」 | dev 名義「Modrift Dev」 |
+| --- | --- | --- |
+| **Release ローカル実機** | `npx expo run:ios --device --configuration Release` | `npm run ios:dev` |
+| **ネイティブ再生成** | `npx expo prebuild --clean` | `npm run prebuild:dev` |
+| **Debug + Metro** | `npx expo run:ios --device` | `APP_VARIANT=development npx expo run:ios --device` |
+| **TestFlight / 配布** | `eas build --profile production` | （使わない。`development`/`preview` プロファイルは自動で dev 名義）|
+
+> `npm run ios:dev` / `npm run prebuild:dev` は「いつものコマンド + `APP_VARIANT=development`」を短い名前に包んだだけ（[package.json](../package.json) の scripts）。実体は同じ `expo run:ios` / `expo prebuild`。嫌なら env 付きで直接打っても同じ。
+>
+> 使い分け: **普段の v1.1 開発・実機検証は dev 名義（`npm run ios:dev`）**で「Modrift Dev」を使い、TestFlight の本番「Modrift」は消さずに隣に置く。配る本番だけ `eas build --profile production`。
+>
+> ⚠️ 本番名義 ⇄ dev 名義を切り替えた直後は Bundle ID が変わるので、`prebuild`（`npm run prebuild:dev` など）→ 再ビルドが必要。
 
 ### Debug + Metro の手順（開発ループ）
 
@@ -173,7 +195,7 @@ eas build --platform ios --profile production --auto-submit
 4. **OPEN** で起動 → 動作確認（iCloud同期 / Open In / 自動保存）
 
 - すべて**無線**（ケーブル不要）。
-- 同じ Bundle ID `com.modrift.app` なので、ローカル版があっても**上書き**（二重にならない）。
+- 上書きは**同じ Bundle ID 同士だけ**。TestFlight の本番（`com.modrift.app`）とローカルの **dev バリアント**（`com.modrift.app.dev`「Modrift Dev」）は別アプリなので**共存**する（端末に「Modrift」と「Modrift Dev」が並ぶ）。本番名義のローカル Release を入れた場合は TestFlight 版と同じ枠で上書きになる。
 
 ---
 
@@ -185,7 +207,7 @@ eas build --platform ios --profile production --auto-submit
 | TestFlight「**No Builds**」 | アップロード後の**処理中**。10〜30分待つ |
 | メール「**invited you to test**」 | テスター招待＝配信準備完了 |
 | TestFlight「**Ready to Test**」 | インストール可能 |
-| 実機に **Modrift が2つ** | Bundle ID を変えると iOS 上は別アプリ。旧 ID を削除（`xcrun devicectl device uninstall app --device <id> com.nokata.modrift`）|
+| 実機に **「Modrift」と「Modrift Dev」が2つ** | dev バリアントによる**意図した共存**（本番 `com.modrift.app` ＋ dev `com.modrift.app.dev`）。正常。不要な旧 ID だけ消すなら `xcrun devicectl device uninstall app --device <id> <bundleId>` |
 | ローカルビルドが「**No profiles for 'com.modrift.app'**」 | 新 Bundle ID の初回プロビジョニング。`expo run:ios` は `-allowProvisioningUpdates` を渡さないので失敗 → 直接 `xcodebuild ... -allowProvisioningUpdates build` で作成、または EAS に任せる |
 | 「**PLA Update available**」 | 使用許諾契約が未同意。developer.apple.com で同意 |
 | Bundle ID を変えた時 | `app.json` だけでなく、**iCloud コンテナをハードコードしている箇所**（`modules/icloud-container/ios/IcloudContainerModule.swift`、`src/lib/file-location.ts`）も更新が必要。漏れると iCloud が動かない |
