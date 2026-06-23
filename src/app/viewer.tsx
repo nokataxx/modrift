@@ -41,6 +41,15 @@ const IMAGE_RE = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
 const UNDO_COALESCE_MS = 700;
 const MAX_UNDO_STEPS = 100;
 
+// Where the two strings first differ — used to place the cursor at the point an
+// undo/redo changed, instead of jumping it to the end of the document.
+function commonPrefixLength(a: string, b: string): number {
+  const n = Math.min(a.length, b.length);
+  let i = 0;
+  while (i < n && a[i] === b[i]) i++;
+  return i;
+}
+
 function replaceLocalImages(
   md: string,
   placeholder: (filename: string) => string,
@@ -87,6 +96,10 @@ export default function ViewerScreen() {
   const contentRef = useRef<string | null>(null);
   const isDirtyRef = useRef(false);
   const pendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The live editor instance, so undo/redo can restore the cursor after remount.
+  const editorRef = useRef<TextInput>(null);
+  // Cursor offset to apply after an undo/redo remount (null = leave at default).
+  const pendingCursorRef = useRef<number | null>(null);
   // The file's modificationTime (epoch ms) as of our last read/write — the
   // baseline for conflict detection (FR-13). If the on-disk mtime grows past
   // this before we save, the file was changed externally (another device's
@@ -305,12 +318,17 @@ export default function ViewerScreen() {
     [scheduleSave, syncUndoRedo],
   );
 
-  // Apply an undo/redo target to the buffer. The editor is uncontrolled, so we
-  // remount it (reloadNonce) to re-seed defaultValue — reliable under the New
-  // Architecture where setNativeProps text updates are not. Only fires on a
-  // button press, never per keystroke, so it doesn't affect typing.
+  // Apply an undo/redo target to the buffer. Remount the editor (reloadNonce) so
+  // the fresh defaultValue reliably re-seeds the text — imperative setNativeProps
+  // text swaps desync the New Architecture event count and corrupt the *next*
+  // undo. The cursor is then restored to where the change happened (not the end)
+  // via setSelection after the remount (see the reloadNonce effect below).
   const applyValue = useCallback(
     (value: string) => {
+      pendingCursorRef.current = commonPrefixLength(
+        contentRef.current ?? "",
+        value,
+      );
       contentRef.current = value;
       isDirtyRef.current = true;
       setContent(value);
@@ -319,6 +337,20 @@ export default function ViewerScreen() {
     },
     [scheduleSave],
   );
+
+  // After an undo/redo remount, place the cursor at the change point. A fresh
+  // mount has a clean event count, so setSelection applies reliably here (unlike
+  // an imperative mid-edit text swap). Skipped for other remounts (file open,
+  // "load latest") where pendingCursorRef is null and the cursor stays at end.
+  useEffect(() => {
+    const cursor = pendingCursorRef.current;
+    if (cursor === null) return;
+    pendingCursorRef.current = null;
+    const id = requestAnimationFrame(() => {
+      editorRef.current?.setSelection(cursor, cursor);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [reloadNonce]);
 
   const handleUndo = useCallback(() => {
     if (undoStackRef.current.length === 0) return;
@@ -569,6 +601,7 @@ export default function ViewerScreen() {
           >
             {content !== null && (
               <TextInput
+                ref={editorRef}
                 // Remount per file (and on "load latest" reload) so the
                 // uncontrolled defaultValue re-seeds.
                 key={`${fileUri}:${reloadNonce}`}
