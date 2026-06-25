@@ -123,6 +123,7 @@ iOS の標準的なメンタルモデルに合わせ、ユーザーの好みで�
 - 競合警告UI (Drive側のタイムスタンプ確認)
 - Undo / Redo
 - Modrift 生成の iCloud 編集コピーの整理 (リネーム・削除) — Modrift 自身が作ったコピー限定。一般のファイル管理機能は持たない ([FR-22](#fr-22-modrift-生成-icloud-コピーの整理-リネーム削除-v11))
+- クラウドソースの命名 — 名乗れない外部クラウド (Google Drive / Dropbox 等) に設定画面で名前を付け、履歴で見分けられるようにする ([FR-26](#fr-26-クラウドソースの命名-v11))
 
 ### 5.3 v2 (Phase 4)
 
@@ -498,7 +499,7 @@ Modrift 内から新規の `.md` ファイルを作成し、そのまま編集�
 
 **編集の制約は従来どおり ([FR-03](#fr-03-md編集-mvp))**:
 
-- 参照 (ブラウズ) は全プロバイダで可能。**編集の保存は置き場所依存**: iCloud Drive / Dropbox は in-place 同期、Google Drive 等は iCloud コピー経由。編集まで快適にしたいなら Vault は iCloud Drive 推奨。
+- 参照 (ブラウズ) は全プロバイダで可能。**編集の保存は置き場所依存**: iCloud Drive は in-place 同期、Google Drive・Dropbox 等は iCloud コピー経由 (Dropbox の in-place 可否は未検証。[10.1](#101-file-provider関連) 参照)。編集まで快適にしたいなら Vault は iCloud Drive 推奨。
 
 **実装の見通し (難易度: 中)**:
 
@@ -528,6 +529,36 @@ v1.1 で実装する固定の見出しカラーリング ([5.2](#52-v11-phase-2)
 - 当面は配色テンプレートの選択。見出しサイズの調整 (別途検討項目) も、必要ならテンプレートに含める形で拡張可能。
 
 詳細 (テンプレートの数・内容、サイズを含めるか) は v2 着手時に確定する。
+
+### FR-26: クラウドソースの命名 [v1.1]
+
+最近開いたファイルの履歴で、ファイルがどのクラウド由来か (Google Drive / Dropbox 等) を見分けられるよう、ユーザーが各クラウドに名前を付けられるようにする。
+
+**前提となる iOS の制約 (実機確認済み・重要)**:
+
+サンドボックス内のサードパーティアプリは、ファイルがどのプロバイダ由来かを **公開 API で取得できない**。
+
+- `NSFileProviderManager.getDomainsWithCompletionHandler` は **自分自身の File Provider のドメインしか返さない** (Modrift は File Provider 拡張を持たないため空)。
+- `getIdentifierForUserVisibleFileAtURL` (iOS 16+) は他社プロバイダのファイルに対して **権限拒否** (`NSFileReadNoPermissionError` / errorCode 257) を返す (実機確認)。
+- URI のパスに含まれるのは **不透明なコンテナ識別子** (多くは UUID、インストールごとにランダム) のみで、名前には復号できない。
+- → **「Google Drive」「Dropbox」と自動表示する公開手段は存在しない**。これはプライバシー上の意図的な制約 (`LSApplicationWorkspace` 等の私的 API は審査リジェクト要因のため不採用)。
+
+**採用方式 — コンテナキーによるユーザー命名**:
+
+- URI から **プロバイダごとに安定なコンテナキー** を抽出する (Document Picker は AppGroup、Files の in-place は `/CloudStorage/<id>`、レガシーは `/Mobile Documents/<id>`)。キーはインストール内で固定なので、同一ソースのファイルをグループ化できる (名前は分からなくても **見分け** はつく)。
+- **既定表示**: 名乗れない外部クラウドは `他のクラウド · <キー先頭4桁>` と表示し、ソースごとに視覚的に区別する。
+- **ユーザー命名**: 設定画面の「クラウドの名前」一覧で、各ソースに一度だけ名前を付ける (`Alert.prompt`)。名前はコンテナキーに紐付けて AsyncStorage (`modrift:cloudNames`) に保存し、**そのソースの全ファイルに適用**。空欄で既定表示に戻る。一覧には履歴に出現したソースを列挙し、見分け用にサンプルのファイル名を併記する。
+
+**UI 配置の判断 (確定) — 命名は設定画面に置く**:
+
+- 履歴行の **タップはファイルを開く**、**スワイプはファイル操作** (履歴削除 / iCloud コピーのリネーム) と役割が確立している。クラウド命名をここに足すと「ファイルのリネーム」と「クラウドの命名」が混同される。
+- またクラウド命名は「一度付ければ全ファイルに効く＝ソース単位の設定」であり、頻度も低い。よって per-file の行ではなく **設定画面 (ソース単位の設定が集まる場所)** に置くのが概念的に整合し、混乱を避けられる。
+- 検討した代替案 (履歴行の副題タップ / スワイプアクション) は不採用 — 上記の混同・誤タップを招くため。
+
+**範囲**:
+
+- 命名対象は **名乗れない外部クラウドのみ**。iCloud 系は従来どおり自動ラベル (`iCloud` / `iCloud Drive`)。
+- 関連する微修正を同梱: 履歴ラベル `他の場所` → `他のクラウド`、および検出不能なコンテナ識別子 (UUID) を生のままプロバイダ名として表示してしまうバグの修正 (既知プロバイダにマッチした時のみ名前を返す)。
 
 ## 8. 非機能要件 (NFR)
 
@@ -644,7 +675,7 @@ v1.1 で実装する固定の見出しカラーリング ([5.2](#52-v11-phase-2)
   `writeAsStringAsync` は「ローカルファイルへの書き込み完了」までしか保証しない。クラウドへのアップロード完了はFile Provider内部で進行し、Modriftからは観測できない。MVP は状態 UI を出さないサイレント保存方針なので、この差を表示で誤魔化す必要はない (Apple Notes 流)
 
 - **Google Drive は他アプリの編集をクラウドへ上げない (実機確認 2026-05-29)**:
-  Google Drive の iOS File Provider は、外部アプリ (Modrift 含む) の in-place 編集をクラウドへアップロードしない (ローカル / Files アプリには反映されるが Google Drive web には反映されない)。iCloud Drive / Dropbox では同期される。Modrift の書き込みは `NSFileCoordinator` で協調済みで、原因は Google Drive 側。**対応方針 (FR-03)**: Google Drive 等は閲覧は直接行い、編集は iCloud Drive 内 `Modrift/` へコピーを作成して行う。in-place 編集は iCloud / アプリローカルのみ。Google Drive への直接書き戻し (Drive API 連携) は採用しない方針。Dropbox 等が in-place で同期可能かは未検証
+  Google Drive の iOS File Provider は、外部アプリ (Modrift 含む) の in-place 編集をクラウドへアップロードしない (ローカル / Files アプリには反映されるが Google Drive web には反映されない)。iCloud Drive は同期されることを実機確認済み (Dropbox 等の他プロバイダの in-place 同期可否は未検証)。Modrift の書き込みは `NSFileCoordinator` で協調済みで、原因は Google Drive 側。**対応方針 (FR-03)**: Google Drive 等は閲覧は直接行い、編集は iCloud Drive 内 `Modrift/` へコピーを作成して行う。in-place 編集は iCloud / アプリローカルのみ。Google Drive への直接書き戻し (Drive API 連携) は採用しない方針。**実装の現状 (重要)**: `isInPlaceEditable` が in-place 編集を許すのは iCloud Drive (`…/com~apple~CloudDocs/…`) とアプリの iCloud コンテナのみで、**Dropbox を含むそれ以外はすべてコピーフロー** (Google Drive と同じ扱い)。本文・スコープに「iCloud / Dropbox は in-place」とある箇所は願望であり、実装は未追従。Dropbox の in-place 書き戻しが実際に動くかを実機検証し、動くと確認できたら判定に Dropbox のマウントパターンを追加して in-place に昇格する
 
 - **オフライン時の挙動 (FR-05で対応方針確定)**:
   オフラインで保存すると、書き込みはローカルキャッシュに成功、Driveへの反映はオンライン復帰時。MVPではUI上は明示しない (機能のみオフライン許可)。v1.1でネットワーク監視バッジを追加
@@ -860,3 +891,6 @@ v1.1 で実装する固定の見出しカラーリング ([5.2](#52-v11-phase-2)
   - FR-25 (見出しスタイルのユーザー選択) を新設。プリセット・テンプレート方式を採用 (フルカラーピッカーは不採用)
   - v1.1 の固定カラーリングの上に乗せる拡張。設定画面 (FR-09/FR-10) 依存のため v2 に配置
   - スコープ 5.3 (v2) とロードマップ Phase 4 に追記
+- **2026-06-25 (改訂7)**: クラウドソースの命名と Dropbox 実装ズレの訂正:
+  - FR-26 (クラウドソースの命名) を新設。iOS が他社 File Provider 名を出さない制約 (`getDomains` は自分のドメインのみ / `getIdentifierForUserVisibleFileAtURL` は権限拒否、いずれも実機確認) を踏まえ、URI のコンテナキーによるユーザー命名方式を採用 (設定画面に配置)。履歴ラベル「他の場所」→「他のクラウド」、検出不能な UUID を生のままプロバイダ名に出すバグの修正を同梱。スコープ 5.2 (v1.1) に追記
+  - 10.1: 「iCloud Drive / Dropbox は in-place 同期」の記述を訂正。実装 (`isInPlaceEditable`) が in-place を許すのは iCloud Drive とアプリ iCloud コンテナのみで、Dropbox を含む他プロバイダはコピーフロー。Dropbox の in-place 書き戻しは未検証。FR-24 の同種記述も合わせて訂正
