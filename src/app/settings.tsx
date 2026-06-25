@@ -1,7 +1,8 @@
 import { Stack } from 'expo-router';
-import { useMemo } from 'react';
+import { SymbolView } from 'expo-symbols';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { EnrichedMarkdownText } from 'react-native-enriched-markdown';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,7 +10,14 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useSettings } from '@/hooks/use-settings';
 import { useTheme } from '@/hooks/use-theme';
+import { type CloudNames, loadCloudNames, setCloudName } from '@/lib/cloud-names';
+import {
+  classifyFileLocation,
+  externalContainerKey,
+  shortContainerTag,
+} from '@/lib/file-location';
 import { buildMarkdownStyle } from '@/lib/markdown-style';
+import { loadRecentFiles } from '@/lib/recent-files';
 import { FONT_SIZE_BASE, type AppearanceMode, type FontSizeKey } from '@/lib/settings';
 import { Spacing } from '@/theme';
 
@@ -90,6 +98,51 @@ export default function SettingsScreen() {
 
   const previewStyle = useMemo(() => buildMarkdownStyle(theme, base), [theme, base]);
 
+  // FR-26: name third-party cloud sources. iOS won't reveal whether a file is
+  // from Google Drive or Dropbox, but each source has a stable container key, so
+  // the user names it once here and it applies to every file from that source.
+  // We derive the visible sources from history (most-recent sample name per key
+  // gives the user something to recognise it by).
+  const [cloudSources, setCloudSources] = useState<{ key: string; sample: string }[]>([]);
+  const [cloudNames, setCloudNames] = useState<CloudNames>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([loadRecentFiles(), loadCloudNames()]).then(([items, names]) => {
+      if (cancelled) return;
+      const seen = new Map<string, string>();
+      for (const file of items) {
+        if (classifyFileLocation(file.uri).kind !== 'external') continue;
+        const key = externalContainerKey(file.uri);
+        if (!key || seen.has(key)) continue;
+        seen.set(key, file.name);
+      }
+      setCloudSources(Array.from(seen, ([key, sample]) => ({ key, sample })));
+      setCloudNames(names);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const promptCloudName = (key: string) => {
+    Alert.prompt(
+      t('screens.recentFiles.nameCloudTitle'),
+      t('screens.recentFiles.nameCloudMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('screens.recentFiles.nameCloudConfirm'),
+          onPress: (value?: string) => {
+            setCloudName(key, value ?? '').then(setCloudNames).catch(() => {});
+          },
+        },
+      ],
+      'plain-text',
+      cloudNames[key] ?? '',
+    );
+  };
+
   return (
     <ThemedView style={styles.container}>
       <Stack.Screen options={{ title: t('screens.settings.title') }} />
@@ -160,6 +213,54 @@ export default function SettingsScreen() {
             </View>
             <ThemedText style={styles.glyphLarge}>A</ThemedText>
           </View>
+
+          {cloudSources.length > 0 && (
+            <>
+              <ThemedText themeColor="textSecondary" style={styles.sectionLabel}>
+                {t('screens.settings.cloudNames')}
+              </ThemedText>
+              <View style={[styles.cloudGroup, { backgroundColor: theme.backgroundElement }]}>
+                {cloudSources.map((src, i) => (
+                  <Pressable
+                    key={src.key}
+                    onPress={() => promptCloudName(src.key)}
+                    style={({ pressed }) => [
+                      styles.cloudRow,
+                      i > 0 && {
+                        borderTopColor: theme.background,
+                        borderTopWidth: StyleSheet.hairlineWidth,
+                      },
+                      pressed && styles.pressed,
+                    ]}
+                    accessibilityRole="button">
+                    <View style={styles.cloudRowText}>
+                      <ThemedText numberOfLines={1}>
+                        {cloudNames[src.key] ??
+                          `${t('screens.recentFiles.locationExternal')} · ${shortContainerTag(src.key)}`}
+                      </ThemedText>
+                      {src.sample ? (
+                        <ThemedText
+                          themeColor="textSecondary"
+                          numberOfLines={1}
+                          style={styles.cloudSample}>
+                          {t('screens.settings.cloudSample', { name: src.sample })}
+                        </ThemedText>
+                      ) : null}
+                    </View>
+                    <SymbolView
+                      name="chevron.right"
+                      size={14}
+                      weight="semibold"
+                      tintColor={theme.textSecondary}
+                    />
+                  </Pressable>
+                ))}
+              </View>
+              <ThemedText themeColor="textSecondary" style={styles.cloudHint}>
+                {t('screens.settings.cloudNamesHint')}
+              </ThemedText>
+            </>
+          )}
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
@@ -287,5 +388,29 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     borderWidth: 2,
+  },
+  // Cloud names
+  cloudGroup: {
+    borderRadius: Spacing.three,
+    overflow: 'hidden',
+  },
+  cloudRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.three,
+  },
+  cloudRowText: {
+    flex: 1,
+  },
+  cloudSample: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  cloudHint: {
+    fontSize: 12,
+    marginTop: Spacing.two,
+    marginLeft: Spacing.two,
   },
 });

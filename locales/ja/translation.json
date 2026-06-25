@@ -21,7 +21,7 @@
       "locationIcloudCopy": "iCloud",
       "locationIcloudDrive": "iCloud Drive",
       "locationAppSandbox": "他のアプリから",
-      "locationExternal": "他の場所",
+      "locationExternal": "他のクラウド",
       "renameAction": "名前を変更",
       "renameTitle": "名前を変更",
       "renameMessage": "新しいファイル名を入力してください（.md は自動で付きます）。",
@@ -32,7 +32,10 @@
       "deleteFileTitle": "「{{name}}」を削除しますか？",
       "deleteFileMessage": "iCloud Drive の Modrift フォルダからこのファイルを削除します。元に戻せません。",
       "deleteFileAction": "ファイルを削除",
-      "removeFromListAction": "履歴から削除"
+      "removeFromListAction": "履歴から削除",
+      "nameCloudTitle": "クラウドに名前を付ける",
+      "nameCloudMessage": "このクラウド上のファイルにまとめて表示する名前を入力します（例: Google Drive）。空欄で元に戻せます。",
+      "nameCloudConfirm": "保存"
     },
     "viewer": {
       "edit": "編集",
@@ -67,7 +70,10 @@
         "small": "小",
         "medium": "中",
         "large": "大"
-      }
+      },
+      "cloudNames": "クラウドの名前",
+      "cloudSample": "例: {{name}}",
+      "cloudNamesHint": "Google Drive などのクラウドは iOS の制約で自動判別できません。ここで名前を付けると履歴に反映されます。"
     }
   },
   "network": {

@@ -14,7 +14,13 @@ import { NetworkBanner } from '@/components/network-banner';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useTheme } from '@/hooks/use-theme';
-import { classifyFileLocation, type FileLocationKind } from '@/lib/file-location';
+import { type CloudNames, loadCloudNames } from '@/lib/cloud-names';
+import {
+  classifyFileLocation,
+  externalContainerKey,
+  shortContainerTag,
+  type FileLocationKind,
+} from '@/lib/file-location';
 import {
   deleteIcloudCopy,
   NameInUseError,
@@ -44,15 +50,23 @@ const LOCATION_KEY: Record<FileLocationKind, string> = {
 const RENAME_GREEN = '#34C759';
 const REMOVE_GRAY = '#636366';
 
-function locationLabel(file: RecentFile, t: (key: string) => string): string {
+function locationLabel(
+  file: RecentFile,
+  t: (key: string) => string,
+  cloudNames: CloudNames,
+): string {
   const location = classifyFileLocation(file.uri);
-  // For files coming from a third-party File Provider, prefer the display
-  // name that NSFileProviderManager handed us at record time — it knows
-  // "Google Drive" / "Dropbox" reliably across install variants. Fall
-  // back to URI-pattern detection only when the native lookup didn't
-  // produce a name (e.g. for files opened before this code shipped).
+  // Third-party clouds: iOS won't name them, so resolve in order of confidence —
+  // a name the user gave this source, then any provider name we detected, else
+  // the generic label plus a short stable tag ("他のクラウド · A348") so two
+  // unnamed clouds stay visually distinct until the user names them.
   if (location.kind === 'external') {
-    return file.providerName ?? location.providerName ?? t(LOCATION_KEY.external);
+    const key = externalContainerKey(file.uri);
+    if (key && cloudNames[key]) return cloudNames[key];
+    const detected = file.providerName ?? location.providerName;
+    if (detected) return detected;
+    const base = t(LOCATION_KEY.external);
+    return key ? `${base} · ${shortContainerTag(key)}` : base;
   }
   return t(LOCATION_KEY[location.kind]);
 }
@@ -75,12 +89,14 @@ const SUPPORTED_EXTENSIONS = ['.md', '.markdown', '.txt', '.text'] as const;
 // deliberate long-press action sheet so it can't be triggered by a quick swipe.
 function RecentRow({
   item,
+  cloudNames,
   onPress,
   onRenameCopy,
   onRemoveHistory,
   onDeleteFile,
 }: {
   item: RecentFile;
+  cloudNames: CloudNames;
   onPress: (item: RecentFile) => void;
   onRenameCopy: (item: RecentFile) => void;
   onRemoveHistory: (item: RecentFile) => void;
@@ -159,7 +175,7 @@ function RecentRow({
         ]}>
         <ThemedText numberOfLines={1}>{item.name}</ThemedText>
         <ThemedText themeColor="textSecondary" numberOfLines={1} style={styles.rowSubtitle}>
-          {locationLabel(item, t)}
+          {locationLabel(item, t, cloudNames)}
         </ThemedText>
       </Pressable>
     </ReanimatedSwipeable>
@@ -171,12 +187,15 @@ export default function HomeScreen() {
   const theme = useTheme();
   const router = useRouter();
   const [recent, setRecent] = useState<RecentFile[] | null>(null);
+  const [cloudNames, setCloudNames] = useState<CloudNames>({});
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
-      loadRecentFiles().then((items) => {
-        if (!cancelled) setRecent(items);
+      Promise.all([loadRecentFiles(), loadCloudNames()]).then(([items, names]) => {
+        if (cancelled) return;
+        setRecent(items);
+        setCloudNames(names);
       });
       return () => {
         cancelled = true;
@@ -359,6 +378,7 @@ export default function HomeScreen() {
             renderItem={({ item }) => (
               <RecentRow
                 item={item}
+                cloudNames={cloudNames}
                 onPress={handleRecentPress}
                 onRenameCopy={handleRenameCopy}
                 onRemoveHistory={handleRecentDelete}
