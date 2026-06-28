@@ -29,12 +29,11 @@ import { useSettings } from "@/hooks/use-settings";
 import { useTheme } from "@/hooks/use-theme";
 import { classifyFileLocation, isInPlaceEditable } from "@/lib/file-location";
 import { createIcloudCopy, IcloudUnavailableError } from "@/lib/icloud-copy";
+import { inlineLocalImages } from "@/lib/local-images";
 import { buildMarkdownStyle } from "@/lib/markdown-style";
 import { recordRecentFile, removeRecentFile } from "@/lib/recent-files";
 import { FONT_SIZE_BASE } from "@/lib/settings";
 import { Fonts, Spacing } from "@/theme";
-
-const IMAGE_RE = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
 
 // FR-14: edits within this many ms of each other are one undo step (so a burst
 // of typing reverts together), and the undo history is capped to bound memory.
@@ -48,17 +47,6 @@ function commonPrefixLength(a: string, b: string): number {
   let i = 0;
   while (i < n && a[i] === b[i]) i++;
   return i;
-}
-
-function replaceLocalImages(
-  md: string,
-  placeholder: (filename: string) => string,
-): string {
-  return md.replace(IMAGE_RE, (match, _alt, url) => {
-    if (url.startsWith("https://")) return match;
-    const filename = url.split("/").pop() || url;
-    return placeholder(filename);
-  });
 }
 
 type Mode = "preview" | "edit";
@@ -492,12 +480,30 @@ export default function ViewerScreen() {
     );
   }, [content, copying, performCopy, t]);
 
-  const processedMarkdown = useMemo(() => {
-    if (content === null) return null;
-    return replaceLocalImages(content, (filename) =>
+  // FR-18: local images are inlined as base64 data URIs (async file reads), so
+  // the rendered markdown is derived in an effect rather than synchronously.
+  // Stays null until ready so the preview shows its loading state meanwhile.
+  const [processedMarkdown, setProcessedMarkdown] = useState<string | null>(null);
+  useEffect(() => {
+    // content goes null → text exactly once (it's never reset to null), so the
+    // initial null state already covers the loading phase — no sync reset here.
+    if (content === null) return;
+    let cancelled = false;
+    inlineLocalImages(content, fileUri, (filename) =>
       t("screens.viewer.imagePlaceholder", { filename }),
-    );
-  }, [content, t]);
+    )
+      .then((result) => {
+        if (!cancelled) setProcessedMarkdown(result);
+      })
+      .catch(() => {
+        // Inlining failed wholesale — fall back to the raw markdown so the
+        // document still renders (remote images work, locals show broken).
+        if (!cancelled) setProcessedMarkdown(content);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [content, fileUri, t]);
 
   const markdownStyle: MarkdownStyle = useMemo(
     () => buildMarkdownStyle(theme, base),

@@ -73,7 +73,13 @@
       },
       "cloudNames": "Cloud names",
       "cloudSample": "e.g. {{name}}",
-      "cloudNamesHint": "iOS doesn't reveal which cloud a file comes from. Name them here and it shows in your history."
+      "cloudNamesHint": "iOS doesn't reveal which cloud a file comes from. Name them here and it shows in your history.",
+      "vaultFolder": "Vault folder",
+      "vaultChoose": "Choose a Vault folder",
+      "vaultSubtitle": "Shows local images inside your notes",
+      "vaultChange": "Change folder",
+      "vaultRemove": "Remove Vault",
+      "vaultFolderHint": "Grant the folder that holds your Markdown as a Vault to display local images (![](image.png)) referenced by notes inside it."
     }
   },
   "network": {

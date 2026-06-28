@@ -9,6 +9,7 @@ import { ShareIntentHandler } from '@/components/share-intent-handler';
 import { NetworkProvider } from '@/hooks/use-network';
 import { SettingsProvider } from '@/hooks/use-settings';
 import { useResolvedColorScheme } from '@/hooks/use-theme';
+import { activateVaultScope } from '@/lib/vault-folder';
 import IcloudContainerModule from '@modules/icloud-container';
 
 export const unstable_settings = {
@@ -40,6 +41,11 @@ export default function RootLayout() {
     // Without this the folder only appears the first time the user performs a copy.
     IcloudContainerModule.getContainerDocumentsURL().catch(() => {
       // Non-fatal: copy flow handles unavailability with its own error path.
+    });
+    // FR-18: re-activate the granted Vault folder's security scope so note
+    // images under it are readable this launch. No-op when no folder is set.
+    activateVaultScope().catch(() => {
+      // Non-fatal: images simply fall back to placeholders if the scope is lost.
     });
   }, []);
 
