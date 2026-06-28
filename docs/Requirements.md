@@ -539,7 +539,7 @@ Modrift 内から新規の `.md` ファイルを作成し、そのまま編集�
 
 **編集の制約は従来どおり ([FR-03](#fr-03-md編集-mvp))**:
 
-- 参照 (ブラウズ) は全プロバイダで可能。**編集の保存は置き場所依存**: iCloud Drive は in-place 同期、Google Drive・Dropbox 等は iCloud コピー経由 (Dropbox の in-place 可否は未検証。[10.1](#101-file-provider関連) 参照)。編集まで快適にしたいなら Vault は iCloud Drive 推奨。
+- 参照 (ブラウズ) は全プロバイダで可能。**編集の保存は置き場所依存**: iCloud Drive は in-place 同期、Google Drive・Dropbox 等は iCloud コピー経由 (Dropbox の in-place 書き戻しも不可を実機確認 2026-06-28。[10.1](#101-file-provider関連) 参照)。編集まで快適にしたいなら Vault は iCloud Drive 推奨。
 
 **実装の見通し (難易度: 中)**:
 
@@ -716,7 +716,7 @@ v1.1 で実装する固定の見出しカラーリング ([5.2](#52-v11-phase-2)
   `writeAsStringAsync` は「ローカルファイルへの書き込み完了」までしか保証しない。クラウドへのアップロード完了はFile Provider内部で進行し、Modriftからは観測できない。MVP は状態 UI を出さないサイレント保存方針なので、この差を表示で誤魔化す必要はない (Apple Notes 流)
 
 - **Google Drive は他アプリの編集をクラウドへ上げない (実機確認 2026-05-29)**:
-  Google Drive の iOS File Provider は、外部アプリ (Modrift 含む) の in-place 編集をクラウドへアップロードしない (ローカル / Files アプリには反映されるが Google Drive web には反映されない)。iCloud Drive は同期されることを実機確認済み (Dropbox 等の他プロバイダの in-place 同期可否は未検証)。Modrift の書き込みは `NSFileCoordinator` で協調済みで、原因は Google Drive 側。**対応方針 (FR-03)**: Google Drive 等は閲覧は直接行い、編集は iCloud Drive 内 `Modrift/` へコピーを作成して行う。in-place 編集は iCloud / アプリローカルのみ。Google Drive への直接書き戻し (Drive API 連携) は採用しない方針。**実装の現状 (重要)**: `isInPlaceEditable` が in-place 編集を許すのは iCloud Drive (`…/com~apple~CloudDocs/…`) とアプリの iCloud コンテナのみで、**Dropbox を含むそれ以外はすべてコピーフロー** (Google Drive と同じ扱い)。本文・スコープに「iCloud / Dropbox は in-place」とある箇所は願望であり、実装は未追従。Dropbox の in-place 書き戻しが実際に動くかを実機検証し、動くと確認できたら判定に Dropbox のマウントパターンを追加して in-place に昇格する
+  Google Drive の iOS File Provider は、外部アプリ (Modrift 含む) の in-place 編集をクラウドへアップロードしない (ローカル / Files アプリには反映されるが Google Drive web には反映されない)。iCloud Drive は同期されることを実機確認済み (Dropbox も 2026-06-28 に実機検証し、編集の書き戻し不可を確認。ただし現状は Modrift が iCloud 以外を一律ゲートしているためで、Dropbox provider 自体の upload 可否の切り分けは未実施)。Modrift の書き込みは `NSFileCoordinator` で協調済みで、原因は Google Drive 側。**対応方針 (FR-03)**: Google Drive 等は閲覧は直接行い、編集は iCloud Drive 内 `Modrift/` へコピーを作成して行う。in-place 編集は iCloud / アプリローカルのみ。Google Drive への直接書き戻し (Drive API 連携) は採用しない方針。**実装の現状 (重要)**: `isInPlaceEditable` が in-place 編集を許すのは iCloud Drive (`…/com~apple~CloudDocs/…`) とアプリの iCloud コンテナのみで、**Dropbox を含むそれ以外はすべてコピーフロー** (Google Drive と同じ扱い)。本文・スコープに「iCloud / Dropbox は in-place」とある箇所は願望であり、実装は未追従。Dropbox を in-place に昇格するには、ゲートを開けた状態で Dropbox provider が実際に upload するかを検証し、動くと確認できてから判定に Dropbox のマウントパターンを追加する (現状ゲート下では 2026-06-28 実機で書き戻し不可を確認済み)
 
 - **オフライン時の挙動 (FR-05で対応方針確定)**:
   オフラインで保存すると、書き込みはローカルキャッシュに成功、Driveへの反映はオンライン復帰時。MVPではUI上は明示しない (機能のみオフライン許可)。v1.1でネットワーク監視バッジを追加
@@ -804,7 +804,7 @@ v1.1 で実装する固定の見出しカラーリング ([5.2](#52-v11-phase-2)
 - [ ] iOS Files App で `.md` ファイルを長押し → 「Modrift で開く」で Modrift が起動して該当ファイルが表示される (経路B、Open In)
 - [ ] プレビュー表示が正しい (見出し、リスト、リンク、コード、引用、HTTPS画像)
 - [ ] 編集して3秒後に自動保存される (UI 表示なし、再オープンで反映を確認)
-- [ ] 編集内容がクラウド側にも反映される (iCloud Drive / Dropbox 等。**Google Drive は他アプリ編集を同期しないため対象外**)
+- [ ] 編集内容がクラウド側にも反映される (**iCloud Drive のみ in-place 同期**。Dropbox / Google Drive は in-place 編集対象外＝iCloud コピー経由で編集)
 - [ ] 最近開いたファイルがリストに表示される
 - [ ] UI が日本語・英語で切り替わる (デバイス言語に追従)
 
@@ -813,7 +813,7 @@ v1.1 で実装する固定の見出しカラーリング ([5.2](#52-v11-phase-2)
 - [ ] 日本語IMEで長文編集しても文字化けや変換崩れがない (実機検証済み)
 - [ ] アプリ起動 → ファイル選択 → プレビュー表示が3秒以内
 - [ ] アプリをバックグラウンド遷移しても編集内容が消えない (強制保存される)
-- [ ] オフライン時に編集してオンライン復帰するとクラウド (iCloud Drive / Dropbox 等) に反映される
+- [ ] オフライン時に編集してオンライン復帰するとクラウド (iCloud Drive) に反映される
 - [ ] iPhone 12以降の実機で動作確認済み
 
 ### 配布面
@@ -938,3 +938,4 @@ v1.1 で実装する固定の見出しカラーリング ([5.2](#52-v11-phase-2)
   - FR-16 を「iPad 左右分割プレビュー」から「iPad 大画面レイアウト最適化」に格下げ (FR-20 のライブプレビュー編集により左右分割は不要に)
   - スコープ 5.3 (v2) を三本柱 (FR-20 ライブプレビュー / FR-24 Vault ブラウザ / FR-18 ローカル画像) + 付随機能に再構成。ロードマップ Phase 4 も同期
   - 5.7 (収益化 / 価格モデル) を新設: 無料コア (Md/Vault/画像) + 有償 Pro (PDF/xlsx, v3) の境界、買い切り (ローンチ時) + エンタイトルメント方式 (RevenueCat、サブスクは後付け可) を確定。FR-21〜 を [v3 / Pro] 化、5.6 に「無料機能の有償化はしない」を追加、技術スタック・競合表 (価格欄) を更新
+- **2026-06-28 (改訂9)**: Dropbox 編集同期の記述を訂正: 実機検証で Dropbox も編集の書き戻し不可を確認 (in-place 編集が成立するのは iCloud Drive のみ、`isInPlaceEditable` のゲートどおり)。10.1・FR-24 の「未検証」表現と、テストチェックリスト・概要の「iCloud Drive / Dropbox は編集同期」記述を「iCloud Drive のみ」に統一。CLAUDE.md・app-store-listing.md の同種記述も併せて訂正。マーケ施策は app-store-marketing.md に集約

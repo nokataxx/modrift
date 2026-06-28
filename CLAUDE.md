@@ -10,9 +10,9 @@ This file is the persistent context for Claude Code working on the Modrift proje
 - **将来的に**: PDF、xlsx、画像なども横断的に閲覧できる「知的生産ファイルクライアント」へ拡張
 - **コンセプト**: Mo (Mobile / Motion) + drift (流れる、漂う) = モバイルでファイルと思考が流れるように行き来する
 
-**対応ストレージ (重要)**: 編集→保存のクラウド同期は、ファイルが置かれた iOS File Provider に依存する。
-- **iCloud Drive / Dropbox 等の素直なプロバイダ**: 編集がクラウドへ同期される → **編集用途の推奨ストレージ**
-- **Google Drive**: 閲覧は可能だが、**他アプリの in-place 編集をクラウドへアップロードしない**ため編集の保存が同期されない (Google Drive 側の File Provider 制約。Modrift の書き込みコードは正しく、iCloud では同期を実機で確認済み)
+**対応ストレージ (重要)**: in-place 編集 (原本への書き戻し) が成立するのは **iCloud Drive のみ**。これは Modrift の設計仕様で、`isInPlaceEditable()` が iCloud Drive (`com~apple~CloudDocs`) とアプリの iCloud コンテナだけを編集可と判定する。
+- **iCloud Drive**: 編集がその場でクラウドへ同期される → **編集用途の推奨ストレージ** (実機確認済み)
+- **Dropbox / Google Drive 等のサードパーティ File Provider**: 閲覧は可能だが in-place 編集は不可。編集は iCloud にコピーを作成して行う (原本には書き戻らない、FR-03)。Google Drive は provider 自体が他アプリ編集をアップロードしない制約も別途確認済み。**Dropbox も書き戻し不可を実機確認 (2026-06-28)** — ただしこれは Modrift が iCloud 以外を一律ゲートしている結果で、Dropbox provider 自体の upload 可否は切り分け未実施
 
 **段階的な「Vault 扱い」の進化**:
 - MVP: Vault 内の **個別の Md ファイル** を Document Picker で開いて編集
@@ -136,7 +136,7 @@ Modrift は **2つの起動経路** をフラットに対応する。これは M
 - **Sandbox**: アプリは選択されたファイルにのみアクセス可能
 - **Security-Scoped Bookmark**: Document Picker の URI はセッションを跨ぐと無効化 (v1.1で対応)
 - **File Provider 同期完了は観測不可**: `writeAsStringAsync` はローカル書き込み完了までしか保証しない
-- **クラウド同期はプロバイダ依存**: 書き込みは `NSFileCoordinator` で協調済み。iCloud Drive / Dropbox は編集をクラウドへ同期するが、**Google Drive は他アプリの編集をアップロードしない**ため編集用途では非推奨 (閲覧は可)
+- **クラウド同期はプロバイダ依存**: 書き込みは `NSFileCoordinator` で協調済み。**in-place 編集が成立するのは iCloud Drive のみ** (`isInPlaceEditable` のゲート)。**Dropbox / Google Drive 等は in-place 編集不可** (編集は iCloud コピー経由、原本に書き戻らない)。閲覧は全プロバイダ可
 - **UTI 登録が必要 (Open In対応のため)**: `CFBundleDocumentTypes` で `.md` ハンドリングを宣言
 
 ### 環境

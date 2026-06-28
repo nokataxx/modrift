@@ -46,9 +46,8 @@ Modrift は、クラウド上の Markdown ファイルを iPhone でサッと開
 ・日本語 / 英語の UI 切り替え
 
 ■ 編集の保存について
-編集の保存は、ファイルが置かれている iOS の File Provider に依存します。
-・iCloud Drive / Dropbox 等: 編集がクラウドへ同期されます（編集用途におすすめ）
-・Google Drive: 閲覧は可能ですが、仕様上、他アプリの編集がクラウドへ反映されません（閲覧向け）
+・iCloud Drive: 編集がその場でクラウドへ同期されます（編集用途におすすめ）
+・その他のクラウド（Dropbox / Google Drive 等）: 閲覧できます。編集するときは iCloud にコピーを作成して編集します（原本には書き戻りません）
 
 ■ Files アプリとの関係
 Modrift は Files アプリの代わりではなく、補完するアプリです。フォルダ管理は Files に任せ、Modrift は Markdown の整形表示と軽い編集に集中します。
@@ -85,10 +84,9 @@ Key features
 - Japanese / English interface
 
 About saving edits
-Saving depends on the iOS File Provider where your file lives.
 
-- iCloud Drive / Dropbox, etc.: edits sync to the cloud (recommended for editing)
-- Google Drive: viewing works, but by design it does not upload edits made by other apps (view-only)
+- iCloud Drive: edits sync to the cloud in place (recommended for editing)
+- Other clouds (Dropbox / Google Drive, etc.): viewing works; to edit, Modrift makes a copy in iCloud and edits that (the original is not written back)
 
 Relationship to the Files app
 Modrift complements the Files app rather than replacing it. Leave folder management to Files; Modrift focuses on formatted Markdown viewing and light editing.
