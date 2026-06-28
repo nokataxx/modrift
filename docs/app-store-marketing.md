@@ -62,8 +62,10 @@ v2 まで待てない明確な理由があるときだけ、軽微な `v1.1.1`�
 - [ ] **説明文（Description）の訂正をストアへ反映** — [app-store-listing.md](app-store-listing.md) の
       「編集の保存について」は repo では訂正済み（編集＝iCloud Drive のみ）。だが**ライブのストア公開文に
       反映するには新ビルド提出が必要**なので、ここで v2 に同梱する（現状ストアには旧・誤文言が残る）
-- [ ] **03-edit.png 撮り直し**（必須）— デモ welcome.md の「iCloud / Dropbox にそのまま同期」を
-      「iCloud Drive にそのまま同期」へ修正して再撮影（listing 説明文の訂正と歩調を合わせる）
+- [x] **03-edit.png 撮り直し完了**（2026-06-28）— 修正済みデモ [../samples/welcome.md](../samples/welcome.md)
+      を iPhone 17 Pro Max シミュレータ（1320×2868）で編集モード表示し再撮影、
+      `store-assets/screenshots/03-edit.png` を差し替え済み（「iCloud / Dropbox にそのまま同期」→
+      「iCloud Drive にそのまま同期」を反映）。**ストア公開への反映は v2 提出時**（スクショもメタデータ）
 - [ ] （推奨）1枚目を before/after かキャプション付きにし「生 `#` → 整形」の変換を一目で伝える
 - [ ] スクショのストア差し替え（上記を反映したもの）
 
