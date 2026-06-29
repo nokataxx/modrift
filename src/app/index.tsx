@@ -378,30 +378,6 @@ export default function HomeScreen() {
       />
       <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
         <NetworkBanner />
-        {vaultFolder && (
-          <Pressable
-            onPress={handleOpenVault}
-            style={({ pressed }) => [
-              styles.vaultRow,
-              { backgroundColor: theme.backgroundElement },
-              pressed && styles.pressed,
-            ]}
-            accessibilityRole="button">
-            <SymbolView name="folder.fill" size={22} weight="regular" tintColor={theme.tint} />
-            <View style={styles.vaultRowText}>
-              <ThemedText numberOfLines={1}>{vaultFolder.name}</ThemedText>
-              <ThemedText themeColor="textSecondary" style={styles.vaultRowLabel}>
-                {t('screens.recentFiles.vaultLabel')}
-              </ThemedText>
-            </View>
-            <SymbolView
-              name="chevron.right"
-              size={14}
-              weight="semibold"
-              tintColor={theme.textSecondary}
-            />
-          </Pressable>
-        )}
         {isEmpty ? (
           <ThemedText themeColor="textSecondary" style={styles.empty}>
             {t('screens.recentFiles.empty')}
@@ -430,16 +406,33 @@ export default function HomeScreen() {
         )}
 
         {vaultFolder ? (
-          // Vault mode: Open File is the rare escape hatch for files outside the
-          // Vault, so it's demoted to a small secondary link.
-          <Pressable
-            style={({ pressed }) => [styles.openElsewhere, pressed && styles.pressed]}
-            onPress={handleOpen}
-            accessibilityRole="button">
-            <ThemedText themeColor="textSecondary" style={styles.openElsewhereText}>
-              {t('screens.recentFiles.openElsewhere')}
-            </ThemedText>
-          </Pressable>
+          // Vault mode: the primary bottom button swaps from "Open File" to
+          // "My Vault" in place. Open File becomes the rare escape hatch for
+          // files outside the Vault, demoted to a small link just below.
+          <View style={styles.vaultActions}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.openButton,
+                styles.vaultButton,
+                { backgroundColor: theme.backgroundElement },
+                pressed && styles.pressed,
+              ]}
+              onPress={handleOpenVault}
+              accessibilityRole="button">
+              <SymbolView name="folder.fill" size={18} weight="regular" tintColor={theme.tint} />
+              <ThemedText type="default" numberOfLines={1} style={styles.vaultButtonLabel}>
+                {vaultFolder.name}
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [styles.openElsewhere, pressed && styles.pressed]}
+              onPress={handleOpen}
+              accessibilityRole="button">
+              <ThemedText themeColor="textSecondary" style={styles.openElsewhereText}>
+                {t('screens.recentFiles.openElsewhere')}
+              </ThemedText>
+            </Pressable>
+          </View>
         ) : (
           <Pressable
             style={({ pressed }) => [
@@ -512,27 +505,21 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.7,
   },
-  // Vault mode (FR-24): primary "My Vault" entry above history.
-  vaultRow: {
+  // Vault mode (FR-24): the bottom primary button swaps to "My Vault", with the
+  // demoted Open File link just below it.
+  vaultActions: {
+    gap: Spacing.one,
+  },
+  vaultButton: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingVertical: Spacing.three,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.three,
-    marginBottom: Spacing.two,
+    gap: Spacing.two,
   },
-  vaultRowText: {
-    flex: 1,
+  vaultButtonLabel: {
+    flexShrink: 1,
   },
-  vaultRowLabel: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  // Demoted Open File link shown in Vault mode.
   openElsewhere: {
     alignItems: 'center',
-    paddingVertical: Spacing.three,
+    paddingVertical: Spacing.two,
   },
   openElsewhereText: {
     fontSize: 14,
