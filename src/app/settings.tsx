@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ActionSheetIOS, Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { EnrichedMarkdownText } from 'react-native-enriched-markdown';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -19,12 +19,6 @@ import {
 import { buildMarkdownStyle } from '@/lib/markdown-style';
 import { loadRecentFiles } from '@/lib/recent-files';
 import { FONT_SIZE_BASE, type AppearanceMode, type FontSizeKey } from '@/lib/settings';
-import {
-  clearVaultFolder,
-  loadVaultFolder,
-  pickVaultFolder,
-  type VaultFolder,
-} from '@/lib/vault-folder';
 import { Spacing } from '@/theme';
 
 type Theme = ReturnType<typeof useTheme>;
@@ -111,50 +105,6 @@ export default function SettingsScreen() {
   // gives the user something to recognise it by).
   const [cloudSources, setCloudSources] = useState<{ key: string; sample: string }[]>([]);
   const [cloudNames, setCloudNames] = useState<CloudNames>({});
-
-  // FR-18: the granted Vault folder. Choosing one lets notes opened from inside
-  // it display their local images (and is the base for FR-23 / FR-24 later).
-  const [vaultFolder, setVaultFolder] = useState<VaultFolder | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    loadVaultFolder().then((folder) => {
-      if (!cancelled) setVaultFolder(folder);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const chooseVault = () => {
-    pickVaultFolder()
-      .then((folder) => {
-        if (folder) setVaultFolder(folder);
-      })
-      .catch(() => {});
-  };
-
-  const handleVaultPress = () => {
-    if (!vaultFolder) {
-      chooseVault();
-      return;
-    }
-    ActionSheetIOS.showActionSheetWithOptions(
-      {
-        title: vaultFolder.name,
-        options: [
-          t('screens.settings.vaultChange'),
-          t('screens.settings.vaultRemove'),
-          t('common.cancel'),
-        ],
-        destructiveButtonIndex: 1,
-        cancelButtonIndex: 2,
-      },
-      (index) => {
-        if (index === 0) chooseVault();
-        else if (index === 1) clearVaultFolder().then(() => setVaultFolder(null)).catch(() => {});
-      },
-    );
-  };
 
   useEffect(() => {
     let cancelled = false;
@@ -263,42 +213,6 @@ export default function SettingsScreen() {
             </View>
             <ThemedText style={styles.glyphLarge}>A</ThemedText>
           </View>
-
-          <ThemedText themeColor="textSecondary" style={styles.sectionLabel}>
-            {t('screens.settings.vaultFolder')}
-          </ThemedText>
-          <View style={[styles.cloudGroup, { backgroundColor: theme.backgroundElement }]}>
-            <Pressable
-              onPress={handleVaultPress}
-              style={({ pressed }) => [styles.cloudRow, pressed && styles.pressed]}
-              accessibilityRole="button">
-              <SymbolView
-                name={vaultFolder ? 'folder.fill' : 'folder.badge.plus'}
-                size={22}
-                weight="regular"
-                tintColor={vaultFolder ? theme.tint : theme.textSecondary}
-              />
-              <View style={styles.cloudRowText}>
-                <ThemedText numberOfLines={1}>
-                  {vaultFolder ? vaultFolder.name : t('screens.settings.vaultChoose')}
-                </ThemedText>
-                {vaultFolder ? (
-                  <ThemedText themeColor="textSecondary" numberOfLines={1} style={styles.cloudSample}>
-                    {t('screens.settings.vaultSubtitle')}
-                  </ThemedText>
-                ) : null}
-              </View>
-              <SymbolView
-                name="chevron.right"
-                size={14}
-                weight="semibold"
-                tintColor={theme.textSecondary}
-              />
-            </Pressable>
-          </View>
-          <ThemedText themeColor="textSecondary" style={styles.cloudHint}>
-            {t('screens.settings.vaultFolderHint')}
-          </ThemedText>
 
           {cloudSources.length > 0 && (
             <>

@@ -33,7 +33,6 @@ import {
   renameRecentFile,
   type RecentFile,
 } from '@/lib/recent-files';
-import { loadVaultFolder, type VaultFolder } from '@/lib/vault-folder';
 import { Spacing } from '@/theme';
 import FileBookmarkModule from '@modules/file-bookmark';
 
@@ -189,35 +188,20 @@ export default function HomeScreen() {
   const router = useRouter();
   const [recent, setRecent] = useState<RecentFile[] | null>(null);
   const [cloudNames, setCloudNames] = useState<CloudNames>({});
-  // FR-24: a set Vault folder is what flips the home into "Vault mode" — there's
-  // no separate toggle. Reloaded on focus so changing it in settings reflects
-  // here on return.
-  const [vaultFolder, setVaultFolder] = useState<VaultFolder | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
-      Promise.all([loadRecentFiles(), loadCloudNames(), loadVaultFolder()]).then(
-        ([items, names, folder]) => {
-          if (cancelled) return;
-          setRecent(items);
-          setCloudNames(names);
-          setVaultFolder(folder);
-        },
-      );
+      Promise.all([loadRecentFiles(), loadCloudNames()]).then(([items, names]) => {
+        if (cancelled) return;
+        setRecent(items);
+        setCloudNames(names);
+      });
       return () => {
         cancelled = true;
       };
     }, []),
   );
-
-  const handleOpenVault = () => {
-    if (!vaultFolder) return;
-    router.push({
-      pathname: '/vault',
-      params: { path: vaultFolder.uri, name: vaultFolder.name },
-    });
-  };
 
   const handleOpen = async () => {
     let result: DocumentPicker.DocumentPickerResult;
@@ -405,45 +389,15 @@ export default function HomeScreen() {
           />
         )}
 
-        {vaultFolder ? (
-          // Vault mode: the primary bottom button swaps from "Open File" to
-          // "My Vault" in place. Open File becomes the rare escape hatch for
-          // files outside the Vault, demoted to a small link just below.
-          <View style={styles.vaultActions}>
-            <Pressable
-              style={({ pressed }) => [
-                styles.openButton,
-                styles.vaultButton,
-                { backgroundColor: theme.backgroundElement },
-                pressed && styles.pressed,
-              ]}
-              onPress={handleOpenVault}
-              accessibilityRole="button">
-              <SymbolView name="folder.fill" size={18} weight="regular" tintColor={theme.tint} />
-              <ThemedText type="default" numberOfLines={1} style={styles.vaultButtonLabel}>
-                {vaultFolder.name}
-              </ThemedText>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.openElsewhere, pressed && styles.pressed]}
-              onPress={handleOpen}
-              accessibilityRole="button">
-              <ThemedText themeColor="textSecondary" style={styles.openElsewhereText}>
-                {t('screens.recentFiles.openElsewhere')}
-              </ThemedText>
-            </Pressable>
-          </View>
-        ) : (
-          <Pressable
-            style={({ pressed }) => [
-              styles.openButton,
-              { backgroundColor: theme.backgroundElement },
-              pressed && styles.pressed,
-            ]}
-            onPress={handleOpen}>
-            <ThemedText type="default">{t('picker.open')}</ThemedText>
-          </Pressable>
-        )}
+        <Pressable
+          style={({ pressed }) => [
+            styles.openButton,
+            { backgroundColor: theme.backgroundElement },
+            pressed && styles.pressed,
+          ]}
+          onPress={handleOpen}>
+          <ThemedText type="default">{t('picker.open')}</ThemedText>
+        </Pressable>
       </SafeAreaView>
     </ThemedView>
   );
@@ -503,27 +457,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pressed: {
-    opacity: 0.7,
-  },
-  // Vault mode (FR-24): the bottom primary button swaps to "My Vault", with the
-  // demoted Open File link just below it.
-  vaultActions: {
-    gap: Spacing.one,
-  },
-  vaultButton: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: Spacing.two,
-  },
-  vaultButtonLabel: {
-    flexShrink: 1,
-  },
-  openElsewhere: {
-    alignItems: 'center',
-    paddingVertical: Spacing.two,
-  },
-  openElsewhereText: {
-    fontSize: 12,
     opacity: 0.7,
   },
 });

@@ -35,13 +35,7 @@
       "removeFromListAction": "履歴から削除",
       "nameCloudTitle": "クラウドに名前を付ける",
       "nameCloudMessage": "このクラウド上のファイルにまとめて表示する名前を入力します（例: Google Drive）。空欄で元に戻せます。",
-      "nameCloudConfirm": "保存",
-      "vaultLabel": "Vault",
-      "openElsewhere": "別の場所から開く"
-    },
-    "vault": {
-      "empty": "このフォルダは空です。",
-      "unavailable": "Vault フォルダを開けませんでした。設定で選び直してください。"
+      "nameCloudConfirm": "保存"
     },
     "viewer": {
       "edit": "編集",
@@ -79,13 +73,7 @@
       },
       "cloudNames": "クラウドの名前",
       "cloudSample": "例: {{name}}",
-      "cloudNamesHint": "Google Drive などのクラウドは iOS の制約で自動判別できません。ここで名前を付けると履歴に反映されます。",
-      "vaultFolder": "Vault フォルダ",
-      "vaultChoose": "Vault フォルダを選択",
-      "vaultSubtitle": "ノート内のローカル画像を表示できます",
-      "vaultChange": "別のフォルダに変更",
-      "vaultRemove": "Vault を解除",
-      "vaultFolderHint": "Md と同じフォルダを Vault として許可すると、そのフォルダ内のノートに含まれるローカル画像 (![](image.png)) を表示できます。"
+      "cloudNamesHint": "Google Drive などのクラウドは iOS の制約で自動判別できません。ここで名前を付けると履歴に反映されます。"
     }
   },
   "network": {

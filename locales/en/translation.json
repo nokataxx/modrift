@@ -35,13 +35,7 @@
       "removeFromListAction": "Remove",
       "nameCloudTitle": "Name this cloud",
       "nameCloudMessage": "This name will show for every file from this cloud (e.g. Google Drive). Leave blank to reset.",
-      "nameCloudConfirm": "Save",
-      "vaultLabel": "Vault",
-      "openElsewhere": "Open from elsewhere"
-    },
-    "vault": {
-      "empty": "This folder is empty.",
-      "unavailable": "Couldn't open the Vault folder. Re-select it in Settings."
+      "nameCloudConfirm": "Save"
     },
     "viewer": {
       "edit": "Edit",
@@ -79,13 +73,7 @@
       },
       "cloudNames": "Cloud names",
       "cloudSample": "e.g. {{name}}",
-      "cloudNamesHint": "iOS doesn't reveal which cloud a file comes from. Name them here and it shows in your history.",
-      "vaultFolder": "Vault folder",
-      "vaultChoose": "Choose a Vault folder",
-      "vaultSubtitle": "Shows local images inside your notes",
-      "vaultChange": "Change folder",
-      "vaultRemove": "Remove Vault",
-      "vaultFolderHint": "Grant the folder that holds your Markdown as a Vault to display local images (![](image.png)) referenced by notes inside it."
+      "cloudNamesHint": "iOS doesn't reveal which cloud a file comes from. Name them here and it shows in your history."
     }
   },
   "network": {
