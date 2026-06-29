@@ -7,7 +7,7 @@ This file is the persistent context for Claude Code working on the Modrift proje
 **Modrift** は iOS / Android 向けの軽量モバイルクライアントアプリ。
 
 - **コア機能**: クラウド (iCloud / Google Drive / Dropbox 等) やメール添付などにある **Markdown ファイルを、どこからでも iPhone でサッと開いて整形表示・軽編集**。特定の Vault やアプリに縛られない「どこのファイルでも開ける軽量 Markdown ビューア＆クイックエディタ」
-- **将来的に**: PDF、xlsx、画像など他形式の**単一ファイル**も閲覧できる「知的生産ファイルクライアント」へ拡張
+- **将来的に**: PDF、Word (.docx)、xlsx、画像など他形式の**単一ファイル**も閲覧できる「知的生産ファイルクライアント」へ拡張
 - **コンセプト**: Mo (Mobile / Motion) + drift (流れる、漂う) = モバイルでファイルと思考が流れるように行き来する
 - **「Vault」を主役にしない (2026-06-29 方針転換)**: iOS はサードパーティ File Provider のフォルダ参照を塞ぐため、フォルダ Vault は Google Drive 等で成立せず iCloud 専用だと Obsidian と競合するだけ。よって**フォルダ Vault・Vault ブラウザ・内部リンク `[[]]`・埋め込み `![[]]`・ローカル画像表示は実装しない**。単一ファイル中心に振り切る (Requirements 改訂11)
 
@@ -18,7 +18,7 @@ This file is the persistent context for Claude Code working on the Modrift proje
 **段階的な進化**:
 - MVP / v1.1: 任意の `.md` を Document Picker / Open In で開いて整形表示・軽編集 (2つの起動経路)
 - v2: ライブプレビュー編集 (EnrichedMarkdownTextInput) を主役に、検索・編集履歴等を追加
-- v3: 単一ファイルの PDF / xlsx 閲覧 (有償 Pro)
+- v3: 単一ファイルの PDF / Word (.docx) / xlsx 閲覧 (有償 Pro)
 
 **iOS Files App との関係**: Modrift は Files App と競合せず**補完関係**にある。Files App はファイル管理 (フォルダ階層、リネーム、移動、削除) を担い、Modrift は Md 整形表示・編集と他形式ファイルの閲覧を担う。
 
