@@ -35,7 +35,7 @@ App Review 用サンプル。Modrift で開くと整形表示され、**編集**
 
 ## Quote / 引用
 
-> Modrift is a lightweight client for reading and lightly editing your Markdown vault on the go.
+> Modrift is a lightweight client for reading and lightly editing any single Markdown file on the go.
 
 ## Code / コード
 

@@ -27,11 +27,11 @@ Markdownをサッと開いて軽く編集
 
 ### キーワード（100字以内・カンマ区切り）
 
-markdown,md,obsidian,vault,エディタ,メモ,テキスト,ノート,icloud,ビューア,書類,プレビュー
+markdown,md,obsidian,エディタ,メモ,テキスト,ノート,icloud,ビューア,書類,プレビュー
 
 ### プロモーションテキスト（170字以内・審査不要で随時更新可）
 
-iPhoneでObsidian Vaultやクラウド上のMarkdownをサッと開いて、整形表示で読んで、その場で軽く直せる。軽快さに特化したミニマルなMarkdownクライアントです。
+iPhoneでクラウドやメール添付のMarkdownをどこからでもサッと開いて、整形表示で読んで、その場で軽く直せる。軽快さに特化したミニマルなMarkdownクライアントです。
 
 ### 説明文（Description）
 
@@ -64,11 +64,11 @@ Open & edit Markdown, fast
 
 ### Keywords (≤100 chars, comma-separated)
 
-markdown,md,obsidian,vault,editor,notes,text,icloud,viewer,document,preview,plain text
+markdown,md,obsidian,editor,notes,text,icloud,viewer,document,preview,plain text
 
 ### Promotional Text (≤170 chars)
 
-Open Markdown from your Obsidian vault or the cloud on iPhone, read it beautifully formatted, and make quick edits in place. A minimal, fast Markdown client.
+Open Markdown from any cloud or email attachment on iPhone, read it beautifully formatted, and make quick edits in place. A minimal, fast Markdown client.
 
 ### Description
 

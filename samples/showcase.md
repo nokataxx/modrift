@@ -157,7 +157,7 @@ const doubled = items.map((n) => n * 2);
 
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
 
-長い日本語の文章もテストしておきます。モバイルでマークダウンを軽快に閲覧・編集できることが Modrift のコアバリューであり、Obsidian Vault との互換性を保ちつつシンプルな UX を目指しています。文字の折り返しや段落間のマージンが適切に表示されることを確認してください。
+長い日本語の文章もテストしておきます。どこのクラウドにある単一の Markdown ファイルでもモバイルで軽快に閲覧・編集できることが Modrift のコアバリューであり、シンプルな UX を目指しています。文字の折り返しや段落間のマージンが適切に表示されることを確認してください。
 
 Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 
