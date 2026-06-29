@@ -512,6 +512,7 @@ const styles = StyleSheet.create({
   },
   vaultButton: {
     flexDirection: 'row',
+    justifyContent: 'center',
     gap: Spacing.two,
   },
   vaultButtonLabel: {
@@ -522,6 +523,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
   },
   openElsewhereText: {
-    fontSize: 14,
+    fontSize: 12,
+    opacity: 0.7,
   },
 });

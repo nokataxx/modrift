@@ -21,19 +21,27 @@ function isSupportedFile(name: string): boolean {
   return SUPPORTED_EXTENSIONS.some((ext) => lower.endsWith(ext));
 }
 
-type Entry = { kind: 'dir' | 'file'; name: string; uri: string };
+type Entry = { kind: 'dir' | 'file'; name: string; uri: string; supported: boolean };
 
-// List a folder's children: subfolders plus openable files, with dotfiles
-// (e.g. Obsidian's .obsidian) hidden. Folders sort first, then alphabetical.
+// List a folder's children: subfolders and files. Unsupported files (images,
+// PDFs, etc.) are still shown — but dimmed and non-interactive (like the system
+// picker greys out non-matching types) so the Vault's full contents are visible
+// without offering to open what Modrift can't. Dotfiles (e.g. Obsidian's
+// .obsidian config) stay hidden as noise. Folders sort first, then alphabetical.
 function listEntries(folderUri: string): Entry[] {
   const items = new Directory(folderUri).list();
   const entries: Entry[] = [];
   for (const item of items) {
     if (item.name.startsWith('.')) continue;
     if (item instanceof Directory) {
-      entries.push({ kind: 'dir', name: item.name, uri: item.uri });
-    } else if (isSupportedFile(item.name)) {
-      entries.push({ kind: 'file', name: item.name, uri: item.uri });
+      entries.push({ kind: 'dir', name: item.name, uri: item.uri, supported: true });
+    } else {
+      entries.push({
+        kind: 'file',
+        name: item.name,
+        uri: item.uri,
+        supported: isSupportedFile(item.name),
+      });
     }
   }
   entries.sort((a, b) => {
@@ -125,34 +133,39 @@ export default function VaultScreen() {
             ItemSeparatorComponent={() => (
               <View style={[styles.separator, { backgroundColor: theme.backgroundElement }]} />
             )}
-            renderItem={({ item }) => (
-              <Pressable
-                onPress={() => handlePress(item)}
-                style={({ pressed }) => [
-                  styles.row,
-                  { backgroundColor: theme.background },
-                  pressed && { backgroundColor: theme.backgroundElement },
-                ]}
-                accessibilityRole="button">
-                <SymbolView
-                  name={item.kind === 'dir' ? 'folder.fill' : 'doc.text'}
-                  size={20}
-                  weight="regular"
-                  tintColor={item.kind === 'dir' ? theme.tint : theme.textSecondary}
-                />
-                <ThemedText numberOfLines={1} style={styles.rowName}>
-                  {item.name}
-                </ThemedText>
-                {item.kind === 'dir' ? (
+            renderItem={({ item }) => {
+              const disabled = !item.supported;
+              return (
+                <Pressable
+                  onPress={() => handlePress(item)}
+                  disabled={disabled}
+                  style={({ pressed }) => [
+                    styles.row,
+                    { backgroundColor: theme.background },
+                    disabled && styles.rowDisabled,
+                    !disabled && pressed && { backgroundColor: theme.backgroundElement },
+                  ]}
+                  accessibilityRole="button">
                   <SymbolView
-                    name="chevron.right"
-                    size={14}
-                    weight="semibold"
-                    tintColor={theme.textSecondary}
+                    name={item.kind === 'dir' ? 'folder.fill' : 'doc.text'}
+                    size={20}
+                    weight="regular"
+                    tintColor={item.kind === 'dir' ? theme.tint : theme.textSecondary}
                   />
-                ) : null}
-              </Pressable>
-            )}
+                  <ThemedText numberOfLines={1} style={styles.rowName}>
+                    {item.name}
+                  </ThemedText>
+                  {item.kind === 'dir' ? (
+                    <SymbolView
+                      name="chevron.right"
+                      size={14}
+                      weight="semibold"
+                      tintColor={theme.textSecondary}
+                    />
+                  ) : null}
+                </Pressable>
+              );
+            }}
           />
         )}
       </SafeAreaView>
@@ -178,6 +191,10 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     paddingVertical: Spacing.three,
     paddingHorizontal: Spacing.two,
+  },
+  // Unsupported files: visible but dimmed and non-interactive.
+  rowDisabled: {
+    opacity: 0.4,
   },
   rowName: {
     flex: 1,
