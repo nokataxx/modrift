@@ -35,7 +35,13 @@
       "removeFromListAction": "履歴から削除",
       "nameCloudTitle": "クラウドに名前を付ける",
       "nameCloudMessage": "このクラウド上のファイルにまとめて表示する名前を入力します（例: Google Drive）。空欄で元に戻せます。",
-      "nameCloudConfirm": "保存"
+      "nameCloudConfirm": "保存",
+      "vaultLabel": "Vault",
+      "openElsewhere": "別の場所から開く"
+    },
+    "vault": {
+      "empty": "このフォルダは空です。",
+      "unavailable": "Vault フォルダを開けませんでした。設定で選び直してください。"
     },
     "viewer": {
       "edit": "編集",

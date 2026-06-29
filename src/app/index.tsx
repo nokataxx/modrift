@@ -33,6 +33,7 @@ import {
   renameRecentFile,
   type RecentFile,
 } from '@/lib/recent-files';
+import { loadVaultFolder, type VaultFolder } from '@/lib/vault-folder';
 import { Spacing } from '@/theme';
 import FileBookmarkModule from '@modules/file-bookmark';
 
@@ -188,20 +189,35 @@ export default function HomeScreen() {
   const router = useRouter();
   const [recent, setRecent] = useState<RecentFile[] | null>(null);
   const [cloudNames, setCloudNames] = useState<CloudNames>({});
+  // FR-24: a set Vault folder is what flips the home into "Vault mode" — there's
+  // no separate toggle. Reloaded on focus so changing it in settings reflects
+  // here on return.
+  const [vaultFolder, setVaultFolder] = useState<VaultFolder | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
-      Promise.all([loadRecentFiles(), loadCloudNames()]).then(([items, names]) => {
-        if (cancelled) return;
-        setRecent(items);
-        setCloudNames(names);
-      });
+      Promise.all([loadRecentFiles(), loadCloudNames(), loadVaultFolder()]).then(
+        ([items, names, folder]) => {
+          if (cancelled) return;
+          setRecent(items);
+          setCloudNames(names);
+          setVaultFolder(folder);
+        },
+      );
       return () => {
         cancelled = true;
       };
     }, []),
   );
+
+  const handleOpenVault = () => {
+    if (!vaultFolder) return;
+    router.push({
+      pathname: '/vault',
+      params: { path: vaultFolder.uri, name: vaultFolder.name },
+    });
+  };
 
   const handleOpen = async () => {
     let result: DocumentPicker.DocumentPickerResult;
@@ -362,6 +378,30 @@ export default function HomeScreen() {
       />
       <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
         <NetworkBanner />
+        {vaultFolder && (
+          <Pressable
+            onPress={handleOpenVault}
+            style={({ pressed }) => [
+              styles.vaultRow,
+              { backgroundColor: theme.backgroundElement },
+              pressed && styles.pressed,
+            ]}
+            accessibilityRole="button">
+            <SymbolView name="folder.fill" size={22} weight="regular" tintColor={theme.tint} />
+            <View style={styles.vaultRowText}>
+              <ThemedText numberOfLines={1}>{vaultFolder.name}</ThemedText>
+              <ThemedText themeColor="textSecondary" style={styles.vaultRowLabel}>
+                {t('screens.recentFiles.vaultLabel')}
+              </ThemedText>
+            </View>
+            <SymbolView
+              name="chevron.right"
+              size={14}
+              weight="semibold"
+              tintColor={theme.textSecondary}
+            />
+          </Pressable>
+        )}
         {isEmpty ? (
           <ThemedText themeColor="textSecondary" style={styles.empty}>
             {t('screens.recentFiles.empty')}
@@ -389,15 +429,28 @@ export default function HomeScreen() {
           />
         )}
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.openButton,
-            { backgroundColor: theme.backgroundElement },
-            pressed && styles.pressed,
-          ]}
-          onPress={handleOpen}>
-          <ThemedText type="default">{t('picker.open')}</ThemedText>
-        </Pressable>
+        {vaultFolder ? (
+          // Vault mode: Open File is the rare escape hatch for files outside the
+          // Vault, so it's demoted to a small secondary link.
+          <Pressable
+            style={({ pressed }) => [styles.openElsewhere, pressed && styles.pressed]}
+            onPress={handleOpen}
+            accessibilityRole="button">
+            <ThemedText themeColor="textSecondary" style={styles.openElsewhereText}>
+              {t('screens.recentFiles.openElsewhere')}
+            </ThemedText>
+          </Pressable>
+        ) : (
+          <Pressable
+            style={({ pressed }) => [
+              styles.openButton,
+              { backgroundColor: theme.backgroundElement },
+              pressed && styles.pressed,
+            ]}
+            onPress={handleOpen}>
+            <ThemedText type="default">{t('picker.open')}</ThemedText>
+          </Pressable>
+        )}
       </SafeAreaView>
     </ThemedView>
   );
@@ -458,5 +511,30 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
+  },
+  // Vault mode (FR-24): primary "My Vault" entry above history.
+  vaultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    paddingVertical: Spacing.three,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Spacing.three,
+    marginBottom: Spacing.two,
+  },
+  vaultRowText: {
+    flex: 1,
+  },
+  vaultRowLabel: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  // Demoted Open File link shown in Vault mode.
+  openElsewhere: {
+    alignItems: 'center',
+    paddingVertical: Spacing.three,
+  },
+  openElsewhereText: {
+    fontSize: 14,
   },
 });

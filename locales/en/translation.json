@@ -35,7 +35,13 @@
       "removeFromListAction": "Remove",
       "nameCloudTitle": "Name this cloud",
       "nameCloudMessage": "This name will show for every file from this cloud (e.g. Google Drive). Leave blank to reset.",
-      "nameCloudConfirm": "Save"
+      "nameCloudConfirm": "Save",
+      "vaultLabel": "Vault",
+      "openElsewhere": "Open from elsewhere"
+    },
+    "vault": {
+      "empty": "This folder is empty.",
+      "unavailable": "Couldn't open the Vault folder. Re-select it in Settings."
     },
     "viewer": {
       "edit": "Edit",

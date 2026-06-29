@@ -166,6 +166,7 @@ export default function ViewerScreen() {
         const recordable =
           source === "picker" ||
           source === "history" ||
+          source === "vault" ||
           classifyFileLocation(fileUri).kind === "icloudCopy";
         if (recordable) {
           recordRecentFile({ uri: fileUri, name: fileName ?? "" }).catch(() => {
