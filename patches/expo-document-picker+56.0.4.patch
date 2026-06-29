@@ -1,5 +1,5 @@
 diff --git a/node_modules/expo-document-picker/ios/DocumentPickerModule.swift b/node_modules/expo-document-picker/ios/DocumentPickerModule.swift
-index 8b093cd..212f4f5 100644
+index 8b093cd..e0d9757 100644
 --- a/node_modules/expo-document-picker/ios/DocumentPickerModule.swift
 +++ b/node_modules/expo-document-picker/ios/DocumentPickerModule.swift
 @@ -57,16 +57,29 @@ public class DocumentPickerModule: Module, PickingResultHandler {
@@ -36,38 +36,19 @@ index 8b093cd..212f4f5 100644
            copy: options.copyToCacheDirectory
          )
          promise.resolve(DocumentPickerResponse(assets: [asset]))
-@@ -210,18 +223,30 @@ public class DocumentPickerModule: Module, PickingResultHandler {
-   }
- 
-   private func createDocumentPicker(with options: DocumentPickerOptions) -> UIDocumentPickerViewController {
-+    let picker: UIDocumentPickerViewController
-     if #available(iOS 14.0, *) {
+@@ -214,13 +227,13 @@ public class DocumentPickerModule: Module, PickingResultHandler {
        let utTypes = options.type.compactMap { toUTType(mimeType: $0) }
--      return UIDocumentPickerViewController(
-+      picker = UIDocumentPickerViewController(
+       return UIDocumentPickerViewController(
          forOpeningContentTypes: utTypes,
 -        asCopy: true
 +        asCopy: false
        )
      } else {
        let utiTypes = options.type.map { toUTI(mimeType: $0) }
--      return UIDocumentPickerViewController(
-+      picker = UIDocumentPickerViewController(
+       return UIDocumentPickerViewController(
          documentTypes: utiTypes,
 -        in: .import
 +        in: .open
        )
      }
-+    // Modrift: always open the picker at the iCloud Drive root rather than the
-+    // last-visited location. iCloud Drive (com~apple~CloudDocs) sits next to the
-+    // app's ubiquity container under ".../Mobile Documents". The container is
-+    // resolved at app launch (IcloudContainer module) so this is cheap/cached by
-+    // the time the user taps Open File; nil-guarded to fall back to the default.
-+    if let ubiquity = FileManager.default.url(forUbiquityContainerIdentifier: nil) {
-+      picker.directoryURL = ubiquity
-+        .deletingLastPathComponent()
-+        .appendingPathComponent("com~apple~CloudDocs")
-+    }
-+    return picker
    }
- }
