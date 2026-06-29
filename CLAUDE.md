@@ -6,20 +6,21 @@ This file is the persistent context for Claude Code working on the Modrift proje
 
 **Modrift** は iOS / Android 向けの軽量モバイルクライアントアプリ。
 
-- **コア機能**: クラウドストレージ上の Obsidian Vault (Markdownファイル) を iPhone でサッと開いて閲覧・編集
-- **将来的に**: PDF、xlsx、画像なども横断的に閲覧できる「知的生産ファイルクライアント」へ拡張
+- **コア機能**: クラウド (iCloud / Google Drive / Dropbox 等) やメール添付などにある **Markdown ファイルを、どこからでも iPhone でサッと開いて整形表示・軽編集**。特定の Vault やアプリに縛られない「どこのファイルでも開ける軽量 Markdown ビューア＆クイックエディタ」
+- **将来的に**: PDF、xlsx、画像など他形式の**単一ファイル**も閲覧できる「知的生産ファイルクライアント」へ拡張
 - **コンセプト**: Mo (Mobile / Motion) + drift (流れる、漂う) = モバイルでファイルと思考が流れるように行き来する
+- **「Vault」を主役にしない (2026-06-29 方針転換)**: iOS はサードパーティ File Provider のフォルダ参照を塞ぐため、フォルダ Vault は Google Drive 等で成立せず iCloud 専用だと Obsidian と競合するだけ。よって**フォルダ Vault・Vault ブラウザ・内部リンク `[[]]`・埋め込み `![[]]`・ローカル画像表示は実装しない**。単一ファイル中心に振り切る (Requirements 改訂11)
 
 **対応ストレージ (重要)**: in-place 編集 (原本への書き戻し) が成立するのは **iCloud Drive のみ**。これは Modrift の設計仕様で、`isInPlaceEditable()` が iCloud Drive (`com~apple~CloudDocs`) とアプリの iCloud コンテナだけを編集可と判定する。
 - **iCloud Drive**: 編集がその場でクラウドへ同期される → **編集用途の推奨ストレージ** (実機確認済み)
 - **Dropbox / Google Drive 等のサードパーティ File Provider**: 閲覧は可能だが in-place 編集は不可。編集は iCloud にコピーを作成して行う (原本には書き戻らない、FR-03)。Google Drive は provider 自体が他アプリ編集をアップロードしない制約も別途確認済み。**Dropbox も書き戻し不可を実機確認 (2026-06-28)** — ただしこれは Modrift が iCloud 以外を一律ゲートしている結果で、Dropbox provider 自体の upload 可否は切り分け未実施
 
-**段階的な「Vault 扱い」の進化**:
-- MVP: Vault 内の **個別の Md ファイル** を Document Picker で開いて編集
-- v2: フォルダピッカー対応により、フォルダ単位で Md とローカル画像を扱う
-- v3: PDF/xlsx/画像を含む **Vault 全体** を横断的に扱う
+**段階的な進化**:
+- MVP / v1.1: 任意の `.md` を Document Picker / Open In で開いて整形表示・軽編集 (2つの起動経路)
+- v2: ライブプレビュー編集 (EnrichedMarkdownTextInput) を主役に、検索・編集履歴等を追加
+- v3: 単一ファイルの PDF / xlsx 閲覧 (有償 Pro)
 
-**iOS Files App との関係**: Modrift は Files App と競合せず**補完関係**にある。Files App はファイル管理 (フォルダ階層、リネーム、移動、削除) を担い、Modrift は Md 整形表示・編集と関連ファイル閲覧を担う。
+**iOS Files App との関係**: Modrift は Files App と競合せず**補完関係**にある。Files App はファイル管理 (フォルダ階層、リネーム、移動、削除) を担い、Modrift は Md 整形表示・編集と他形式ファイルの閲覧を担う。
 
 詳細仕様は `Requirements.md` を参照。
 
@@ -180,10 +181,10 @@ Modrift は以下の競合とは**コンセプトが異なる**ので、機能�
 
 | 競合 | 違い |
 |---|---|
-| **Obsidian Mobile** | Obsidianは重い。Modriftは「軽快に開いてサッと使う」が真価 |
-| **iA Writer** | iA Writerは「執筆」特化。Modriftは「Vault参照+軽編集」特化。コア目的が違う |
-| **Bear** | Bearは独自フォーマット。ModriftはVault互換 (.md ファイル直接) |
-| **iOS Files App** | Files Appはファイル管理。Modriftは整形表示・編集。**補完関係** |
+| **Obsidian Mobile** | Obsidianは重く、自分の Vault に閉じる。Modriftは「**どこのファイルでも**軽快に開いてサッと使う」が真価 |
+| **iA Writer** | iA Writerは「執筆」特化で Library 取り込み前提。Modriftは「**どこの単一ファイルでも開いて読む・軽く直す**」特化 |
+| **Bear** | Bearは独自フォーマット。Modriftは `.md` ファイル直接 (相互運用) |
+| **iOS Files App** | Files Appはファイル管理 (整形できず生テキスト)。Modriftは整形表示・編集。**補完関係** |
 
 詳細は `Requirements.md` 「2. 背景・目的」を参照。
 
