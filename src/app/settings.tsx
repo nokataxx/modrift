@@ -3,20 +3,20 @@ import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { EnrichedMarkdownText } from 'react-native-enriched-markdown';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { MarkdownWebView } from '@/components/markdown-web-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useSettings } from '@/hooks/use-settings';
 import { useTheme } from '@/hooks/use-theme';
 import { type CloudNames, loadCloudNames, setCloudName } from '@/lib/cloud-names';
+import { type CmTheme } from '@/lib/cm/html';
 import {
   classifyFileLocation,
   externalContainerKey,
   shortContainerTag,
 } from '@/lib/file-location';
-import { buildMarkdownStyle } from '@/lib/markdown-style';
 import { loadRecentFiles } from '@/lib/recent-files';
 import { FONT_SIZE_BASE, type AppearanceMode, type FontSizeKey } from '@/lib/settings';
 import { Spacing } from '@/theme';
@@ -96,7 +96,24 @@ export default function SettingsScreen() {
   const { settings, setAppearance, setFontSize } = useSettings();
   const base = FONT_SIZE_BASE[settings.fontSize];
 
-  const previewStyle = useMemo(() => buildMarkdownStyle(theme, base), [theme, base]);
+  // Same CodeMirror theme the viewer builds, so the live preview matches the
+  // actual reading/editing surface exactly (FR-20 unification).
+  const cmTheme: CmTheme = useMemo(
+    () => ({
+      bg: theme.background,
+      fg: theme.text,
+      tint: theme.tint,
+      sel: theme.backgroundSelected,
+      codeBg: theme.backgroundElement,
+      muted: theme.textSecondary,
+      h1: theme.heading1,
+      h2: theme.heading2,
+      h3: theme.heading3,
+      h4: theme.heading4,
+      base,
+    }),
+    [theme, base],
+  );
 
   // FR-26: name third-party cloud sources. iOS won't reveal whether a file is
   // from Google Drive or Dropbox, but each source has a stable container key, so
@@ -148,19 +165,22 @@ export default function SettingsScreen() {
       <Stack.Screen options={{ title: t('screens.settings.title') }} />
       <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
         <ScrollView contentContainerStyle={styles.content}>
-          {/* Live preview — reflects appearance + font size in real time. */}
+          {/* Live preview — the same CodeMirror surface as the viewer, read-only,
+              reflecting appearance + font size in real time. */}
           <View
             style={[
               styles.previewCard,
               { backgroundColor: theme.background, borderColor: theme.backgroundElement },
             ]}>
-            <EnrichedMarkdownText
+            <MarkdownWebView
               // Remount on setting change so the preview always reflects the
-              // latest appearance / size, not just diff-applied prop updates.
+              // latest appearance / size (theme + base are baked in at mount).
               key={`${settings.appearance}-${settings.fontSize}`}
-              markdown={t('screens.settings.previewSample')}
-              flavor="github"
-              markdownStyle={previewStyle}
+              initialContent={t('screens.settings.previewSample')}
+              editable={false}
+              taskInteractive={false}
+              theme={cmTheme}
+              style={[styles.previewWeb, { backgroundColor: theme.background }]}
             />
           </View>
 
@@ -282,10 +302,13 @@ const styles = StyleSheet.create({
   previewCard: {
     borderRadius: Spacing.three,
     borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    minHeight: 140,
-    justifyContent: 'center',
+    // Fixed height + clip: the WebView fills the card and its own content
+    // padding provides the inset (no card padding, or it would double up).
+    height: 172,
+    overflow: 'hidden',
+  },
+  previewWeb: {
+    flex: 1,
   },
   sectionLabel: {
     fontSize: 13,
