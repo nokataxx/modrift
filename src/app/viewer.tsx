@@ -11,55 +11,26 @@ import {
   Linking,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
-  TextInput,
   View,
 } from "react-native";
-import {
-  EnrichedMarkdownText,
-  type MarkdownStyle,
-} from "react-native-enriched-markdown";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import {
+  MarkdownWebView,
+  type MarkdownWebViewHandle,
+} from "@/components/markdown-web-view";
 import { NetworkBanner } from "@/components/network-banner";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
 import { useSettings } from "@/hooks/use-settings";
 import { useTheme } from "@/hooks/use-theme";
+import { type CmTheme } from "@/lib/cm/html";
 import { classifyFileLocation, isInPlaceEditable } from "@/lib/file-location";
 import { createIcloudCopy, IcloudUnavailableError } from "@/lib/icloud-copy";
-import { buildMarkdownStyle } from "@/lib/markdown-style";
 import { recordRecentFile, removeRecentFile } from "@/lib/recent-files";
 import { FONT_SIZE_BASE } from "@/lib/settings";
-import { Fonts, Spacing } from "@/theme";
-
-const IMAGE_RE = /!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
-
-// FR-14: edits within this many ms of each other are one undo step (so a burst
-// of typing reverts together), and the undo history is capped to bound memory.
-const UNDO_COALESCE_MS = 700;
-const MAX_UNDO_STEPS = 100;
-
-// Where the two strings first differ — used to place the cursor at the point an
-// undo/redo changed, instead of jumping it to the end of the document.
-function commonPrefixLength(a: string, b: string): number {
-  const n = Math.min(a.length, b.length);
-  let i = 0;
-  while (i < n && a[i] === b[i]) i++;
-  return i;
-}
-
-function replaceLocalImages(
-  md: string,
-  placeholder: (filename: string) => string,
-): string {
-  return md.replace(IMAGE_RE, (match, _alt, url) => {
-    if (url.startsWith("https://")) return match;
-    const filename = url.split("/").pop() || url;
-    return placeholder(filename);
-  });
-}
+import { Spacing } from "@/theme";
 
 type Mode = "preview" | "edit";
 
@@ -96,10 +67,8 @@ export default function ViewerScreen() {
   const contentRef = useRef<string | null>(null);
   const isDirtyRef = useRef(false);
   const pendingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // The live editor instance, so undo/redo can restore the cursor after remount.
-  const editorRef = useRef<TextInput>(null);
-  // Cursor offset to apply after an undo/redo remount (null = leave at default).
-  const pendingCursorRef = useRef<number | null>(null);
+  // The editor (WebView) handle, for undo/redo and preview⇄edit toggling.
+  const editorRef = useRef<MarkdownWebViewHandle | null>(null);
   // The file's modificationTime (epoch ms) as of our last read/write — the
   // baseline for conflict detection (FR-13). If the on-disk mtime grows past
   // this before we save, the file was changed externally (another device's
@@ -107,51 +76,21 @@ export default function ViewerScreen() {
   const baselineMtimeRef = useRef<number | null>(null);
   // Guards against stacking conflict dialogs when saves fire back to back.
   const conflictOpenRef = useRef(false);
-  // Bumped to remount the uncontrolled editor so it re-seeds defaultValue after
-  // we replace the buffer — used by "load latest" (FR-13) and undo/redo (FR-14).
+  // Bumped to remount the editor after a wholesale buffer replacement (file
+  // open, "load latest" — FR-13), so it re-seeds from the new text.
   const [reloadNonce, setReloadNonce] = useState(0);
   // True once an Open-In Inbox file has been copied to iCloud, so the unmount
   // cleanup doesn't try to delete an already-consumed source.
   const inboxConsumedRef = useRef(false);
 
-  // FR-14 undo/redo. Snapshots of the buffer; continuous typing coalesces into
-  // one step (see handleEdit). canUndo/canRedo drive the header buttons; the
-  // ref mirrors let us flip them only on real transitions, never per keystroke,
-  // so we don't re-render the uncontrolled editor mid-input (would jump the IME).
-  const undoStackRef = useRef<string[]>([]);
-  const redoStackRef = useRef<string[]>([]);
-  const lastEditTimeRef = useRef(0);
+  // FR-14 undo/redo is handled inside CodeMirror; these mirror its reported
+  // availability so the header buttons enable/disable.
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
-  const canUndoRef = useRef(false);
-  const canRedoRef = useRef(false);
 
   useEffect(() => {
     contentRef.current = content;
   }, [content]);
-
-  // Flip the undo/redo button availability only on real transitions (mirrors in
-  // refs), so typing — which mutates the stacks but rarely changes these flags —
-  // doesn't trigger re-renders that would jump the IME.
-  const syncUndoRedo = useCallback(() => {
-    const undo = undoStackRef.current.length > 0;
-    const redo = redoStackRef.current.length > 0;
-    if (canUndoRef.current !== undo) {
-      canUndoRef.current = undo;
-      setCanUndo(undo);
-    }
-    if (canRedoRef.current !== redo) {
-      canRedoRef.current = redo;
-      setCanRedo(redo);
-    }
-  }, []);
-
-  const resetUndo = useCallback(() => {
-    undoStackRef.current = [];
-    redoStackRef.current = [];
-    lastEditTimeRef.current = 0;
-    syncUndoRedo();
-  }, [syncUndoRedo]);
 
   useEffect(() => {
     // Every entry path lands in preview first (preview-first model). Inbox
@@ -168,8 +107,6 @@ export default function ViewerScreen() {
         // Record the baseline for conflict detection right after the read, so a
         // later external change is detectable at save time (FR-13).
         baselineMtimeRef.current = file.modificationTime;
-        // Fresh file → fresh undo history (FR-14).
-        resetUndo();
         // Record history only for files we can reliably re-open: opened via the
         // in-app picker, reopened from history, or an iCloud copy we made. Files
         // arriving through iOS Open-In / share are deliberately not recorded —
@@ -191,7 +128,7 @@ export default function ViewerScreen() {
     return () => {
       cancelled = true;
     };
-  }, [fileUri, fileName, t, source, resetUndo]);
+  }, [fileUri, fileName, t, source]);
 
   const writeFile = useCallback(
     (text: string) => {
@@ -227,14 +164,13 @@ export default function ViewerScreen() {
       isDirtyRef.current = false;
       baselineMtimeRef.current = file.modificationTime;
       setContent(normalized);
-      // The buffer was replaced wholesale — drop undo history (FR-14).
-      resetUndo();
-      // Remount the uncontrolled editor so it re-seeds from the reloaded text.
+      // Remount the editor so it re-seeds from the reloaded text (and its undo
+      // history resets, since the buffer was replaced wholesale).
       setReloadNonce((n) => n + 1);
     } catch {
       // Non-fatal — keep the current buffer if the reread fails.
     }
-  }, [fileUri, resetUndo]);
+  }, [fileUri]);
 
   const promptConflict = useCallback(() => {
     if (conflictOpenRef.current) return;
@@ -292,7 +228,7 @@ export default function ViewerScreen() {
     }
   }, [hasExternalChange, promptConflict, reloadFromDisk]);
 
-  // Restart the 3s auto-save debounce (FR-04). Shared by typing and undo/redo.
+  // Restart the 3s auto-save debounce (FR-04).
   const scheduleSave = useCallback(() => {
     if (pendingTimeoutRef.current !== null) {
       clearTimeout(pendingTimeoutRef.current);
@@ -303,99 +239,25 @@ export default function ViewerScreen() {
     }, 3000);
   }, [saveNow]);
 
-  const handleEdit = useCallback(
+  // The editor reports each edit here — keep the live buffer in a ref (no
+  // re-render, so the WebView is never reloaded mid-typing) and debounce a save.
+  const handleChange = useCallback(
     (next: string) => {
-      // Uncontrolled editor: write straight to the ref without setContent, so
-      // the TextInput isn't re-rendered (and re-scrolled) on every keystroke —
-      // that re-render is what made the Japanese IME jump the view mid-input.
-      // The preview pulls the latest text from the ref on mode switch.
-      const prev = contentRef.current ?? "";
-      const now = Date.now();
-      // Start a new undo step at the beginning of a typing burst (or the very
-      // first edit); keystrokes within UNDO_COALESCE_MS fold into that step so
-      // one undo reverts the whole burst rather than a single character.
-      if (
-        undoStackRef.current.length === 0 ||
-        now - lastEditTimeRef.current > UNDO_COALESCE_MS
-      ) {
-        undoStackRef.current.push(prev);
-        if (undoStackRef.current.length > MAX_UNDO_STEPS) {
-          undoStackRef.current.shift();
-        }
-        redoStackRef.current = [];
-        syncUndoRedo();
-      }
-      lastEditTimeRef.current = now;
       contentRef.current = next;
       isDirtyRef.current = true;
-      scheduleSave();
-    },
-    [scheduleSave, syncUndoRedo],
-  );
-
-  // Apply an undo/redo target to the buffer. Remount the editor (reloadNonce) so
-  // the fresh defaultValue reliably re-seeds the text — imperative setNativeProps
-  // text swaps desync the New Architecture event count and corrupt the *next*
-  // undo. The cursor is then restored to where the change happened (not the end)
-  // via setSelection after the remount (see the reloadNonce effect below).
-  const applyValue = useCallback(
-    (value: string) => {
-      pendingCursorRef.current = commonPrefixLength(
-        contentRef.current ?? "",
-        value,
-      );
-      contentRef.current = value;
-      isDirtyRef.current = true;
-      setContent(value);
-      setReloadNonce((n) => n + 1);
       scheduleSave();
     },
     [scheduleSave],
   );
 
-  // After an undo/redo remount, place the cursor at the change point. A fresh
-  // mount has a clean event count, so setSelection applies reliably here (unlike
-  // an imperative mid-edit text swap). Skipped for other remounts (file open,
-  // "load latest") where pendingCursorRef is null and the cursor stays at end.
-  useEffect(() => {
-    const cursor = pendingCursorRef.current;
-    if (cursor === null) return;
-    pendingCursorRef.current = null;
-    const id = requestAnimationFrame(() => {
-      editorRef.current?.setSelection(cursor, cursor);
-    });
-    return () => cancelAnimationFrame(id);
-  }, [reloadNonce]);
-
-  const handleUndo = useCallback(() => {
-    if (undoStackRef.current.length === 0) return;
-    redoStackRef.current.push(contentRef.current ?? "");
-    const value = undoStackRef.current.pop() as string;
-    // End any active typing burst so the next keystroke opens a fresh step.
-    lastEditTimeRef.current = 0;
-    syncUndoRedo();
-    applyValue(value);
-  }, [applyValue, syncUndoRedo]);
-
-  const handleRedo = useCallback(() => {
-    if (redoStackRef.current.length === 0) return;
-    undoStackRef.current.push(contentRef.current ?? "");
-    const value = redoStackRef.current.pop() as string;
-    lastEditTimeRef.current = 0;
-    syncUndoRedo();
-    applyValue(value);
-  }, [applyValue, syncUndoRedo]);
+  const handleHistoryChange = useCallback((undo: boolean, redo: boolean) => {
+    setCanUndo(undo);
+    setCanRedo(redo);
+  }, []);
 
   const handleToggleMode = useCallback(() => {
-    if (mode === "edit") {
-      // Leaving the uncontrolled editor — lift the live text into state so the
-      // preview renders the latest edit.
-      setContent(contentRef.current);
-      setMode("preview");
-    } else {
-      setMode("edit");
-    }
-  }, [mode]);
+    setMode((m) => (m === "edit" ? "preview" : "edit"));
+  }, []);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (next) => {
@@ -492,15 +354,20 @@ export default function ViewerScreen() {
     );
   }, [content, copying, performCopy, t]);
 
-  const processedMarkdown = useMemo(() => {
-    if (content === null) return null;
-    return replaceLocalImages(content, (filename) =>
-      t("screens.viewer.imagePlaceholder", { filename }),
-    );
-  }, [content, t]);
-
-  const markdownStyle: MarkdownStyle = useMemo(
-    () => buildMarkdownStyle(theme, base),
+  const cmTheme: CmTheme = useMemo(
+    () => ({
+      bg: theme.background,
+      fg: theme.text,
+      tint: theme.tint,
+      sel: theme.backgroundSelected,
+      codeBg: theme.backgroundElement,
+      muted: theme.textSecondary,
+      h1: theme.heading1,
+      h2: theme.heading2,
+      h3: theme.heading3,
+      h4: theme.heading4,
+      base,
+    }),
     [theme, base],
   );
 
@@ -540,7 +407,7 @@ export default function ViewerScreen() {
                   {mode === "edit" && (
                     <>
                       <Pressable
-                        onPress={handleUndo}
+                        onPress={() => editorRef.current?.undo()}
                         disabled={!canUndo}
                         hitSlop={8}
                         accessibilityRole="button"
@@ -555,7 +422,7 @@ export default function ViewerScreen() {
                         />
                       </Pressable>
                       <Pressable
-                        onPress={handleRedo}
+                        onPress={() => editorRef.current?.redo()}
                         disabled={!canRedo}
                         hitSlop={8}
                         accessibilityRole="button"
@@ -609,54 +476,41 @@ export default function ViewerScreen() {
       <SafeAreaView style={styles.safeArea} edges={["bottom", "left", "right"]}>
         <NetworkBanner />
         {error ? (
-          <ThemedText themeColor="textSecondary">{error}</ThemedText>
-        ) : mode === "edit" ? (
+          <ThemedText themeColor="textSecondary" style={styles.message}>
+            {error}
+          </ThemedText>
+        ) : content === null ? (
+          <ThemedText themeColor="textSecondary" style={styles.message}>
+            {t("screens.viewer.loading")}
+          </ThemedText>
+        ) : (
           <KeyboardAvoidingView
             style={styles.flex}
             behavior={Platform.OS === "ios" ? "padding" : undefined}
             keyboardVerticalOffset={headerHeight}
           >
-            {content !== null && (
-              <TextInput
-                ref={editorRef}
-                // Remount per file (and on "load latest" reload) so the
-                // uncontrolled defaultValue re-seeds.
-                key={`${fileUri}:${reloadNonce}`}
-                multiline
-                autoFocus
-                defaultValue={content}
-                onChangeText={handleEdit}
-                style={[
-                  styles.editor,
-                  { color: theme.text, fontSize: base, lineHeight: Math.round(base * 1.4) },
-                ]}
-                textAlignVertical="top"
-                autoCapitalize="none"
-                autoCorrect={false}
-                spellCheck={false}
-              />
-            )}
-          </KeyboardAvoidingView>
-        ) : (
-          <ScrollView contentContainerStyle={styles.scrollContent}>
-            <EnrichedMarkdownText
-              key={fileUri}
-              markdown={processedMarkdown ?? ""}
-              flavor="github"
-              markdownStyle={markdownStyle}
-              onLinkPress={({ url }) => {
+            <MarkdownWebView
+              // Remount per file (and on "load latest") so it re-seeds the
+              // buffer; preview⇄edit toggles in place via the editable prop.
+              key={`${fileUri}:${reloadNonce}`}
+              ref={editorRef}
+              initialContent={content}
+              editable={canToggle && mode === "edit"}
+              theme={cmTheme}
+              imagePlaceholder={t("screens.viewer.imagePlaceholder", {
+                filename: "__F__",
+              })}
+              taskInteractive={editable}
+              onChange={handleChange}
+              onHistoryChange={handleHistoryChange}
+              onLinkPress={(url) => {
                 Linking.openURL(url).catch(() => {
-                  // Malformed or unsupported scheme — nothing actionable to show.
+                  // Malformed or unsupported scheme — nothing actionable.
                 });
               }}
-              selectable
+              style={[styles.flex, { backgroundColor: theme.background }]}
             />
-            {processedMarkdown === null && (
-              <ThemedText themeColor="textSecondary" style={styles.loading}>
-                {t("screens.viewer.loading")}
-              </ThemedText>
-            )}
-          </ScrollView>
+          </KeyboardAvoidingView>
         )}
       </SafeAreaView>
     </ThemedView>
@@ -672,25 +526,14 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
+  },
+  message: {
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
-  },
-  scrollContent: {
-    paddingBottom: Spacing.four,
-  },
-  loading: {
-    marginTop: Spacing.three,
   },
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.four,
-  },
-  editor: {
-    flex: 1,
-    paddingTop: Spacing.two,
-    paddingBottom: Spacing.four,
-    fontFamily: Fonts.mono,
-    // fontSize / lineHeight are applied inline from the font-size setting.
   },
 });

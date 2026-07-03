@@ -5,6 +5,7 @@ const expoConfig = require("eslint-config-expo/flat");
 module.exports = defineConfig([
   expoConfig,
   {
-    ignores: ["dist/*"],
+    // The CodeMirror bundle is generated (src/lib/cm/build-bundle.mjs).
+    ignores: ["dist/*", "src/lib/cm/bundle.ts"],
   }
 ]);
