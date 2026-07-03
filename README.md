@@ -1,6 +1,6 @@
 # Modrift
 
-iOS / Android 向けの軽量モバイルクライアントアプリ。Google Drive 上の Obsidian Vault (Markdown ファイル) をサクッと閲覧・編集する。
+iOS / Android 向けの軽量モバイルクライアントアプリ。クラウド (iCloud / Google Drive / Dropbox 等) やメール添付にある**単一の Markdown ファイル**を、どこからでもサッと開いて整形表示・軽編集する「軽量 Markdown ビューア＆クイックエディタ」。
 
 詳細は [`docs/Requirements.md`](./docs/Requirements.md) と [`CLAUDE.md`](./CLAUDE.md) を参照。
 
@@ -11,7 +11,7 @@ npm install
 npx expo start --dev-client
 ```
 
-Expo Dev Client が必須 (Expo Go では `react-native-enriched-markdown` が動かない)。初回のみ EAS でビルドが必要:
+Expo Dev Client が必須 (New Architecture / ネイティブモジュール前提で Expo Go 非対応)。初回のみ EAS でビルドが必要:
 
 ```bash
 npx eas build --profile development --platform ios
@@ -23,9 +23,10 @@ npx eas build --profile development --platform ios
 
 ```
 src/
-  app/           expo-router (ファイルベースルーティング)
-  components/    軽量な theme ラッパー (ThemedText, ThemedView)
-  hooks/         useTheme / useColorScheme
+  app/           expo-router (ファイルベースルーティング。viewer.tsx = 閲覧+編集画面)
+  components/    軽量な theme ラッパー + markdown-web-view (CodeMirror ホスト)
+  lib/           ロジック層。cm/ = WebView 上の CodeMirror バンドル (閲覧+編集の描画)
+  hooks/         useTheme / useColorScheme / useSettings
   i18n.ts        i18next + expo-localization 初期化
   theme.ts       Colors / Spacing / Fonts
 locales/

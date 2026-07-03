@@ -15,7 +15,7 @@ Modrift は **クラウドストレージ (iCloud Drive / Google Drive / Dropbox
 **段階的な進化**:
 
 - **MVP / v1.1**: 任意の `.md` を Document Picker / Open In で開いて整形表示・軽編集 (2つの起動経路)
-- **v2**: ライブプレビュー編集 (EnrichedMarkdownTextInput) で書き味を飛躍させ、検索・編集履歴等を追加
+- **v2**: ライブプレビュー編集 (CodeMirror 一本化) で書き味を飛躍させ、検索・編集履歴等を追加
 - **v3**: 単一ファイルの PDF / Word (.docx) / xlsx 閲覧 (有償 Pro)
 
 **iOS Files App との関係**: Modrift は Files App と競合せず**補完関係**にある。Files App はファイル管理 (フォルダ階層、リネーム、移動、削除) を担い、Modrift は Md 整形表示・編集と他形式ファイルの閲覧を担う。
@@ -135,7 +135,7 @@ iOS の標準的なメンタルモデルに合わせ、ユーザーの好みで�
 
 **v2 の主役:**
 
-- **ライブプレビュー編集 — EnrichedMarkdownTextInput 移行** ← [FR-20](#fr-20-enrichedmarkdowntextinput-への移行-v2)。書き味の飛躍で、全プロバイダの単一ファイルに効く v2 の核。
+- **ライブプレビュー編集 — CodeMirror 一本化** ← [FR-20](#fr-20-ライブプレビュー編集-codemirror-一本化-v2)。書き味の飛躍で、全プロバイダの単一ファイルに効く v2 の核。
 
 **付随機能（おまけ・いずれも全プロバイダの単一ファイルで成立）:**
 
@@ -244,6 +244,8 @@ Modrift は **2つの起動経路** からファイルを開けるよう対応�
 - HTTPS画像 (`https://...`) は表示、ローカル相対パス画像は `[画像: filename.png]` プレースホルダ表示
 - コードブロックは等幅フォント + 単色表示 (MVPではシンタックスハイライト未対応)
 
+> **v2 更新 ([FR-20](#fr-20-ライブプレビュー編集-codemirror-一本化-v2))**: 閲覧の描画は WebView 上の CodeMirror に一本化した (閲覧・編集で同一経路)。これによりコードブロックはシンタックスハイライト付きになった。以下は MVP 時点の記録。
+
 **画像表示の設計判断の経緯**:
 
 - 検討した代替案: (a) 画像表示なし、(b) HTTPS画像のみ、(c) フォルダピッカーでローカル画像対応 (フルサポート)、(d) MVPは(b)、v2で(c)
@@ -256,6 +258,8 @@ Modrift は **2つの起動経路** からファイルを開けるよう対応�
 - TextInput multiline でテキスト編集
 - 編集モード ⇄ プレビューモードのトグルボタン
 - 編集中もMd記法は生のテキストで表示 (WYSIWYG ではない)
+
+> **v2 更新 ([FR-20](#fr-20-ライブプレビュー編集-codemirror-一本化-v2))**: 編集 UI は `TextInput multiline` から CodeMirror のライブプレビュー編集に置き換えた (カーソル行だけ生の記法を露出し、他行は整形表示)。閲覧モードとトグルする2モード構造は維持。以下は MVP 時点の記録。
 
 **編集の保存先 — ストレージにより分岐 (重要)**:
 
@@ -271,7 +275,7 @@ iOS の File Provider はプロバイダにより書き戻し可否が異なる 
 
 **全経路 preview-first に統一 (確定)**:
 
-開く経路 (経路A Document Picker / 経路B Open In / Files) や iOS の配送方式 (in-place か Inbox コピーか) に関わらず、**すべて preview で開く**。コピーは「開いたこと」ではなく**編集意思 (編集ボタン)** に紐づく ([FR-20](#fr-20-enrichedmarkdowntextinput-への移行-v2) と同じ原則)。これにより「同じファイルが開き方で違う挙動になる」非一貫を解消する。
+開く経路 (経路A Document Picker / 経路B Open In / Files) や iOS の配送方式 (in-place か Inbox コピーか) に関わらず、**すべて preview で開く**。コピーは「開いたこと」ではなく**編集意思 (編集ボタン)** に紐づく ([FR-20](#fr-20-ライブプレビュー編集-codemirror-一本化-v2) と同じ原則)。これにより「同じファイルが開き方で違う挙動になる」非一貫を解消する。
 
 - **in-place 編集可 (iCloud / ローカル)**: preview → 編集モードでそのまま in-place 編集・保存。
 - **非 in-place ソース (Google Drive 等)**: preview → 編集ボタンで iCloud コピー → コピーを編集。
@@ -409,7 +413,7 @@ Modrift はファイルを**その場で直接編集**し、独立した「ロ�
 
 ### FR-16: iPad 大画面レイアウト最適化 [v2]
 
-当初の「編集とプレビューを左右分割」案は**廃止**。[FR-20](#fr-20-enrichedmarkdowntextinput-への移行-v2) でライブプレビュー編集 (編集モード自体が整形表示) を採用するため、「生 Md 左・レンダリング右」の分割は存在意義を失う (整形を見ながら書く課題はライブプレビューが解決済み)。
+当初の「編集とプレビューを左右分割」案は**廃止**。[FR-20](#fr-20-ライブプレビュー編集-codemirror-一本化-v2) でライブプレビュー編集 (編集モード自体が整形表示) を採用するため、「生 Md 左・レンダリング右」の分割は存在意義を失う (整形を見ながら書く課題はライブプレビューが解決済み)。
 
 - 代わりに iPad では**大画面を活かしたレイアウト最適化**を行う (広い編集キャンバス、余白・最大幅の調整、ツールバー/キーボード配置の最適化)。
 - **左右分割プレビューは提供しない。**
@@ -435,22 +439,29 @@ Modrift はファイルを**その場で直接編集**し、独立した「ロ�
 - アプリ内でのローカルな編集履歴を保持 (10件程度)
 - 過去のバージョンに戻せる
 
-### FR-20: EnrichedMarkdownTextInput への移行 [v2]
+### FR-20: ライブプレビュー編集 (CodeMirror 一本化) [v2]
 
-- 編集UIを TextInput multiline から EnrichedMarkdownTextInput に移行
-- 編集中もリアルタイムでMd記法を整形表示 (太字、見出し等)
+- 閲覧と編集を**単一の CodeMirror エディタ**に統合し、編集中もリアルタイムで Md 記法を整形表示 (太字、見出し等) する。
+- 閲覧モードは同じエディタを read-only + 記法を一切見せない装飾で描画し、編集モードは同じ装飾のままカーソル行で生の Md 記法を露出する。
 
-**編集スタイルの方針 (確定): Obsidian 形式 (A) を採用**
+**実装方針 (確定): WebView 上の CodeMirror に一本化 (旧 ADR を解決)**
 
-- **閲覧モード (Reading view) と編集モード (ライブプレビュー) の2モード構造を維持する**。Notion 風の完全 WYSIWYG (ソースを見せない単一モード) は採用しない。
+当初は編集 UI をネイティブの `EnrichedMarkdownTextInput` へ移行する構想だったが、実装時に**閲覧・編集の両方を WebView 内の CodeMirror エディタ 1 つで賄う**方式に決定した (コミット e1852e3)。
+
+- **なぜ CodeMirror (WebView) か**:
+  - ネイティブの `react-native-enriched-markdown` はブロック単位のライブプレビュー編集 (カーソル行だけ記法を露出し、他行は整形表示) を提供できない。CodeMirror の decoration ならこれが自然に書ける。
+  - 閲覧と編集で**同一のレンダリング経路**を通るため、「読む見た目」と「書く見た目」が原理的に一致する (FR-20 の核心目標)。ネイティブ閲覧 + 別物の編集器という二重実装を避けられる。
+  - 見た目はネイティブレンダラの体裁 (SF + ヒラギノ角ゴ、`palt`、リスト/見出しの余白) を [`src/lib/cm/`](../src/lib/cm/) の装飾・CSS で踏襲。GFM (表・タスクリスト・取り消し線)、画像プレースホルダ、水平線、ネスト引用、シンタックスハイライト付きコード、タスクチェックボックスのタップ、リンクタップに対応。
+  - undo/redo は CodeMirror の history に委譲 (自前スタックを廃止)。バンドルは [`src/lib/cm/editor-entry.mjs`](../src/lib/cm/editor-entry.mjs) を esbuild で `bundle.ts` に固めて WebView へ注入。
+  - 注意点: WKWebView は `@font-face` の `size-adjust` を無視するため、CJK/Latin のサイズ調和は inline `font-size` span で行う。ヘッドレス Chrome は実機と乖離するので**実機検証が必須**。
+
+- **閲覧モードと編集モードの2モード構造を維持する**。Notion 風の完全 WYSIWYG (ソースを見せない単一モード) は採用しない。
   - 理由: Modrift のコアは「読むが主・書くが従」。読む道具 (閲覧) と書く道具 (編集) を分ける Obsidian 由来のメンタルモデルが軽快さと相性が良い。
-  - ライブプレビューはカーソル行で生の Md 記法を露出する「整形されたエディタ」、閲覧モードは記法を一切見せない読み専用ビュー、という役割分担。
 
 - **コピーは「モードを開いたこと」ではなく「編集の意思」に紐づける (FR-03 の原則を保持)**:
   - in-place 編集可 (iCloud / ローカル) のファイルは、編集モードでそのままライブプレビュー編集し in-place 保存。
   - **非 in-place ソース (Google Drive 等) は閲覧モードで開き、iCloud コピーは作成しない**。明示的に編集モードに入った時点で初めて iCloud コピーのゲート (FR-03 のダイアログ) が働く。
   - → ライブプレビュー化しても「閲覧しただけで iCloud にコピーが溜まる」ことは起きない。
-  - 詳細な実装方針 (read-only 整形ビュー / 遅延コピー等の選択) は v2 着手時の ADR で確定する。
 
 ### FR-21〜: 関連ファイル対応 [v3 / Pro] (概略のみ)
 
@@ -672,22 +683,21 @@ v1.1 で実装する固定の見出しカラーリング ([5.2](#52-v11-phase-2)
 
 ### 開発環境
 
-- Expo Dev Client (react-native-enriched-markdown が Expo Go 非対応のため必須)
+- Expo Dev Client (New Architecture / ネイティブモジュール前提のため必須。Expo Go では動作しない)
 
 ### ファイル取得
 
 - expo-document-picker: `UIDocumentPickerViewController` のラッパー。Drive/iCloud/Dropbox全対応
 - expo-file-system: ファイル読み書き。`copyToCacheDirectory: false` でFile Provider経由の直接編集が可能
 
-### Mdレンダリング (閲覧)
+### Mdレンダリング + 編集 (v2 で CodeMirror に一本化 — FR-20)
 
-- react-native-enriched-markdown (Software Mansion製、Fabric/New Architecture必須、md4cベースでCommonMark+GFM対応、ネイティブテキストレンダリング、LaTeX対応)
-- 旧来の `react-native-markdown-display` は非推奨で、本ライブラリへの移行が公式推奨
+- **CodeMirror 6** (`@codemirror/*`) を `react-native-webview` 上でホストし、**閲覧・編集の両方**を単一エディタで賄う ([`src/lib/cm/`](../src/lib/cm/))。バンドルは `editor-entry.mjs` を esbuild (`build-bundle.mjs`) で `bundle.ts` に固めて WebView へ注入。
+- 見た目はネイティブレンダラの体裁を CSS/装飾で踏襲。GFM (表・タスクリスト・取り消し線)、画像プレースホルダ、水平線、ネスト引用、シンタックスハイライト付きコード、タスクチェックボックスのタップ、リンクタップ、undo/redo (CM history) に対応。
+- 設定画面のライブプレビュー見本 ([settings.tsx](../src/app/settings.tsx)) も同じ CodeMirror を read-only で使う (ビューアと完全に同じ見た目)。これにより **`react-native-enriched-markdown` への依存は撤去済み** (アプリ内でネイティブ Md レンダラは使わない)。
+- 旧来の `react-native-markdown-display` も不使用。
 
-### Md編集
-
-- TextInput multiline (MVP)
-- v2でEnrichedMarkdownTextInputへの移行を検討
+**MVP の構成 (履歴)**: 閲覧は `react-native-enriched-markdown`、編集は `TextInput multiline`。v2 (FR-20) で上記の CodeMirror 一本化に置き換え、enriched-markdown 依存は撤去した。
 
 ### 国際化 (i18n)
 
@@ -758,36 +768,38 @@ v1.1 で実装する固定の見出しカラーリング ([5.2](#52-v11-phase-2)
 - **Driveへの書き込み頻度**:
   自動保存だとローカル書き込み回数は増えるが、File Provider が intelligently に同期するため通信負荷は深刻ではない想定
 
-### 10.3 Mdレンダリング関連 (react-native-enriched-markdown)
+### 10.3 Mdレンダリング関連 (v2 以降: WebView 上の CodeMirror)
+
+> **v2 (FR-20) でレンダリング経路を変更**: ビューアも設定画面のプレビュー見本も、`react-native-enriched-markdown` (ネイティブ) から WebView 上の CodeMirror に一本化した (enriched-markdown 依存は撤去済み)。以下は現構成の技術ノート。
 
 - **GFM (GitHub Flavored Markdown) は標準対応**:
-  `react-native-enriched-markdown` はmd4cベースでCommonMark準拠 + GFM対応。テーブル、タスクリスト、取り消し線、URL自動リンクは標準で動く。脚注 (`[^1]`) はCommonMark/GFMの範囲外なので注意。
+  CodeMirror の Markdown 言語 (`@codemirror/lang-markdown`) + GFM 拡張で、テーブル・タスクリスト・取り消し線を認識し、装飾で整形表示する。脚注 (`[^1]`) は CommonMark/GFM の範囲外なので注意。
 
 - **コードブロックのシンタックスハイライト**:
-  ライブラリ単体ではコードブロックの言語別ハイライトは提供されない (フェンス記法 ` ```js ` 自体は認識するが、色分けは別実装)。MVPでは等幅フォント + 単色表示で割り切るのが現実的。v2で必要なら `shiki` や `prismjs` をWeb Workerで動かす、もしくはカスタムレンダラで自前実装。
+  フェンス記法 (` ```js `) は CodeMirror の言語ハイライト (`@codemirror/lang-javascript` 等) で色分け表示される (MVP の等幅・単色から前進)。未対応言語は等幅 + 単色にフォールバック。
 
-- **画像の表示 (FR-02・FR-18で対応方針確定)**:
-  MVPはHTTPS画像のみ表示、ローカル画像はプレースホルダ。Md内の `![](image.png)` (相対パス) はModriftから同フォルダの画像にアクセスできない (Document Pickerは選択した1ファイルのみアクセス許可)。v2でフォルダ選択モード対応
+- **画像の表示 (FR-02 で対応方針確定)**:
+  HTTPS画像のみ表示、ローカル相対パス画像は `[画像: filename.png]` プレースホルダ。Md内の `![](image.png)` (相対パス) は Modrift から同フォルダの画像にアクセスできない (Document Picker は選択した1ファイルのみアクセス許可)。フォルダ参照は改訂11で廃止したためローカル画像のフルサポートは行わない。
+
+- **絵文字や日本語の表示 (WebView 特有の注意)**:
+  CodeMirror は WKWebView 内で描画するため、フォントは CSS 経由で指定する (SF + ヒラギノ角ゴ)。**WKWebView は `@font-face` の `size-adjust` を無視する**ので、CJK/Latin のサイズ調和は inline `font-size` span (CM 装飾) で行う。ヘッドレス Chrome は実機と挙動が乖離するため**実機検証が必須**。
 
 - **LaTeX数式**:
-  ライブラリはLaTeX数式レンダリング (ブロック `$$...$$` はGFM flavor、インライン `$...$` は全flavor) をサポート、オプションのpeer dependencyとして `katex` のインストールが必要。SAP業務メモやObsidianノート用途では当面不要なら入れない。
-
-- **絵文字や日本語の表示**:
-  ネイティブテキストレンダリング (WebViewなし) のため、システムフォントが直接使われる。日本語・絵文字は基本問題なく表示される。カスタムフォントを指定する場合のみ、絵文字フォールバックを意識する。
+  現状は未対応。必要になれば CodeMirror 装飾内で KaTeX を呼ぶ形で追加できるが、SAP業務メモや通常の Md 用途では当面不要なので入れない。
 
 - **Obsidian独自記法は非対応**:
-  `![[wikilink]]`、`[[内部リンク]]`、`==ハイライト==`、`%%コメント%%`、Callout (`> [!note]`) などObsidian拡張は標準では認識されない。CommonMark/GFM外なので想定通り。v2の「Obsidian風リンク対応」では、レンダリング前にプリプロセスで標準Mdに変換するアプローチが現実的。
+  `[[内部リンク]]`、`![[埋め込み]]`、`==ハイライト==`、`%%コメント%%`、Callout (`> [!note]`) などの Obsidian 拡張は認識しない。内部リンク・埋め込みは改訂11でスコープ外に確定 (フォルダ参照前提のため)。
 
 - **番号付きリストの連番挙動 (既知の制約)**:
-  番号付きリストの途中に見出しや段落が挟まると、Obsidian は連番を継続して描画するが、`react-native-enriched-markdown` (CommonMark 標準) はそこでリストが区切れて 1 から振り直す。標準仕様通りの挙動なので MVP では許容。v1.1 以降で必要ならプリプロセスでの対応を検討。
+  番号付きリストの途中に見出しや段落が挟まると、Obsidian は連番を継続するが CommonMark 標準ではリストが区切れて 1 から振り直す。標準仕様通りの挙動として許容。
 
 - **大きなファイルでのパフォーマンス**:
-  ネイティブレンダリング + md4cパーサで高速だが、数万行のMdは未検証。実機での挙動確認は実装後に行う。
+  CodeMirror は仮想化で大きな文書に強いが、WebView 越し + 数万行の Md は未検証。実機での挙動確認を行う。
 
 ### 10.4 iOS/App Store関連
 
-- **TextInput multilineの日本語入力**:
-  iOSのIME (日本語入力) で長文編集すると、変換確定前のテキスト処理が稀に崩れる。`onChangeText` で逐次state更新する設計だと顕在化しやすい。実機での検証必須。自動保存とIMEの組み合わせは特に要注意
+- **日本語入力 (IME) — CodeMirror in WebView**:
+  iOSのIME (日本語入力) で長文編集すると、変換確定前 (composition) のテキスト処理が崩れることがある。v2 では編集器が WebView 上の CodeMirror になったため、崩れの出方はネイティブ `TextInput` とは異なる (`compositionstart`/`end` の扱いに依存)。編集は WebView 内で完結し、確定テキストのみ postMessage で React Native 側へ渡して自動保存する設計。実機での検証必須で、自動保存とIMEの組み合わせは特に要注意
 
 - **編集中のキーボード表示でレイアウト崩れ**:
   `KeyboardAvoidingView` を正しく組み込む必要あり。iPhone Xシリーズ以降はSafe Areaも考慮
@@ -890,7 +902,7 @@ v1.1 で実装する固定の見出しカラーリング ([5.2](#52-v11-phase-2)
 
 - **R-01: Security-Scoped Bookmark の Swift ネイティブモジュール実装** (FR-11、実装済み)
 - **R-02: 日本語IMEと自動保存の組み合わせでの挙動崩れ** (実機検証必須)
-- **R-03: react-native-enriched-markdown のレンダリング互換性** (多様な Md ファイルで未検証)
+- **R-03: CodeMirror (WebView) のレンダリング互換性** (多様な Md ファイル・実機 WKWebView で未検証。FR-20)
 - **R-04: 競合発生時のユーザー体験** (last-write-winsの許容範囲は要検証)
 
 ### 戦略リスク
@@ -917,7 +929,9 @@ v1.1 で実装する固定の見出しカラーリング ([5.2](#52-v11-phase-2)
 
 ### 外部ドキュメント
 
-- react-native-enriched-markdown: [https://github.com/software-mansion-labs/react-native-enriched-markdown](https://github.com/software-mansion-labs/react-native-enriched-markdown)
+- CodeMirror 6 (v2 のレンダリング/編集基盤): [https://codemirror.net/](https://codemirror.net/)
+- react-native-webview: [https://github.com/react-native-webview/react-native-webview](https://github.com/react-native-webview/react-native-webview)
+- react-native-enriched-markdown (MVP〜v1.1 のネイティブ Md レンダラ。v2 で CodeMirror に置換し撤去): [https://github.com/software-mansion-labs/react-native-enriched-markdown](https://github.com/software-mansion-labs/react-native-enriched-markdown)
 - expo-document-picker: [https://docs.expo.dev/versions/latest/sdk/document-picker/](https://docs.expo.dev/versions/latest/sdk/document-picker/)
 - expo-file-system: [https://docs.expo.dev/versions/latest/sdk/filesystem/](https://docs.expo.dev/versions/latest/sdk/filesystem/)
 - Apple File Provider Extension: [https://developer.apple.com/documentation/fileprovider](https://developer.apple.com/documentation/fileprovider)
@@ -964,3 +978,5 @@ v1.1 で実装する固定の見出しカラーリング ([5.2](#52-v11-phase-2)
 - **2026-06-29 (改訂10)**: FR-24 ホーム設計を確定 — Vault を「デフォルト OFF の任意・上級者向けモード」と明確化。ON/OFF は専用トグルを設けず「Vault フォルダが設定されているか否か」そのものとする。ホームは OFF=履歴+「ファイルを開く」(現状どおり・Vault UI 非表示)、ON=履歴(主)+「My Vault」をメイン導線に「ファイルを開く」を「別の場所から開く」として小さく従属表示。Open File と Vault はモードで排他にし「似た 2 ボタン」の混乱を構造的に回避。Vault ブラウザはインライン展開でなく別画面 (push・iOS Files 風) と明記。FR-18 (フォルダピッカー+ローカル画像) は実装・実機検証済み (2026-06-28)
 - **2026-06-29 (改訂11・方針転換)**: **フォルダ Vault を全面廃止し、「どこのファイルでも開ける軽量 Markdown ビューア＆クイックエディタ」に positioning を寄せ直し**。理由: iOS はサードパーティ File Provider のフォルダ参照を全面的に塞ぐ (Apple "by design") ため、フォルダ Vault は Google Drive / Dropbox で成立せず、iCloud 専用にすると Obsidian Mobile と競合するだけ。中途半端な iCloud 専用 Vault は UX を濁すので削除 (実装済みだったが pre-FR-18=9131833 に復元、コミット e367095)。**廃止**: FR-17 (内部リンク) / FR-18 (フォルダピッカー・ローカル画像) / FR-23 (新規作成) / FR-24 (Vault ブラウザ) / FR-21 の `![[]]` 埋め込み — いずれもフォルダ参照依存。**新スコープ**: v2=FR-20 ライブプレビュー主役+全プロバイダで効くおまけ (検索/履歴/見出し/iPad)、v3=単一ファイルの PDF/xlsx 閲覧 (Pro)。§1-2・競合表・5.3-5.7・ロードマップ・用語・各 FR を改訂。差別化は「全プロバイダの単一 Md を整形して軽快に開く」(Obsidian にも Files にもできない)
 - **2026-06-29 (改訂12)**: v3 の有償他形式に **Word (.docx) 単一ファイル閲覧**を追加 (PDF / Word / xlsx の3形式に)。docx→HTML 変換 (mammoth.js 等) で本文・見出し・表を整形表示する閲覧専用機能 (編集は対象外)。§1・5.2・5.4・5.6・5.7・FR-21〜・技術スタック・ロードマップ Phase 5・CLAUDE.md を更新。具体ライブラリは v3 着手時に ADR で確定
+- **2026-07-03 (改訂13)**: **FR-20 の実装確定に合わせてドキュメントを整合**。編集 UI をネイティブ `EnrichedMarkdownTextInput` へ移行する構想を撤回し、**閲覧・編集の両方を WebView 上の CodeMirror 1 つで賄う一本化**に決定 (コミット e1852e3、旧 ADR を解決)。理由: ネイティブ enriched-markdown はブロック単位のライブプレビュー編集を提供できず、閲覧・編集で同一レンダリング経路を通せば見た目が原理的に一致するため。FR-20 を改題 (アンカーも追従)、FR-02/FR-03 に v2 更新注記、技術スタック §9・レンダリングノート §10.3・IME 注記 §10.4・R-03・外部ドキュメントを CodeMirror 基準に更新。`react-native-enriched-markdown` は設定画面のライブプレビュー見本にのみ残存 (依存は未撤去)。WKWebView は `@font-face` の `size-adjust` を無視するため CJK/Latin のサイズ調和は inline font-size span で対応する点を明記。実機総確認は別途。CLAUDE.md・README も併せて更新
+- **2026-07-03 (改訂14)**: **設定画面のライブプレビュー見本も CodeMirror 化し、`react-native-enriched-markdown` 依存を完全撤去**。見本はビューアと同じ `MarkdownWebView` を read-only (`editable={false}`) で描画するため、設定で選んだ外観・文字サイズが実際の閲覧/編集画面と完全に一致する。ネイティブレンダラ専用だった `src/lib/markdown-style.ts` を削除、npm 依存も `npm uninstall`。技術スタック §9・§10.3・外部ドキュメントを「撤去済み」に更新。アプリ内で使う Md レンダラは CodeMirror のみになった
