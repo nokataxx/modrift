@@ -74,6 +74,13 @@
       "cloudNames": "クラウドの名前",
       "cloudSample": "例: {{name}}",
       "cloudNamesHint": "Google Drive などのクラウドは iOS の制約で自動判別できません。ここで名前を付けると履歴に反映されます。"
+    },
+    "search": {
+      "title": "検索",
+      "placeholder": "最近開いたファイルを検索",
+      "hint": "最近開いたファイルの本文を検索します",
+      "noResults": "見つかりませんでした",
+      "truncated": "結果が多いため一部のみ表示しています"
     }
   },
   "network": {

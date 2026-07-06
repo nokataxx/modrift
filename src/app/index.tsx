@@ -345,18 +345,32 @@ export default function HomeScreen() {
         options={{
           title: t('screens.recentFiles.title'),
           headerRight: () => (
-            <Pressable
-              onPress={() => router.push('/settings')}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={t('screens.settings.title')}>
-              <SymbolView
-                name="gearshape"
-                size={22}
-                weight="semibold"
-                tintColor={theme.text}
-              />
-            </Pressable>
+            <View style={styles.headerActions}>
+              <Pressable
+                onPress={() => router.push('/search')}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t('screens.search.title')}>
+                <SymbolView
+                  name="magnifyingglass"
+                  size={20}
+                  weight="semibold"
+                  tintColor={theme.text}
+                />
+              </Pressable>
+              <Pressable
+                onPress={() => router.push('/settings')}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t('screens.settings.title')}>
+                <SymbolView
+                  name="gearshape"
+                  size={22}
+                  weight="semibold"
+                  tintColor={theme.text}
+                />
+              </Pressable>
+            </View>
           ),
         }}
       />
@@ -458,5 +472,10 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.four,
   },
 });

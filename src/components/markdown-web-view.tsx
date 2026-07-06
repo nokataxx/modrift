@@ -15,6 +15,8 @@ export type MarkdownWebViewHandle = {
   undo: () => void;
   redo: () => void;
   setEditable: (on: boolean) => void;
+  /** FR-15: scroll to and flash-highlight a match range (char offsets). */
+  reveal: (from: number, to: number) => void;
 };
 
 type Props = {
@@ -89,6 +91,8 @@ export const MarkdownWebView = forwardRef<MarkdownWebViewHandle, Props>(
         redo: () => inject("window.__cmRedo && window.__cmRedo()"),
         setEditable: (on: boolean) =>
           inject(`window.__cmSetEditable && window.__cmSetEditable(${on})`),
+        reveal: (from: number, to: number) =>
+          inject(`window.__cmReveal && window.__cmReveal(${from | 0}, ${to | 0})`),
       }),
       [inject],
     );

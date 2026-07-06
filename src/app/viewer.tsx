@@ -30,6 +30,7 @@ import { classifyFileLocation, isInPlaceEditable } from "@/lib/file-location";
 import { createIcloudCopy, IcloudUnavailableError } from "@/lib/icloud-copy";
 import { recordRecentFile, removeRecentFile } from "@/lib/recent-files";
 import { FONT_SIZE_BASE } from "@/lib/settings";
+import { normalizeMarkdown } from "@/lib/text";
 import { Spacing } from "@/theme";
 
 type Mode = "preview" | "edit";
@@ -43,7 +44,7 @@ export default function ViewerScreen() {
   const base = FONT_SIZE_BASE[settings.fontSize];
   const router = useRouter();
   const headerHeight = useHeaderHeight();
-  const { fileUri, fileName, initialMode, openInPending, source } =
+  const { fileUri, fileName, initialMode, openInPending, source, matchFrom, matchTo } =
     useLocalSearchParams<{
       fileUri: string;
       fileName: string;
@@ -53,6 +54,10 @@ export default function ViewerScreen() {
       // (recent-files tap), or "icloudCopy" (a copy we just created). Open-In /
       // share-sheet launches carry no source. Drives whether we record history.
       source?: string;
+      // FR-15: when opened from a search result, the char range of the match to
+      // scroll to and highlight once the editor is ready.
+      matchFrom?: string;
+      matchTo?: string;
     }>();
 
   const isOpenInPending = openInPending === "true";
@@ -82,6 +87,9 @@ export default function ViewerScreen() {
   // True once an Open-In Inbox file has been copied to iCloud, so the unmount
   // cleanup doesn't try to delete an already-consumed source.
   const inboxConsumedRef = useRef(false);
+  // FR-15: guard so we jump to the search match only on the first editor-ready
+  // (the initial open), not again after a "load latest" reload remounts it.
+  const revealedRef = useRef(false);
 
   // FR-14 undo/redo is handled inside CodeMirror; these mirror its reported
   // availability so the header buttons enable/disable.
@@ -101,7 +109,7 @@ export default function ViewerScreen() {
       try {
         const file = new File(fileUri);
         const text = await file.text();
-        const normalized = text.replace(/^﻿/, "").replace(/\r\n/g, "\n");
+        const normalized = normalizeMarkdown(text);
         if (cancelled) return;
         setContent(normalized);
         // Record the baseline for conflict detection right after the read, so a
@@ -159,7 +167,7 @@ export default function ViewerScreen() {
     try {
       const file = new File(fileUri);
       const text = await file.text();
-      const normalized = text.replace(/^﻿/, "").replace(/\r\n/g, "\n");
+      const normalized = normalizeMarkdown(text);
       contentRef.current = normalized;
       isDirtyRef.current = false;
       baselineMtimeRef.current = file.modificationTime;
@@ -258,6 +266,17 @@ export default function ViewerScreen() {
   const handleToggleMode = useCallback(() => {
     setMode((m) => (m === "edit" ? "preview" : "edit"));
   }, []);
+
+  // FR-15: once the editor is ready after opening a search result, scroll to and
+  // flash the matched range. Fires only for the first ready of this file open.
+  const handleReady = useCallback(() => {
+    if (revealedRef.current) return;
+    const from = Number(matchFrom);
+    const to = Number(matchTo);
+    if (!Number.isFinite(from) || !Number.isFinite(to) || to <= from) return;
+    revealedRef.current = true;
+    editorRef.current?.reveal(from, to);
+  }, [matchFrom, matchTo]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (next) => {
@@ -503,6 +522,7 @@ export default function ViewerScreen() {
               taskInteractive={editable}
               onChange={handleChange}
               onHistoryChange={handleHistoryChange}
+              onReady={handleReady}
               onLinkPress={(url) => {
                 Linking.openURL(url).catch(() => {
                   // Malformed or unsupported scheme — nothing actionable.
