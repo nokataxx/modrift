@@ -82,6 +82,9 @@ export function buildEditorHtml(opts: {
   /* Read-only (preview): hide the caret. !important to beat .cm-content above. */
   body.readonly .cm-content { caret-color: transparent !important; }
   ::selection { background: var(--sel); }
+  /* Transient search-match highlight (FR-15). Amber reads as "find" in both
+     light and dark; translucent so the text underneath stays legible. */
+  .cm-search-hl { background: rgba(255, 204, 0, 0.42); border-radius: 2px; }
 
   /* Headings — size + colour carry the hierarchy, no bold weight. */
   .cm-h1 { font-size: 1.6em;  font-weight: 500; letter-spacing: -0.012em; line-height: 1.25; color: var(--h1); padding-top: 2px; }

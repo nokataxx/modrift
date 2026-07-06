@@ -12,7 +12,7 @@ import {
   WidgetType,
   keymap,
 } from "@codemirror/view";
-import { EditorState, Compartment, StateField } from "@codemirror/state";
+import { EditorState, Compartment, StateField, StateEffect } from "@codemirror/state";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { GFM } from "@lezer/markdown";
 import { javascript } from "@codemirror/lang-javascript";
@@ -544,6 +544,29 @@ const tableField = StateField.define({
   provide: (f) => EditorView.decorations.from(f),
 });
 
+// Transient search-match highlight (FR-15 jump-to-match). __cmReveal scrolls to
+// a range and sets this effect to mark it; a timer clears it after a moment.
+// Any edit clears it too, so a stale highlight never lingers over changed text.
+const setHighlight = StateEffect.define();
+const highlightMark = Decoration.mark({ class: "cm-search-hl" });
+const highlightField = StateField.define({
+  create: () => Decoration.none,
+  update(value, tr) {
+    value = value.map(tr.changes);
+    for (const e of tr.effects) {
+      if (e.is(setHighlight)) {
+        value =
+          e.value && e.value.to > e.value.from
+            ? Decoration.set([highlightMark.range(e.value.from, e.value.to)])
+            : Decoration.none;
+      }
+    }
+    if (tr.docChanged) value = Decoration.none;
+    return value;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
+
 (function () {
   const t0 = performance.now();
   const cfg = window.CONFIG;
@@ -586,6 +609,7 @@ const tableField = StateField.define({
           EditorView.lineWrapping,
           livePreview,
           tableField,
+          highlightField,
           editableCompartment.of(editableExt(cfg.editable)),
           EditorView.updateListener.of((u) => {
             // Report every doc change (typing, or a checkbox tap in read mode)
@@ -636,6 +660,32 @@ const tableField = StateField.define({
         effects: editableCompartment.reconfigure(editableExt(on)),
       });
       if (on) view.focus();
+    };
+
+    // FR-15: scroll to a match (char offsets on the same normalized text the RN
+    // side searched), select it, and flash a highlight that auto-clears. Called
+    // from RN once the editor is ready after opening a search result.
+    let revealTimer = null;
+    window.__cmReveal = function (from, to) {
+      const len = view.state.doc.length;
+      const a = Math.max(0, Math.min(from | 0, len));
+      const b = Math.max(a, Math.min(to | 0, len));
+      view.dispatch({
+        selection: { anchor: a, head: b },
+        effects: [
+          EditorView.scrollIntoView(a, { y: "center" }),
+          setHighlight.of({ from: a, to: b }),
+        ],
+      });
+      if (revealTimer) clearTimeout(revealTimer);
+      revealTimer = setTimeout(() => {
+        revealTimer = null;
+        try {
+          view.dispatch({ effects: setHighlight.of(null) });
+        } catch {
+          // View may be gone if the screen closed — nothing to clear.
+        }
+      }, 2600);
     };
 
     // Tapping a link in read mode opens it (RN handles the URL). In edit mode a
