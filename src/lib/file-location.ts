@@ -46,7 +46,29 @@ export type FileLocation = {
   // from the URI when possible (e.g. "Google Drive", "Dropbox"). Undefined
   // when the URI doesn't match a known mount-point pattern.
   providerName?: string;
+  // For icloudDrive files, the immediate parent folder name (decoded) so the
+  // UI can show "iCloud Drive › Notes", mirroring the Files-app breadcrumb.
+  // Undefined when the file sits at the iCloud Drive root.
+  folder?: string;
 };
+
+// The immediate parent folder of an iCloud Drive file, e.g.
+// ".../com~apple~CloudDocs/Documents/Notes/foo.md" → "Notes". Undefined when the
+// file is directly at the iCloud Drive root (no folder to show).
+function icloudDriveFolder(uri: string): string | undefined {
+  const i = uri.indexOf(ICLOUD_DRIVE_SEGMENT);
+  if (i < 0) return undefined;
+  const after = uri.slice(i + ICLOUD_DRIVE_SEGMENT.length);
+  // segments = [...folders, filename]; the parent is the second-to-last.
+  const segments = after.split('/').filter(Boolean);
+  if (segments.length < 2) return undefined;
+  const parent = segments[segments.length - 2];
+  try {
+    return decodeURIComponent(parent);
+  } catch {
+    return parent;
+  }
+}
 
 // Classify the file's storage location for UI labelling in the recent-files
 // list. Drives the small subtitle that lets the user distinguish identically-
@@ -54,7 +76,9 @@ export type FileLocation = {
 export function classifyFileLocation(uri: string): FileLocation {
   if (!uri) return { kind: 'external' };
   if (uri.includes(UBIQUITY_CONTAINER_SEGMENT)) return { kind: 'icloudCopy' };
-  if (uri.includes(ICLOUD_DRIVE_SEGMENT)) return { kind: 'icloudDrive' };
+  if (uri.includes(ICLOUD_DRIVE_SEGMENT)) {
+    return { kind: 'icloudDrive', folder: icloudDriveFolder(uri) };
+  }
   const root = appContainerRoot();
   if (root && normalizePrivate(uri).startsWith(normalizePrivate(root))) {
     return { kind: 'appSandbox' };

@@ -27,8 +27,17 @@ import { useSettings } from "@/hooks/use-settings";
 import { useTheme } from "@/hooks/use-theme";
 import { type CmTheme } from "@/lib/cm/html";
 import { classifyFileLocation, isInPlaceEditable } from "@/lib/file-location";
-import { createIcloudCopy, IcloudUnavailableError } from "@/lib/icloud-copy";
-import { recordRecentFile, removeRecentFile } from "@/lib/recent-files";
+import {
+  createIcloudCopy,
+  IcloudUnavailableError,
+  NameInUseError,
+  renameIcloudCopy,
+} from "@/lib/icloud-copy";
+import {
+  recordRecentFile,
+  removeRecentFile,
+  renameRecentFile,
+} from "@/lib/recent-files";
 import { FONT_SIZE_BASE } from "@/lib/settings";
 import { normalizeMarkdown } from "@/lib/text";
 import { Spacing } from "@/theme";
@@ -44,30 +53,64 @@ export default function ViewerScreen() {
   const base = FONT_SIZE_BASE[settings.fontSize];
   const router = useRouter();
   const headerHeight = useHeaderHeight();
-  const { fileUri, fileName, initialMode, openInPending, source, matchFrom, matchTo } =
-    useLocalSearchParams<{
-      fileUri: string;
-      fileName: string;
-      initialMode?: string;
-      openInPending?: string;
-      // How the viewer was reached: "picker" (in-app Open File), "history"
-      // (recent-files tap), or "icloudCopy" (a copy we just created). Open-In /
-      // share-sheet launches carry no source. Drives whether we record history.
-      source?: string;
-      // FR-15: when opened from a search result, the char range of the match to
-      // scroll to and highlight once the editor is ready.
-      matchFrom?: string;
-      matchTo?: string;
-    }>();
+  const {
+    fileUri,
+    fileName,
+    initialMode,
+    openInPending,
+    source,
+    matchFrom,
+    matchTo,
+    newNotePending,
+  } = useLocalSearchParams<{
+    fileUri?: string;
+    fileName: string;
+    initialMode?: string;
+    openInPending?: string;
+    // How the viewer was reached: "picker" (in-app Open File), "history"
+    // (recent-files tap), or "icloudCopy" (a copy we just created). Open-In /
+    // share-sheet launches carry no source. Drives whether we record history.
+    source?: string;
+    // FR-15: when opened from a search result, the char range of the match to
+    // scroll to and highlight once the editor is ready.
+    matchFrom?: string;
+    matchTo?: string;
+    // FR-23: a brand-new note. There is no file yet — we start with an empty
+    // buffer and only create it in iCloud › Modrift on the first keystroke, so a
+    // mis-tap on "+" never leaves an empty note behind.
+    newNotePending?: string;
+  }>();
 
   const isOpenInPending = openInPending === "true";
+  const isNewNotePending = newNotePending === "true";
 
-  const [content, setContent] = useState<string | null>(null);
+  // A new note starts with an empty buffer (no file to read yet); everything
+  // else loads from disk in the effect below.
+  const [content, setContent] = useState<string | null>(
+    isNewNotePending ? "" : null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>(
     initialMode === "edit" ? "edit" : "preview",
   );
   const [copying, setCopying] = useState(false);
+  // The name shown in the header. Starts from the route param; for a new note it
+  // updates to the deduped filename once the file is actually created.
+  const [displayName, setDisplayName] = useState(fileName ?? "");
+
+  // The file this screen reads/writes. Equals fileUri for a normal open; null
+  // for a not-yet-created new note (FR-23), set to the created URI on first
+  // keystroke. All file I/O goes through the ref so lazy creation needs no
+  // remount; the state mirror re-renders the header so its rename affordance
+  // (only for our own iCloud copies) appears once the file exists.
+  const activeUriRef = useRef<string | null>(fileUri ?? null);
+  const [activeUri, setActiveUri] = useState<string | null>(fileUri ?? null);
+  const setActiveFile = useCallback((uri: string) => {
+    activeUriRef.current = uri;
+    setActiveUri(uri);
+  }, []);
+  // Guards the one-shot new-note creation against back-to-back keystrokes.
+  const creatingNoteRef = useRef(false);
 
   const contentRef = useRef<string | null>(null);
   const isDirtyRef = useRef(false);
@@ -101,13 +144,18 @@ export default function ViewerScreen() {
   }, [content]);
 
   useEffect(() => {
+    // FR-23: a brand-new note has no file to read — content is initialized empty
+    // above. The file is created on the first keystroke (handleChange), so
+    // nothing is written or recorded until the user actually types.
+    if (isNewNotePending) return;
     // Every entry path lands in preview first (preview-first model). Inbox
     // Open-In files load and render like any other source — they're just not
     // in-place editable, so editing them goes through the copy-to-iCloud button.
+    const uri = fileUri as string;
     let cancelled = false;
     (async () => {
       try {
-        const file = new File(fileUri);
+        const file = new File(uri);
         const text = await file.text();
         const normalized = normalizeMarkdown(text);
         if (cancelled) return;
@@ -123,9 +171,9 @@ export default function ViewerScreen() {
         const recordable =
           source === "picker" ||
           source === "history" ||
-          classifyFileLocation(fileUri).kind === "icloudCopy";
+          classifyFileLocation(uri).kind === "icloudCopy";
         if (recordable) {
-          recordRecentFile({ uri: fileUri, name: fileName ?? "" }).catch(() => {
+          recordRecentFile({ uri, name: fileName ?? "" }).catch(() => {
             // Non-fatal: history is for display only.
           });
         }
@@ -136,36 +184,41 @@ export default function ViewerScreen() {
     return () => {
       cancelled = true;
     };
-  }, [fileUri, fileName, t, source]);
+  }, [fileUri, fileName, t, source, isNewNotePending]);
 
-  const writeFile = useCallback(
-    (text: string) => {
-      try {
-        new File(fileUri).write(text);
-        // Re-read after writing so our own save becomes the new baseline and
-        // isn't mistaken for an external change on the next save.
-        baselineMtimeRef.current = new File(fileUri).modificationTime;
-        isDirtyRef.current = false;
-      } catch {
-        // Silent per FR-04. Next edit will retry.
-      }
-    },
-    [fileUri],
-  );
+  const writeFile = useCallback((text: string) => {
+    // No file yet (a new note before its first keystroke created it) — nothing
+    // to write. Guards the brief window before lazy creation resolves.
+    const uri = activeUriRef.current;
+    if (uri === null) return;
+    try {
+      new File(uri).write(text);
+      // Re-read after writing so our own save becomes the new baseline and
+      // isn't mistaken for an external change on the next save.
+      baselineMtimeRef.current = new File(uri).modificationTime;
+      isDirtyRef.current = false;
+    } catch {
+      // Silent per FR-04. Next edit will retry.
+    }
+  }, []);
 
   // FR-13: true when the on-disk file changed after our recorded baseline,
   // i.e. another device or app wrote to it while we held it open.
   const hasExternalChange = useCallback((): boolean => {
+    const uri = activeUriRef.current;
+    if (uri === null) return false;
     const baseline = baselineMtimeRef.current;
     if (baseline === null) return false;
-    const current = new File(fileUri).modificationTime;
+    const current = new File(uri).modificationTime;
     if (current === null) return false;
     return current > baseline;
-  }, [fileUri]);
+  }, []);
 
   const reloadFromDisk = useCallback(async () => {
+    const uri = activeUriRef.current;
+    if (uri === null) return;
     try {
-      const file = new File(fileUri);
+      const file = new File(uri);
       const text = await file.text();
       const normalized = normalizeMarkdown(text);
       contentRef.current = normalized;
@@ -178,7 +231,7 @@ export default function ViewerScreen() {
     } catch {
       // Non-fatal — keep the current buffer if the reread fails.
     }
-  }, [fileUri]);
+  }, []);
 
   const promptConflict = useCallback(() => {
     if (conflictOpenRef.current) return;
@@ -253,9 +306,40 @@ export default function ViewerScreen() {
     (next: string) => {
       contentRef.current = next;
       isDirtyRef.current = true;
+      // FR-23: the first non-empty keystroke on a new note creates the file in
+      // iCloud › Modrift. createIcloudCopy writes `next` immediately; from then
+      // on activeUriRef is set so ordinary auto-save persists further edits. A
+      // guard keeps back-to-back keystrokes from creating duplicates.
+      if (
+        isNewNotePending &&
+        activeUriRef.current === null &&
+        !creatingNoteRef.current &&
+        next.length > 0
+      ) {
+        creatingNoteRef.current = true;
+        createIcloudCopy(next, fileName ?? "Untitled.md")
+          .then(({ uri, name }) => {
+            setActiveFile(uri);
+            baselineMtimeRef.current = new File(uri).modificationTime;
+            setDisplayName(name);
+            recordRecentFile({ uri, name }).catch(() => {});
+            // Flush anything typed while the create was in flight.
+            scheduleSave();
+          })
+          .catch((err) => {
+            // Let a later keystroke retry the creation.
+            creatingNoteRef.current = false;
+            const message =
+              err instanceof IcloudUnavailableError
+                ? t("screens.viewer.copyToIcloudErrorIcloudUnavailable")
+                : t("screens.viewer.copyToIcloudErrorFailed");
+            Alert.alert(t("screens.viewer.copyToIcloudErrorTitle"), message);
+          });
+        return;
+      }
       scheduleSave();
     },
-    [scheduleSave],
+    [scheduleSave, isNewNotePending, fileName, t, setActiveFile],
   );
 
   const handleHistoryChange = useCallback((undo: boolean, redo: boolean) => {
@@ -266,6 +350,49 @@ export default function ViewerScreen() {
   const handleToggleMode = useCallback(() => {
     setMode((m) => (m === "edit" ? "preview" : "edit"));
   }, []);
+
+  // FR-22: rename lives here now (not on a list swipe) — long-pressing the file
+  // name renames a Modrift-generated iCloud copy in place. Renames the file in
+  // iCloud › Modrift and re-points activeUriRef so ongoing edits keep saving to
+  // the new name without a remount; the history entry follows via
+  // renameRecentFile. Only reachable when the open file is such a copy.
+  const handleRename = useCallback(() => {
+    const uri = activeUriRef.current;
+    if (uri === null || classifyFileLocation(uri).kind !== "icloudCopy") return;
+    Alert.prompt(
+      t("screens.recentFiles.renameTitle"),
+      t("screens.recentFiles.renameMessage"),
+      [
+        { text: t("common.cancel"), style: "cancel" },
+        {
+          text: t("screens.recentFiles.renameConfirm"),
+          onPress: (value?: string) => {
+            if (!value || !value.trim()) return;
+            // Flush pending edits to the current file first so the rename
+            // carries the latest content across to the new name.
+            if (isDirtyRef.current && contentRef.current !== null) {
+              writeFile(contentRef.current);
+            }
+            try {
+              const result = renameIcloudCopy(uri, value);
+              setActiveFile(result.uri);
+              setDisplayName(result.name);
+              baselineMtimeRef.current = new File(result.uri).modificationTime;
+              renameRecentFile(uri, result).catch(() => {});
+            } catch (err) {
+              const message =
+                err instanceof NameInUseError
+                  ? t("screens.recentFiles.renameErrorInUse")
+                  : t("screens.recentFiles.renameErrorFailed");
+              Alert.alert(t("screens.recentFiles.renameErrorTitle"), message);
+            }
+          },
+        },
+      ],
+      "plain-text",
+      displayName.replace(/\.md$/i, ""),
+    );
+  }, [displayName, t, writeFile, setActiveFile]);
 
   // FR-15: once the editor is ready after opening a search result, scroll to and
   // flash the matched range. Fires only for the first ready of this file open.
@@ -309,7 +436,7 @@ export default function ViewerScreen() {
     // leave a stale sandbox file behind. When it was copied, performCopy already
     // removed it (inboxConsumedRef guards against a double delete).
     return () => {
-      if (isOpenInPending && !inboxConsumedRef.current) {
+      if (isOpenInPending && fileUri && !inboxConsumedRef.current) {
         try {
           new File(fileUri).delete();
         } catch {
@@ -324,7 +451,7 @@ export default function ViewerScreen() {
     setCopying(true);
     try {
       const result = await createIcloudCopy(content, fileName ?? "note.md");
-      if (isOpenInPending) {
+      if (isOpenInPending && fileUri) {
         // Source was a throwaway Inbox copy — remove it now that a durable
         // iCloud copy exists.
         try {
@@ -338,7 +465,7 @@ export default function ViewerScreen() {
       // history so the user isn't shown both the read-only original and the
       // copy. Awaited before navigating so the new screen's record (the copy)
       // doesn't race this removal on the same AsyncStorage key.
-      await removeRecentFile(fileUri).catch(() => {});
+      if (fileUri) await removeRecentFile(fileUri).catch(() => {});
       router.replace({
         pathname: "/viewer",
         params: {
@@ -390,7 +517,13 @@ export default function ViewerScreen() {
     [theme, base],
   );
 
-  const editable = isInPlaceEditable(fileUri);
+  // A new note is editable from the start (it becomes an in-place iCloud copy on
+  // the first keystroke); otherwise editability follows the file's location.
+  const editable = isNewNotePending || isInPlaceEditable(fileUri ?? "");
+  // Rename (via long-press on the header title) is only for our own iCloud
+  // copies — a user's own file can't be renamed (file-scope permission only).
+  const renameable =
+    activeUri !== null && classifyFileLocation(activeUri).kind === "icloudCopy";
   const loaded = content !== null && !error;
   const canToggle = loaded && editable;
   const showCopyButton = loaded && !editable;
@@ -401,7 +534,24 @@ export default function ViewerScreen() {
     <ThemedView style={styles.container}>
       <Stack.Screen
         options={{
-          title: fileName ?? "",
+          // Custom title so a long-press can rename a Modrift copy (FR-22). For
+          // non-renameable files it's a plain, non-interactive label.
+          headerTitle: () => (
+            <Pressable
+              onLongPress={renameable ? handleRename : undefined}
+              disabled={!renameable}
+              hitSlop={8}
+              accessibilityRole="header"
+              accessibilityLabel={displayName}
+              accessibilityHint={
+                renameable ? t("screens.recentFiles.renameTitle") : undefined
+              }
+            >
+              <ThemedText numberOfLines={1} style={styles.headerTitle}>
+                {displayName}
+              </ThemedText>
+            </Pressable>
+          ),
           // Replace the system back button with our own chevron so it renders
           // at the exact same size/weight/tint as the headerRight icon — the
           // native back chevron ignores size and draws larger.
@@ -510,8 +660,9 @@ export default function ViewerScreen() {
           >
             <MarkdownWebView
               // Remount per file (and on "load latest") so it re-seeds the
-              // buffer; preview⇄edit toggles in place via the editable prop.
-              key={`${fileUri}:${reloadNonce}`}
+              // buffer; preview⇄edit toggles in place via the editable prop. A
+              // new note keeps a stable key so lazy creation never remounts it.
+              key={isNewNotePending ? `newnote:${reloadNonce}` : `${fileUri}:${reloadNonce}`}
               ref={editorRef}
               initialContent={content}
               editable={canToggle && mode === "edit"}
@@ -555,5 +706,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.four,
+  },
+  // Match the iOS navigation title so the custom (long-pressable) title looks
+  // identical to a default one.
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: "600",
+    maxWidth: 220,
+    textAlign: "center",
   },
 });

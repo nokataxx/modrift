@@ -18,11 +18,10 @@
       "empty": "No files opened yet. Tap Open to pick one.",
       "reopenFailedTitle": "Couldn't re-open",
       "reopenFailedMessage": "The file may have been moved or deleted, or not yet downloaded from iCloud. Tap Open to pick it again, or try again later.",
-      "locationIcloudCopy": "iCloud",
-      "locationIcloudDrive": "iCloud Drive",
+      "locationIcloudCopy": "iCloud › Modrift",
+      "locationIcloudDrive": "iCloud",
       "locationAppSandbox": "From other apps",
       "locationExternal": "Other cloud",
-      "renameAction": "Rename",
       "renameTitle": "Rename file",
       "renameMessage": "Enter a new file name (.md is added automatically).",
       "renameConfirm": "Rename",
@@ -35,7 +34,9 @@
       "removeFromListAction": "Remove",
       "nameCloudTitle": "Name this cloud",
       "nameCloudMessage": "This name will show for every file from this cloud (e.g. Google Drive). Leave blank to reset.",
-      "nameCloudConfirm": "Save"
+      "nameCloudConfirm": "Save",
+      "newNote": "New note",
+      "untitledNote": "Untitled"
     },
     "viewer": {
       "edit": "Edit",

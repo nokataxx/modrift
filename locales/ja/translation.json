@@ -18,11 +18,10 @@
       "empty": "まだファイルがありません。「開く」から選択してください。",
       "reopenFailedTitle": "再オープンできませんでした",
       "reopenFailedMessage": "ファイルが移動・削除されたか、まだ iCloud からダウンロードされていない可能性があります。「開く」から選び直すか、しばらくしてからもう一度お試しください。",
-      "locationIcloudCopy": "iCloud",
-      "locationIcloudDrive": "iCloud Drive",
+      "locationIcloudCopy": "iCloud › Modrift",
+      "locationIcloudDrive": "iCloud",
       "locationAppSandbox": "他のアプリから",
       "locationExternal": "他のクラウド",
-      "renameAction": "名前を変更",
       "renameTitle": "名前を変更",
       "renameMessage": "新しいファイル名を入力してください（.md は自動で付きます）。",
       "renameConfirm": "変更",
@@ -35,7 +34,9 @@
       "removeFromListAction": "履歴から削除",
       "nameCloudTitle": "クラウドに名前を付ける",
       "nameCloudMessage": "このクラウド上のファイルにまとめて表示する名前を入力します（例: Google Drive）。空欄で元に戻せます。",
-      "nameCloudConfirm": "保存"
+      "nameCloudConfirm": "保存",
+      "newNote": "新規ノート",
+      "untitledNote": "無題"
     },
     "viewer": {
       "edit": "編集",

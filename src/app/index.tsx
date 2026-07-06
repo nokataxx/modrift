@@ -21,16 +21,11 @@ import {
   shortContainerTag,
   type FileLocationKind,
 } from '@/lib/file-location';
-import {
-  deleteIcloudCopy,
-  NameInUseError,
-  renameIcloudCopy,
-} from '@/lib/icloud-copy';
+import { deleteIcloudCopy } from '@/lib/icloud-copy';
 import {
   loadRecentFiles,
   normalizeUri,
   removeRecentFile,
-  renameRecentFile,
   type RecentFile,
 } from '@/lib/recent-files';
 import { Spacing } from '@/theme';
@@ -43,11 +38,9 @@ const LOCATION_KEY: Record<FileLocationKind, string> = {
   external: 'screens.recentFiles.locationExternal',
 };
 
-// Rename edits the file body on disk, so it gets a distinct accent (iOS system
-// green) rather than sharing the neutral gray of the harmless "remove from
-// history" action. Red is reserved for the destructive file delete, which lives
+// The one swipe action ("remove from list") is non-destructive, so it uses a
+// neutral gray. Red is reserved for the destructive file delete, which lives
 // only in the long-press action sheet.
-const RENAME_GREEN = '#34C759';
 const REMOVE_GRAY = '#636366';
 
 function locationLabel(
@@ -68,6 +61,12 @@ function locationLabel(
     const base = t(LOCATION_KEY.external);
     return key ? `${base} · ${shortContainerTag(key)}` : base;
   }
+  // For iCloud Drive originals, append the containing folder as a breadcrumb
+  // ("iCloud Drive › Notes") to match the "iCloud Drive › Modrift" copy label;
+  // files at the iCloud Drive root fall back to the plain label.
+  if (location.kind === 'icloudDrive' && location.folder) {
+    return `${t(LOCATION_KEY.icloudDrive)} › ${location.folder}`;
+  }
   return t(LOCATION_KEY[location.kind]);
 }
 
@@ -83,22 +82,21 @@ const SUPPORTED_EXTENSIONS = ['.md', '.markdown', '.txt', '.text'] as const;
 // "will open" — so a release that both finishes the swipe and fires the row's
 // press can't sneak a navigation through before the guard is in place.
 //
-// Swipe actions are non-destructive only: "remove from list" (history) for every
-// row, plus "rename" for our own iCloud copies. The one destructive operation —
-// deleting a Modrift-generated copy's file body (FR-22) — lives behind a
-// deliberate long-press action sheet so it can't be triggered by a quick swipe.
+// Swipe reveals one non-destructive action: "remove from list" (history only)
+// for every row. Renaming a Modrift copy now happens by long-pressing the file
+// name in the viewer header (FR-22), not on the swipe. The one destructive
+// operation — deleting a Modrift-generated copy's file body — still lives behind
+// a deliberate long-press action sheet so a quick swipe can't trigger it.
 function RecentRow({
   item,
   cloudNames,
   onPress,
-  onRenameCopy,
   onRemoveHistory,
   onDeleteFile,
 }: {
   item: RecentFile;
   cloudNames: CloudNames;
   onPress: (item: RecentFile) => void;
-  onRenameCopy: (item: RecentFile) => void;
   onRemoveHistory: (item: RecentFile) => void;
   onDeleteFile: (item: RecentFile) => void;
 }) {
@@ -106,6 +104,11 @@ function RecentRow({
   const theme = useTheme();
   const swipeRef = useRef<SwipeableMethods>(null);
   const openRef = useRef(false);
+  // A gesture-handler Swipeable fires a phantom press on the underlying RN
+  // Pressable when the swipe releases. Without this guard that press hits the
+  // row's onPress and (seeing the row now open) immediately closes it — so the
+  // revealed action never stays. Set on open-drag, this absorbs that one press.
+  const swipingRef = useRef(false);
   const isCopy = classifyFileLocation(item.uri).kind === 'icloudCopy';
 
   const handleLongPress = () => {
@@ -134,24 +137,22 @@ function RecentRow({
       rightThreshold={40}
       onSwipeableOpenStartDrag={() => {
         openRef.current = true;
+        swipingRef.current = true;
+      }}
+      onSwipeableOpen={() => {
+        // Open settled — the phantom release-press (if any) has already been
+        // absorbed by now, so clear the guard for genuine taps.
+        swipingRef.current = false;
       }}
       onSwipeableClose={() => {
         openRef.current = false;
+        swipingRef.current = false;
       }}
       renderRightActions={() => (
         <View style={styles.actions}>
-          {/* Our own iCloud copies can be renamed in place (FR-22); rename is
-              non-destructive so it stays on the swipe. */}
-          {isCopy && (
-            <Pressable style={styles.renameAction} onPress={() => onRenameCopy(item)}>
-              <ThemedText style={styles.actionText}>
-                {t('screens.recentFiles.renameAction')}
-              </ThemedText>
-            </Pressable>
-          )}
           {/* History-only removal for every row — never touches the file. */}
           <Pressable style={styles.removeAction} onPress={() => onRemoveHistory(item)}>
-            <ThemedText style={styles.actionText}>
+            <ThemedText numberOfLines={2} style={styles.actionText}>
               {t('screens.recentFiles.removeFromListAction')}
             </ThemedText>
           </Pressable>
@@ -159,6 +160,12 @@ function RecentRow({
       )}>
       <Pressable
         onPress={() => {
+          // Absorb the phantom press that fires when the swipe releases, so
+          // revealing the actions doesn't immediately close them.
+          if (swipingRef.current) {
+            swipingRef.current = false;
+            return;
+          }
           // Swiped open → tap closes the row rather than opening the file, so
           // the revealed actions stay reachable.
           if (openRef.current) {
@@ -232,6 +239,22 @@ export default function HomeScreen() {
     });
   };
 
+  // FR-23 (reduced form): open a new note in edit mode WITHOUT creating a file
+  // yet. The viewer creates it in iCloud › Modrift on the first keystroke, so a
+  // mis-tap on "+" never leaves an empty note behind. The file will be an
+  // icloudCopy, so history/in-place-editing/rename/delete (FR-22) apply once it
+  // exists. Auto-named "Untitled" (deduped); the user renames later via swipe.
+  const handleNewNote = useCallback(() => {
+    router.push({
+      pathname: '/viewer',
+      params: {
+        newNotePending: 'true',
+        fileName: `${t('screens.recentFiles.untitledNote')}.md`,
+        initialMode: 'edit',
+      },
+    });
+  }, [router, t]);
+
   const handleRecentPress = async (item: RecentFile) => {
     // Prefer the bookmark when present so the resolved URI carries a current
     // security scope — needed for files that live outside our sandbox
@@ -278,47 +301,6 @@ export default function HomeScreen() {
     await removeRecentFile(item.uri);
   }, []);
 
-  // FR-22: rename a Modrift-generated iCloud copy (e.g. "Bookmarks-1.md" → a
-  // meaningful name). Renames the file in iCloud Drive › Modrift and updates the
-  // history entry to track its new uri/name. Only offered for icloudCopy rows.
-  const handleRenameCopy = useCallback(
-    (item: RecentFile) => {
-      const currentBase = item.name.replace(/\.md$/i, '');
-      Alert.prompt(
-        t('screens.recentFiles.renameTitle'),
-        t('screens.recentFiles.renameMessage'),
-        [
-          { text: t('common.cancel'), style: 'cancel' },
-          {
-            text: t('screens.recentFiles.renameConfirm'),
-            onPress: (value?: string) => {
-              if (!value || !value.trim()) return;
-              try {
-                const result = renameIcloudCopy(item.uri, value);
-                // Reload from storage rather than patching state locally:
-                // renameRecentFile may drop a duplicate destination entry, and
-                // re-reading keeps the list in sync with that dedup.
-                renameRecentFile(item.uri, result)
-                  .then(() => loadRecentFiles())
-                  .then((items) => setRecent(items))
-                  .catch(() => {});
-              } catch (err) {
-                const message =
-                  err instanceof NameInUseError
-                    ? t('screens.recentFiles.renameErrorInUse')
-                    : t('screens.recentFiles.renameErrorFailed');
-                Alert.alert(t('screens.recentFiles.renameErrorTitle'), message);
-              }
-            },
-          },
-        ],
-        'plain-text',
-        currentBase,
-      );
-    },
-    [t],
-  );
-
   // FR-22: delete a Modrift-generated iCloud copy's file body. Reached only
   // through the long-press action sheet (RecentRow), which carries the required
   // confirmation, so this just performs the deletion and prunes the history
@@ -344,6 +326,15 @@ export default function HomeScreen() {
       <Stack.Screen
         options={{
           title: t('screens.recentFiles.title'),
+          headerLeft: () => (
+            <Pressable
+              onPress={handleNewNote}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t('screens.recentFiles.newNote')}>
+              <SymbolView name="plus" size={24} weight="semibold" tintColor={theme.text} />
+            </Pressable>
+          ),
           headerRight: () => (
             <View style={styles.headerActions}>
               <Pressable
@@ -394,7 +385,6 @@ export default function HomeScreen() {
                 item={item}
                 cloudNames={cloudNames}
                 onPress={handleRecentPress}
-                onRenameCopy={handleRenameCopy}
                 onRemoveHistory={handleRecentDelete}
                 onDeleteFile={handleDeleteFile}
               />
@@ -450,19 +440,21 @@ const styles = StyleSheet.create({
   actions: {
     flexDirection: 'row',
   },
-  renameAction: {
-    backgroundColor: RENAME_GREEN,
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.three,
-  },
+  // Compact, fixed-width swipe action (iOS-style). A narrow button means the row
+  // only slides a little on open, so the file name stays as visible as possible.
   removeAction: {
     backgroundColor: REMOVE_GRAY,
     justifyContent: 'center',
-    paddingHorizontal: Spacing.three,
+    alignItems: 'center',
+    width: 88,
+    paddingHorizontal: Spacing.two,
   },
   actionText: {
     color: '#FFFFFF',
     fontWeight: '600',
+    fontSize: 13,
+    lineHeight: 16,
+    textAlign: 'center',
   },
   openButton: {
     paddingVertical: Spacing.three,
