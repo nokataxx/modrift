@@ -17,8 +17,8 @@ This file is the persistent context for Claude Code working on the Modrift proje
 
 **段階的な進化**:
 - MVP / v1.1: 任意の `.md` を Document Picker / Open In で開いて整形表示・軽編集 (2つの起動経路)
-- v2: ライブプレビュー編集 (CodeMirror 一本化) を主役に、検索・見出しテンプレート等を追加
-- v3: 単一ファイルの PDF / Word (.docx) / xlsx 閲覧 (有償 Pro)
+- v1.2: ライブプレビュー編集 (CodeMirror 一本化) を主役に、検索・見出しテンプレート等を追加
+- v2: 単一ファイルの PDF / Word (.docx) / xlsx 閲覧 (有償 Pro)
 
 **iOS Files App との関係**: Modrift は Files App と競合せず**補完関係**にある。Files App はファイル管理 (フォルダ階層、リネーム、移動、削除) を担い、Modrift は Md 整形表示・編集と他形式ファイルの閲覧を担う。
 
@@ -36,14 +36,14 @@ This file is the persistent context for Claude Code working on the Modrift proje
 - **expo-linking** (Open In 起動時のURI処理)
 - **重要**: `copyToCacheDirectory: false` 必須 — File Provider 経由の直接編集を維持
 
-### Markdown Rendering + Editing (v2 で CodeMirror に一本化 — FR-20)
+### Markdown Rendering + Editing (v1.2 で CodeMirror に一本化 — FR-20)
 - **CodeMirror 6** (`@codemirror/*`) を **react-native-webview** 上でホストし、**閲覧・編集の両方を単一エディタ**で賄う (`src/lib/cm/`)。バンドルは `editor-entry.mjs` を esbuild で `bundle.ts` に固めて WebView へ注入
 - 閲覧はカーソル行の記法も含めて整形表示、編集はカーソル行だけ生の記法を露出するライブプレビュー。GFM (表/タスク/取り消し線)・シンタックスハイライト・タスクタップ・リンクタップ・undo/redo (CM history) 対応
 - **重要**: WKWebView は `@font-face` の `size-adjust` を無視するため、CJK/Latin のサイズ調和は inline `font-size` span で行う。ヘッドレス Chrome は実機と乖離するので**実機検証必須**
-- 設定画面のライブプレビュー見本 (`settings.tsx`) も同じ `MarkdownWebView` を read-only (`editable={false}`) で描画 → ビューアと完全に同じ見た目。アプリ内の Md レンダラは **CodeMirror のみ** (`react-native-enriched-markdown` 依存は v2 で撤去済み)
+- 設定画面のライブプレビュー見本 (`settings.tsx`) も同じ `MarkdownWebView` を read-only (`editable={false}`) で描画 → ビューアと完全に同じ見た目。アプリ内の Md レンダラは **CodeMirror のみ** (`react-native-enriched-markdown` 依存は v1.2 で撤去済み)
 - 旧来の `react-native-markdown-display` も使わない
 - **重要**: New Architecture / ネイティブモジュール前提のため Expo Go では動作しない → **Expo Dev Client が必須**
-- MVP の構成 (履歴): 閲覧=enriched-markdown、編集=`TextInput multiline`。v2 (FR-20) で CodeMirror 一本化に置換し enriched-markdown 依存を撤去
+- MVP の構成 (履歴): 閲覧=enriched-markdown、編集=`TextInput multiline`。v1.2 (FR-20) で CodeMirror 一本化に置換し enriched-markdown 依存を撤去
 
 ### Internationalization
 - **expo-localization** (デバイス言語取得)
