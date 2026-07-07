@@ -38,6 +38,83 @@ export const Colors = {
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
+// FR-25: document style presets. The user picks one in Settings; each preset
+// swaps the reading surface's heading1–4 tokens plus an `accent` that drives
+// links and task checkboxes. Body / app-chrome colors are untouched. Kept as a
+// plain value table per scheme so new presets are trivial to add.
+export type StylePalette = {
+  heading1: string;
+  heading2: string;
+  heading3: string;
+  heading4: string;
+  /** Links and task checkboxes in the reading surface. */
+  accent: string;
+  /** Greyscale code-block syntax highlighting (set on monochrome presets). */
+  codeMono?: boolean;
+};
+
+export type StyleThemeKey = 'navy' | 'mono' | 'colorful';
+
+export const STYLE_THEME_KEYS: readonly StyleThemeKey[] = ['navy', 'mono', 'colorful'];
+
+export const StyleThemes: Record<StyleThemeKey, { light: StylePalette; dark: StylePalette }> = {
+  // 'navy' matches the base Colors above (classic iOS-blue accent) — the default.
+  navy: {
+    light: {
+      heading1: '#1B3A6B',
+      heading2: '#34527E',
+      heading3: '#3A3A3C',
+      heading4: '#60646C',
+      accent: '#007AFF',
+    },
+    dark: {
+      heading1: '#7E9ED6',
+      heading2: '#9DB4E0',
+      heading3: '#C7CAD1',
+      heading4: '#B0B4BA',
+      accent: '#0A84FF',
+    },
+  },
+  // Monochrome: headings differ by weight / size only; accent is a restrained
+  // neutral so links rely on their underline (truly color-free document).
+  mono: {
+    light: {
+      heading1: '#1C1C1E',
+      heading2: '#2C2C2E',
+      heading3: '#3A3A3C',
+      heading4: '#60646C',
+      accent: '#3A3A3C',
+      codeMono: true,
+    },
+    dark: {
+      heading1: '#F2F2F7',
+      heading2: '#D8DADE',
+      heading3: '#C7CAD1',
+      heading4: '#B0B4BA',
+      accent: '#C7CAD1',
+      codeMono: true,
+    },
+  },
+  // Colorful: a distinct hue per heading level plus a lively teal accent that
+  // stays clear of the warm headings.
+  colorful: {
+    light: {
+      heading1: '#B3306B',
+      heading2: '#1F7A4D',
+      heading3: '#B5651D',
+      heading4: '#3A6EA5',
+      accent: '#0E7C86',
+    },
+    dark: {
+      heading1: '#FF7EB0',
+      heading2: '#4FD08A',
+      heading3: '#E0A458',
+      heading4: '#6FA8E6',
+      accent: '#37C2CE',
+    },
+  },
+};
+
 export const Fonts = Platform.select({
   ios: {
     /** iOS `UIFontDescriptorSystemDesignDefault` */

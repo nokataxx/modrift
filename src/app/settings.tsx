@@ -9,7 +9,7 @@ import { MarkdownWebView } from '@/components/markdown-web-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useSettings } from '@/hooks/use-settings';
-import { useTheme } from '@/hooks/use-theme';
+import { useResolvedColorScheme, useTheme } from '@/hooks/use-theme';
 import { type CloudNames, loadCloudNames, setCloudName } from '@/lib/cloud-names';
 import { type CmTheme } from '@/lib/cm/html';
 import {
@@ -19,12 +19,26 @@ import {
 } from '@/lib/file-location';
 import { loadRecentFiles } from '@/lib/recent-files';
 import { FONT_SIZE_BASE, type AppearanceMode, type FontSizeKey } from '@/lib/settings';
-import { Spacing } from '@/theme';
+import {
+  STYLE_THEME_KEYS,
+  StyleThemes,
+  Spacing,
+  type StylePalette,
+  type StyleThemeKey,
+} from '@/theme';
 
 type Theme = ReturnType<typeof useTheme>;
 
 const APPEARANCE_OPTIONS: AppearanceMode[] = ['system', 'light', 'dark'];
 const FONT_SIZE_OPTIONS: FontSizeKey[] = ['small', 'medium', 'large'];
+
+// Preview card height per font size — sized so the 3-heading + body sample fits
+// the compact-padded surface without an internal scroll.
+const PREVIEW_HEIGHT: Record<FontSizeKey, number> = {
+  small: 150,
+  medium: 166,
+  large: 184,
+};
 
 // Fixed mini-mockup colors per mode (a light swatch is always light, etc.) so
 // each card previews the theme it switches to, independent of the current one.
@@ -90,10 +104,48 @@ function AppearanceCard({
   );
 }
 
+// One style preset as a pill "chip": three color dots (the H1/H2/H3 palette)
+// plus the name. Selected gets a tint ring + tint label. Laid out in a
+// horizontal scroller so the row survives an arbitrary number of presets —
+// deliberately unlike the appearance swatch cards above it.
+function StyleChip({
+  palette,
+  label,
+  selected,
+  onPress,
+  theme,
+}: {
+  palette: StylePalette;
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+  theme: Theme;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.chip,
+        { backgroundColor: theme.backgroundElement, borderColor: selected ? theme.tint : 'transparent' },
+        pressed && styles.pressed,
+      ]}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}>
+      <View style={styles.chipDots}>
+        <View style={[styles.chipDot, { backgroundColor: palette.heading1 }]} />
+        <View style={[styles.chipDot, { backgroundColor: palette.heading2 }]} />
+        <View style={[styles.chipDot, { backgroundColor: palette.heading3 }]} />
+      </View>
+      <ThemedText style={[styles.chipLabel, selected && { color: theme.tint }]}>{label}</ThemedText>
+    </Pressable>
+  );
+}
+
 export default function SettingsScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
-  const { settings, setAppearance, setFontSize } = useSettings();
+  const scheme = useResolvedColorScheme();
+  const { settings, setAppearance, setFontSize, setStyleTheme } = useSettings();
   const base = FONT_SIZE_BASE[settings.fontSize];
 
   // Same CodeMirror theme the viewer builds, so the live preview matches the
@@ -103,6 +155,8 @@ export default function SettingsScreen() {
       bg: theme.background,
       fg: theme.text,
       tint: theme.tint,
+      link: theme.accent,
+      codeMono: theme.codeMono,
       sel: theme.backgroundSelected,
       codeBg: theme.backgroundElement,
       muted: theme.textSecondary,
@@ -170,15 +224,19 @@ export default function SettingsScreen() {
           <View
             style={[
               styles.previewCard,
+              // Height tracks the font size so the whole sample fits without an
+              // internal scroll at any size (FR-25 preview is compact-padded).
+              { height: PREVIEW_HEIGHT[settings.fontSize] },
               { backgroundColor: theme.background, borderColor: theme.backgroundElement },
             ]}>
             <MarkdownWebView
               // Remount on setting change so the preview always reflects the
               // latest appearance / size (theme + base are baked in at mount).
-              key={`${settings.appearance}-${settings.fontSize}`}
+              key={`${settings.appearance}-${settings.fontSize}-${settings.styleTheme}`}
               initialContent={t('screens.settings.previewSample')}
               editable={false}
               taskInteractive={false}
+              compact
               theme={cmTheme}
               style={[styles.previewWeb, { backgroundColor: theme.background }]}
             />
@@ -199,6 +257,25 @@ export default function SettingsScreen() {
               />
             ))}
           </View>
+
+          <ThemedText themeColor="textSecondary" style={styles.sectionLabel}>
+            {t('screens.settings.style')}
+          </ThemedText>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chipRow}>
+            {STYLE_THEME_KEYS.map((key: StyleThemeKey) => (
+              <StyleChip
+                key={key}
+                palette={StyleThemes[key][scheme]}
+                label={t(`screens.settings.styleOptions.${key}`)}
+                selected={settings.styleTheme === key}
+                onPress={() => setStyleTheme(key)}
+                theme={theme}
+              />
+            ))}
+          </ScrollView>
 
           <ThemedText themeColor="textSecondary" style={styles.sectionLabel}>
             {t('screens.settings.fontSize')}
@@ -302,9 +379,8 @@ const styles = StyleSheet.create({
   previewCard: {
     borderRadius: Spacing.three,
     borderWidth: StyleSheet.hairlineWidth,
-    // Fixed height + clip: the WebView fills the card and its own content
-    // padding provides the inset (no card padding, or it would double up).
-    height: 172,
+    // Height is set inline per font size; clip so the WebView fills the card and
+    // its own content padding provides the inset (no card padding — would double).
     overflow: 'hidden',
   },
   previewWeb: {
@@ -411,6 +487,34 @@ const styles = StyleSheet.create({
     height: 16,
     borderRadius: 8,
     borderWidth: 2,
+  },
+  // Style preset chips (horizontal scroller — scales to any number of presets)
+  chipRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+    paddingVertical: 2,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    borderRadius: 20,
+    borderWidth: 2,
+    paddingLeft: Spacing.two,
+    paddingRight: Spacing.three,
+    paddingVertical: Spacing.two,
+  },
+  chipDots: {
+    flexDirection: 'row',
+    gap: 3,
+  },
+  chipDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  chipLabel: {
+    fontSize: 14,
   },
   // Cloud names
   cloudGroup: {

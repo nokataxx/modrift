@@ -49,6 +49,24 @@ const codeHighlight = HighlightStyle.define([
   { tag: [tg.operator, tg.punctuation], color: "#C9D1D9" },
 ]);
 
+// Monochrome variant for the "mono" style preset — no hues. Tokens are kept
+// legible via weight/italic and a two-step grey (body vs muted), and use CSS
+// vars so light/dark both resolve correctly.
+const codeHighlightMono = HighlightStyle.define([
+  { tag: tg.keyword, color: "var(--fg)", fontWeight: "600" },
+  { tag: [tg.string, tg.special(tg.string)], color: "var(--muted)" },
+  { tag: [tg.number, tg.bool, tg.null], color: "var(--fg)" },
+  { tag: tg.comment, color: "var(--muted)", fontStyle: "italic" },
+  {
+    tag: [tg.function(tg.variableName), tg.function(tg.propertyName)],
+    color: "var(--fg)",
+    fontWeight: "600",
+  },
+  { tag: [tg.propertyName, tg.variableName], color: "var(--fg)" },
+  { tag: [tg.typeName, tg.className], color: "var(--fg)", fontWeight: "600" },
+  { tag: [tg.operator, tg.punctuation], color: "var(--muted)" },
+]);
+
 const codeLanguages = [
   LanguageDescription.of({
     name: "javascript",
@@ -575,6 +593,8 @@ const highlightField = StateField.define({
   r.setProperty("--bg", t.bg);
   r.setProperty("--fg", t.fg);
   r.setProperty("--tint", t.tint);
+  // Links + task checkboxes follow the style preset's accent; fall back to tint.
+  r.setProperty("--link", t.link || t.tint);
   r.setProperty("--sel", t.sel);
   r.setProperty("--codeBg", t.codeBg);
   r.setProperty("--muted", t.muted);
@@ -604,7 +624,7 @@ const highlightField = StateField.define({
           // native caret is coloured via `caret-color` in the CSS.
           keymap.of(defaultKeymap.concat(historyKeymap)),
           markdown({ base: markdownLanguage, codeLanguages, extensions: [GFM] }),
-          syntaxHighlighting(codeHighlight),
+          syntaxHighlighting(cfg.theme.codeMono ? codeHighlightMono : codeHighlight),
           indentOnInput(),
           EditorView.lineWrapping,
           livePreview,

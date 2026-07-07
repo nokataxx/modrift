@@ -15,6 +15,10 @@ export type CmTheme = {
   bg: string;
   fg: string;
   tint: string;
+  /** Style-preset accent for links + task checkboxes (falls back to tint). */
+  link?: string;
+  /** When true, code-block syntax highlighting is greyscale (mono preset). */
+  codeMono?: boolean;
   sel: string;
   codeBg: string;
   muted: string;
@@ -40,8 +44,12 @@ export function buildEditorHtml(opts: {
   imagePlaceholder?: string;
   // When true, tapping a task checkbox toggles it (only for savable files).
   taskInteractive?: boolean;
+  // Preview mode (settings screen): trims the scroller's bottom padding so a
+  // short sample fits its card without the reading surface's scroll margin.
+  compact?: boolean;
 }): string {
   const config = JSON.stringify(opts).replace(/</g, "\\u003c");
+  const padBottom = opts.compact ? 12 : 34;
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -73,7 +81,7 @@ export function buildEditorHtml(opts: {
   .cm-tsp { font-size: 0.34em; }
   .cm-content {
     font-size: var(--base);
-    padding: 10px 10px 34px 10px !important;
+    padding: 10px 10px ${padBottom}px 10px !important;
     caret-color: var(--tint) !important;
   }
   /* CodeMirror's baseTheme adds .cm-line { padding: 0 2px 0 6px } after our
@@ -97,7 +105,7 @@ export function buildEditorHtml(opts: {
   .cm-strong { font-weight: 700; }
   .cm-em { font-style: italic; }
   .cm-link {
-    color: var(--tint); text-decoration: underline;
+    color: var(--link); text-decoration: underline;
     text-decoration-thickness: 1px; text-underline-offset: 3px;
   }
   .cm-code {
@@ -120,7 +128,7 @@ export function buildEditorHtml(opts: {
     border: 1.5px solid var(--muted); border-radius: 3px;
     vertical-align: -0.16em; margin-right: 0.35em;
   }
-  .cm-task-on { background: var(--tint); border-color: var(--tint); }
+  .cm-task-on { background: var(--link); border-color: var(--link); }
   .cm-task-tap { cursor: pointer; }
   /* Checkmark drawn with borders, absolutely positioned so it never affects the
      box's baseline (which would shift checked boxes out of alignment). */
@@ -153,9 +161,10 @@ export function buildEditorHtml(opts: {
   }
   .cm-table thead th { font-weight: 600; }
 
-  /* Blockquote — straight accent bar (left corners square), rounded right side. */
+  /* Blockquote — straight accent bar (left corners square), rounded right side.
+     The bar follows the style preset's accent (mono → grey, colorful → teal). */
   .cm-quote {
-    background: var(--codeBg); box-shadow: inset 3px 0 0 var(--tint);
+    background: var(--codeBg); box-shadow: inset 3px 0 0 var(--link);
     padding-left: 20px !important; padding-right: 14px !important;
   }
   .cm-quote-first { border-radius: 0 8px 0 0; padding-top: 12px !important; }

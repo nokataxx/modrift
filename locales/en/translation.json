@@ -59,7 +59,7 @@
     },
     "settings": {
       "title": "Settings",
-      "previewSample": "# Heading preview\nThis is sample body text with `inline code`.\n\n- List item 1\n- List item 2",
+      "previewSample": "# Heading 1\n## Heading 2\n### Heading 3\nBody text with `inline code`.",
       "appearance": "Appearance",
       "appearanceOptions": {
         "system": "System",
@@ -71,6 +71,12 @@
         "small": "Small",
         "medium": "Medium",
         "large": "Large"
+      },
+      "style": "Style",
+      "styleOptions": {
+        "navy": "Navy",
+        "mono": "Mono",
+        "colorful": "Colorful"
       },
       "cloudNames": "Cloud names",
       "cloudSample": "e.g. {{name}}",

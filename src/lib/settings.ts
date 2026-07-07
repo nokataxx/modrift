@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { STYLE_THEME_KEYS, type StyleThemeKey } from '@/theme';
+
 const STORAGE_KEY = 'modrift:settings';
 
 export type AppearanceMode = 'system' | 'light' | 'dark';
@@ -8,11 +10,13 @@ export type FontSizeKey = 'small' | 'medium' | 'large';
 export interface Settings {
   appearance: AppearanceMode;
   fontSize: FontSizeKey;
+  styleTheme: StyleThemeKey;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   appearance: 'system',
   fontSize: 'medium',
+  styleTheme: 'navy',
 };
 
 const APPEARANCE_VALUES: readonly AppearanceMode[] = ['system', 'light', 'dark'];
@@ -31,7 +35,8 @@ function isSettings(value: unknown): value is Settings {
   const v = value as Record<string, unknown>;
   return (
     APPEARANCE_VALUES.includes(v.appearance as AppearanceMode) &&
-    FONT_SIZE_VALUES.includes(v.fontSize as FontSizeKey)
+    FONT_SIZE_VALUES.includes(v.fontSize as FontSizeKey) &&
+    STYLE_THEME_KEYS.includes(v.styleTheme as StyleThemeKey)
   );
 }
 

@@ -30,6 +30,8 @@ type Props = {
   imagePlaceholder?: string;
   /** Allow tapping task checkboxes to toggle them (savable files only). */
   taskInteractive?: boolean;
+  /** Preview mode: trim the reading surface's bottom scroll margin. */
+  compact?: boolean;
   onChange?: (doc: string) => void;
   onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
   onLinkPress?: (url: string) => void;
@@ -51,6 +53,7 @@ export const MarkdownWebView = forwardRef<MarkdownWebViewHandle, Props>(
       theme,
       imagePlaceholder,
       taskInteractive,
+      compact,
       onChange,
       onHistoryChange,
       onLinkPress,
@@ -69,6 +72,7 @@ export const MarkdownWebView = forwardRef<MarkdownWebViewHandle, Props>(
         theme,
         imagePlaceholder,
         taskInteractive,
+        compact,
       }),
     );
     const editableRef = useRef(editable);

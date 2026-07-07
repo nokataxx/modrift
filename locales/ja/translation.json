@@ -59,7 +59,7 @@
     },
     "settings": {
       "title": "設定",
-      "previewSample": "# 見出しのプレビュー\n本文のサンプルテキストです。`インラインコード` も表示されます。\n\n- リスト項目 1\n- リスト項目 2",
+      "previewSample": "# 見出し 1\n## 見出し 2\n### 見出し 3\n本文のサンプルと `インラインコード`。",
       "appearance": "外観",
       "appearanceOptions": {
         "system": "システムに従う",
@@ -71,6 +71,12 @@
         "small": "小",
         "medium": "中",
         "large": "大"
+      },
+      "style": "スタイル",
+      "styleOptions": {
+        "navy": "ネイビー",
+        "mono": "モノクロ",
+        "colorful": "カラフル"
       },
       "cloudNames": "クラウドの名前",
       "cloudSample": "例: {{name}}",

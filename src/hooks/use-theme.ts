@@ -3,7 +3,7 @@
  * https://docs.expo.dev/guides/color-schemes/
  */
 
-import { Colors } from '@/theme';
+import { Colors, StyleThemes } from '@/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useSettings } from '@/hooks/use-settings';
 
@@ -20,5 +20,10 @@ export function useResolvedColorScheme(): 'light' | 'dark' {
 }
 
 export function useTheme() {
-  return Colors[useResolvedColorScheme()];
+  const scheme = useResolvedColorScheme();
+  const { settings } = useSettings();
+  // FR-25: overlay the chosen style preset (heading1–4 + accent) onto the base
+  // scheme colors. `accent` drives reading-surface links / checkboxes.
+  const palette = (StyleThemes[settings.styleTheme] ?? StyleThemes.navy)[scheme];
+  return { ...Colors[scheme], ...palette };
 }

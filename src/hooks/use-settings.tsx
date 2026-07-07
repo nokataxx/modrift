@@ -16,6 +16,7 @@ import {
   type FontSizeKey,
   type Settings,
 } from '@/lib/settings';
+import { type StyleThemeKey } from '@/theme';
 
 interface SettingsContextValue {
   settings: Settings;
@@ -23,6 +24,7 @@ interface SettingsContextValue {
   ready: boolean;
   setAppearance: (mode: AppearanceMode) => void;
   setFontSize: (size: FontSizeKey) => void;
+  setStyleTheme: (key: StyleThemeKey) => void;
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
@@ -58,6 +60,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       ready,
       setAppearance: (appearance) => update({ appearance }),
       setFontSize: (fontSize) => update({ fontSize }),
+      setStyleTheme: (styleTheme) => update({ styleTheme }),
     }),
     [settings, ready, update],
   );

@@ -505,6 +505,8 @@ export default function ViewerScreen() {
       bg: theme.background,
       fg: theme.text,
       tint: theme.tint,
+      link: theme.accent,
+      codeMono: theme.codeMono,
       sel: theme.backgroundSelected,
       codeBg: theme.backgroundElement,
       muted: theme.textSecondary,
