@@ -430,6 +430,7 @@ Modrift はファイルを**その場で直接編集**し、独立した「ロ�
 
 - `app.json` の `ios.supportsTablet: true` を追加。これが無いと Expo 既定で **iPhone 専用アプリ**としてビルドされ、iPad では iPhone 互換モード (幅約390pt を拡大した小窓) になり最適化が一切効かない。有効化後は iPad ネイティブ解像度で描画される。**UIDeviceFamily 変更のため `prebuild --clean` → 再ビルドが必須**。
 - 画面向き: iPhone は従来どおり縦固定 (`orientation: "portrait"` が基底キー)、iPad のみ `UISupportedInterfaceOrientations~ipad` で縦横両対応。
+- **マルチタスクは v2 では非対応 (常時フルスクリーン)**: `ios.requireFullScreen: true` を設定し、iPad でも常に全画面で動く (Split View / Slide Over / Stage Manager の分割表示なし)。任意幅への実行時リサイズを審査・検証対象から外して v2 を確実に出すための判断。**マルチタスク (分割) 対応は [FR-27](#fr-27-ipad-マルチタスク対応-split-view--slide-over-v21-検討) として v2.1 に切り出し**。
 
 **レイアウト最適化 — 読みやすい最大幅で中央寄せ**:
 
@@ -665,6 +666,23 @@ Modrift 内から新規の空 `.md` を作成し、そのまま書き始めら�
 
 - 命名対象は **名乗れない外部クラウドのみ**。iCloud 系は従来どおり自動ラベル (`iCloud` / `iCloud Drive`)。
 - 関連する微修正を同梱: 履歴ラベル `他の場所` → `他のクラウド`、および検出不能なコンテナ識別子 (UUID) を生のままプロバイダ名として表示してしまうバグの修正 (既知プロバイダにマッチした時のみ名前を返す)。
+
+### FR-27: iPad マルチタスク対応 (Split View / Slide Over) [v2.1 / 検討]
+
+[FR-16](#fr-16-ipad-大画面レイアウト最適化-v2--実装済みipad-シミュレータ確認済み) で iPad ネイティブ対応 (`supportsTablet`) を有効化したが、v2 では `requireFullScreen: true` で**常時フルスクリーン**とし、マルチタスク (分割表示) は非対応とした。本 FR はその分割対応を v2.1 で載せる検討項目。
+
+**背景 — v2 で見送った理由**:
+
+- マルチタスク対応 (`requireFullScreen` を外す) にすると、アプリが **Split View (1/2・1/3) / Slide Over (極狭 overlay) / Stage Manager (任意サイズ)** で**任意幅に実行時リサイズ**され得る。レイアウト自体はレスポンシブ (flex＋`max-width`＋`useWindowDimensions`) で追従する見込みだが、**極狭幅・ライブリサイズ・分割時キーボードの実機検証**が新たに必要になる。v2 を確実に出すため、この変数を切り離した。
+
+**v2.1 で行う作業 (想定)**:
+
+- `ios.requireFullScreen` を外す (＝マルチタスク許可)。ネイティブ設定変更のため `prebuild --clean`→再ビルド。
+- 実機検証: Split View (1/2・1/3)・Slide Over (~320pt)・Stage Manager リサイズでレイアウトが崩れない／CM エディタが再ラップする／分割時もキーボードでエディタが隠れない／各モードで回転して破綻しない。
+- 破綻箇所があれば微修正 (ヘッダのタイトル省略、設定の横スクロールチップ、テーブル等)。
+- **マルチウィンドウ (複数シーン) 対応は範囲外** (別途大きめの作り込みが要るため、必要になったら別 FR)。
+
+**判断メモ**: 「どこのファイルでもサッと開く軽量ビューア」の positioning からは、md を他アプリと**並べて見られる**マルチタスクは相性が良い。一方でコア体験は単一ファイル閲覧・軽編集なので必須ではない。よって v2 の全画面固定で足場を固め、v2.1 で腰を据えて足す。
 
 ## 8. 非機能要件 (NFR)
 
@@ -1029,3 +1047,4 @@ Modrift 内から新規の空 `.md` を作成し、そのまま書き始めら�
 - **2026-07-06 (改訂20)**: **リネームの導線を「履歴のスワイプ」から「viewer ヘッダのファイル名長押し」へ移設**。新規作成 (FR-23) でファイルを viewer 内で扱うようになり、リネームも「そのファイルを見ている画面」で行う方が文脈的に自然なため。開いているファイルが Modrift コピー (`icloudCopy`) の時だけ長押しでリネーム可 ([viewer.tsx](../src/app/viewer.tsx)、`activeUriRef` を新 uri に張り替え再マウント無しで継続)。**スワイプのリネームは廃止**し、履歴スワイプは「リストから削除」(非破壊) のみに統一。**ファイル削除は履歴行の長押し ActionSheet のまま据え置き** (意図的ジェスチャー＋アクションシートが確認を兼ねる。削除をスワイプに載せると確認ダイアログの二度手間になるため不採用)。FR-22・FR-26・§5.3 の記述と i18n (`renameAction` 削除、rename 系は viewer から参照) を更新
 - **2026-07-07 (改訂21)**: **[FR-25](#fr-25-文書スタイルのユーザー選択-プリセット方式-v2--実装済み実機確認済み) を実装 (実機確認済み)**。当初の「見出し色テンプレート」から**読み表示の配色プリセット**へ拡張。プリセット (ネイビー/モノクロ/カラフル) を [`src/theme.ts`](../src/theme.ts) の `StyleThemes` 値テーブルで定義し、`heading1`〜`heading4` に加え **`accent`** (リンク・タスクチェックボックス・引用左バーを CM の `--link` で駆動) と **`codeMono`** フラグ (モノクロ時にコード構文ハイライトをグレースケール版 HighlightStyle へ切替、`editor-entry.mjs`→bundle 再生成) を持たせた。設定は `modrift:settings` の `styleTheme` キー (既定 `navy`)、`useTheme()` が base 配色へ合成。選択 UI は外観 (light/dark) と操作を分けるため**横スクロールのカラードットチップ** (プリセット増加に耐える)。設定上部のライブプレビュー (read-only CM) が即時反映。プレビューのスクロール解消のため見本を H1/H2/H3＋本文へ短縮し、CM に `compact` パディングとフォントサイズ連動の高さを追加。FR-25・§5.3 相当の記述と i18n (`style`/`styleOptions`、`previewSample`) を更新
 - **2026-07-07 (改訂22)**: **[FR-16](#fr-16-ipad-大画面レイアウト最適化-v2--実装済みipad-シミュレータ確認済み) を実装 (iPad シミュレータ確認済み)**。前提として **iPad ネイティブ対応を有効化** (`app.json` の `ios.supportsTablet: true`)。従来は Expo 既定で iPhone 専用ビルドだったため iPad で iPhone 互換の小窓表示になり最適化が効かなかった。iPhone は縦固定のまま、iPad のみ `UISupportedInterfaceOrientations~ipad` で縦横両対応。UIDeviceFamily 変更のため `prebuild --clean`→再ビルドが必須。レイアウトは未使用だった `MaxContentWidth` (800) を活用し、**読みやすい最大幅で中央寄せ** (スマホでは自己ゲートで無効): エディタ面は `.cm-content` を `max-width: 42em`＋中央寄せ (`margin *: auto !important` で CM baseTheme の `margin:0` を上書き、[html.ts](../src/lib/cm/html.ts))、ホーム/設定/検索は 800pt 列に中央寄せ ([index.tsx](../src/app/index.tsx)/[settings.tsx](../src/app/settings.tsx)/[search.tsx](../src/app/search.tsx))。左右分割は引き続き非提供。app.json・FR-16 の記述を更新
+- **2026-07-07 (改訂23)**: **iPad は v2 では常時フルスクリーンに確定** (`app.json` に `ios.requireFullScreen: true`)。マルチタスク (`requireFullScreen` を外す) にすると Split View / Slide Over / Stage Manager で任意幅にリサイズされ、極狭幅・ライブリサイズ・分割時キーボードの実機検証が増える。v2 を確実に出すためこの変数を切り離し、**分割対応を [FR-27](#fr-27-ipad-マルチタスク対応-split-view--slide-over-v21--検討) として v2.1 に新設**。FR-16・app.json・`docs/checklist-v2.md` (Split View 項目を v2.1 送りに) を更新。※ requireFullScreen は UIRequiresFullScreen のネイティブ変更なので反映には `prebuild --clean`→再ビルドが必要

@@ -10,6 +10,7 @@
     "ios": {
       "bundleIdentifier": "com.modrift.app",
       "supportsTablet": true,
+      "requireFullScreen": true,
       "entitlements": {
         "com.apple.developer.icloud-container-identifiers": [
           "iCloud.com.modrift.app"

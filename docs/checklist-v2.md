@@ -167,13 +167,14 @@ v2 で実装した機能のうち、**シミュレータ／ヘッドレス Chrom
 
 ## iPad ネイティブ対応＆大画面レイアウト (FR-16)
 
-> `ios.supportsTablet` で iPad ネイティブ化。読み幅を中央寄せ（エディタ本文 42em／ホーム・設定・検索 800pt）。iPhone は縦固定・iPad は縦横両対応。iPad シミュレータで基本は確認済みだが、実機・実 iCloud・IME は要確認（[[project_ipad_native_support]]）。
+> `ios.supportsTablet` で iPad ネイティブ化。読み幅を中央寄せ（エディタ本文 42em／ホーム・設定・検索 800pt）。iPhone は縦固定・iPad は縦横両対応。**v2 は `requireFullScreen: true` で常時フルスクリーン**（マルチタスク＝分割対応は v2.1・FR-27 送り）。iPad シミュレータで基本は確認済みだが、実機・実 iCloud・IME は要確認（[[project_ipad_native_support]]）。
 
 - [x] **iPad で iPhone 互換の小窓でなくネイティブ全画面で描画される**（supportsTablet 有効化）— iPad シミュレータ確認済み 2026-07-07
 - [x] **ビューア本文カラムが全幅に伸びず約42em で中央寄せ**（左右均等の余白）— iPad シミュレータ確認済み 2026-07-07
 - [ ] **ホーム・設定・検索のコンテンツが 800pt 幅で中央寄せ**（iPad 実機で目視。iPhone では全幅≒変化なし）
 - [ ] **iPad は縦横回転し、横向きでも列幅が保たれ破綻しない**／**iPhone は縦固定のまま**
-- [ ] Split View / Slide Over でウィンドウを狭めても崩れない（幅が上限未満なら全幅表示に自然に切替）※`requireFullScreen` 未設定の場合。全画面固定にするなら本項は対象外
+- [ ] **`requireFullScreen: true` が効いて iPad で常時フルスクリーン**（Split View / Slide Over の分割にならない）※`requireFullScreen` はネイティブ変更なので `prebuild --clean`→再ビルド後に確認
+- [-] Split View / Slide Over でウィンドウを狭めても崩れない → **v2.1（FR-27）送り**。v2 は全画面固定のため対象外
 - [ ] **iPad 実機で日本語IME・フォント描画・実 iCloud 同期が正常**（シミュレータでは確認不可）
 - [ ] iPad の App Store スクショ用に主要画面（ホーム・ビューア・設定）の見栄えを確認
 
