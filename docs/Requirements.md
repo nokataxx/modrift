@@ -141,7 +141,7 @@ iOS の標準的なメンタルモデルに合わせ、ユーザーの好みで�
 
 - 全文検索 (最近開いたファイル内) ← FR-15
 - 文書スタイルのユーザー選択 (配色プリセット) ← FR-25
-- iPad 大画面レイアウト最適化 ← FR-16 (左右分割は廃止)
+- iPad 大画面レイアウト最適化 ← FR-16 (iPad ネイティブ対応＋読み幅中央寄せ。左右分割は廃止)
 - 新規 Md ノートの作成 (作成先は iCloud › Modrift 固定) ← FR-23。フォルダ選択に依存しない縮小形として v2 に含める (iCloud 専用)
 
 **v2 から外したもの (2026-06-29 方針転換・改訂11)**: フォルダピッカー / ローカル画像表示 (FR-18)、Vault ブラウザ (FR-24)、内部リンク `[[]]` (FR-17)。いずれも**サードパーティのフォルダ参照に依存**し、iOS 制約 ([10.4](#104-iosapp-store関連)) で Google Drive 等では成立しないため廃止。経緯は [1章](#1-概要)。(FR-23 新規作成は「iCloud › Modrift 固定」の縮小形として改訂19で v2 に復活)
@@ -420,12 +420,25 @@ Modrift はファイルを**その場で直接編集**し、独立した「ロ�
 - **マッチ**: 大文字小文字を無視した部分一致。ファイル別に一覧表示し、各マッチは行番号 + 前後文脈のスニペット (マッチ語を強調) を出す。結果はファイル単位・全体で上限を設け、打ち切った場合はその旨を表示 (黙って切り詰めない)。
 - **ジャンプ**: マッチ tap → viewer をそのファイルの該当**文字オフセット** (`matchFrom`/`matchTo`) 付きで開く。viewer は editor ready 後に CodeMirror の `__cmReveal(from,to)` を呼び、該当箇所へ中央スクロール + 一時ハイライト (数秒で消える) する。オフセットは検索と viewer が同一正規化テキストを見るため UTF-16 単位で一致する。
 
-### FR-16: iPad 大画面レイアウト最適化 [v2]
+### FR-16: iPad 大画面レイアウト最適化 [v2 — 実装済み・iPad シミュレータ確認済み]
 
 当初の「編集とプレビューを左右分割」案は**廃止**。[FR-20](#fr-20-ライブプレビュー編集-codemirror-一本化-v2) でライブプレビュー編集 (編集モード自体が整形表示) を採用するため、「生 Md 左・レンダリング右」の分割は存在意義を失う (整形を見ながら書く課題はライブプレビューが解決済み)。
 
-- 代わりに iPad では**大画面を活かしたレイアウト最適化**を行う (広い編集キャンバス、余白・最大幅の調整、ツールバー/キーボード配置の最適化)。
-- **左右分割プレビューは提供しない。**
+- 代わりに iPad では**大画面を活かしたレイアウト最適化**を行う。**左右分割プレビューは提供しない。**
+
+**前提 — iPad ネイティブ対応 (改訂22で有効化)**:
+
+- `app.json` の `ios.supportsTablet: true` を追加。これが無いと Expo 既定で **iPhone 専用アプリ**としてビルドされ、iPad では iPhone 互換モード (幅約390pt を拡大した小窓) になり最適化が一切効かない。有効化後は iPad ネイティブ解像度で描画される。**UIDeviceFamily 変更のため `prebuild --clean` → 再ビルドが必須**。
+- 画面向き: iPhone は従来どおり縦固定 (`orientation: "portrait"` が基底キー)、iPad のみ `UISupportedInterfaceOrientations~ipad` で縦横両対応。
+
+**レイアウト最適化 — 読みやすい最大幅で中央寄せ**:
+
+- 未使用だった `MaxContentWidth` (800) を活用。**全画面幅に伸ばさず、読みやすい幅で中央寄せ**する (画面幅がしきい値未満のスマホでは無効＝自己ゲート、Platform 分岐なし)。
+- **エディタ／閲覧面 (CodeMirror)**: `.cm-content` を `max-width: 42em` で制限し中央寄せ (`margin-left/right: auto !important` — CM baseTheme の `margin:0` が後から効くため `!important`)。em ベースでフォントサイズに連動。長行が端まで伸びて読みにくくなるのを防ぐ (iA Writer 系の考え方)。
+- **ホーム／設定／検索**: コンテンツ列を `MaxContentWidth` (800) で中央寄せ。
+- WebView 背景は全幅のまま (両脇は同色背景でシームレス)。CSS のみの変更でバンドル再生成は不要。
+
+**確認手段の注記**: iOS シミュレータは iCloud Drive の実同期が無いが、`data/Library/Mobile Documents/com~apple~CloudDocs` にローカル配置したファイルはピッカーの iCloud Drive から開ける (レイアウト確認用)。実 iCloud の最終確認は実機で行う。
 
 ### FR-17: Obsidian風 `[[...]]` 内部リンク [廃止]
 
@@ -1015,3 +1028,4 @@ Modrift 内から新規の空 `.md` を作成し、そのまま書き始めら�
 - **2026-07-06 (改訂19)**: **[FR-23](#fr-23-新規-md-ファイルの作成-v2) 新規 Md ノート作成を「iCloud › Modrift 固定」の縮小形として v2 に復活**。改訂11で廃止した理由 (作成先のフォルダピッカー FR-18 依存) を、作成先を Modrift 自身の iCloud コンテナに固定することで解消。ホームヘッダ**左**に「＋」を追加 ([index.tsx](../src/app/index.tsx))、自動命名「無題.md」(重複 `-1`)、編集モードで開く。生成物は `icloudCopy` 種別＝履歴・in-place 編集・リネーム/削除 (FR-22) が自動適用。命名プロンプトは出さず後からリネーム。FAB は iOS 純正方針から外れるため不採用。**遅延生成**: 「＋」タップ時点ではファイルを作らず空バッファの編集画面を開くだけで、**最初の 1 文字入力時に初めて**作成する ([viewer.tsx](../src/app/viewer.tsx) の `newNotePending`／全ファイル I/O を `activeUriRef` 経由に集約し再マウント無しで生成へ移行)。ミスタップや未入力離脱で空ノートが溜まらない。§5.3・FR-23・ロードマップ Phase 4・i18n を更新。実機検証項目は `docs/checklist-v2.md` に追記
 - **2026-07-06 (改訂20)**: **リネームの導線を「履歴のスワイプ」から「viewer ヘッダのファイル名長押し」へ移設**。新規作成 (FR-23) でファイルを viewer 内で扱うようになり、リネームも「そのファイルを見ている画面」で行う方が文脈的に自然なため。開いているファイルが Modrift コピー (`icloudCopy`) の時だけ長押しでリネーム可 ([viewer.tsx](../src/app/viewer.tsx)、`activeUriRef` を新 uri に張り替え再マウント無しで継続)。**スワイプのリネームは廃止**し、履歴スワイプは「リストから削除」(非破壊) のみに統一。**ファイル削除は履歴行の長押し ActionSheet のまま据え置き** (意図的ジェスチャー＋アクションシートが確認を兼ねる。削除をスワイプに載せると確認ダイアログの二度手間になるため不採用)。FR-22・FR-26・§5.3 の記述と i18n (`renameAction` 削除、rename 系は viewer から参照) を更新
 - **2026-07-07 (改訂21)**: **[FR-25](#fr-25-文書スタイルのユーザー選択-プリセット方式-v2--実装済み実機確認済み) を実装 (実機確認済み)**。当初の「見出し色テンプレート」から**読み表示の配色プリセット**へ拡張。プリセット (ネイビー/モノクロ/カラフル) を [`src/theme.ts`](../src/theme.ts) の `StyleThemes` 値テーブルで定義し、`heading1`〜`heading4` に加え **`accent`** (リンク・タスクチェックボックス・引用左バーを CM の `--link` で駆動) と **`codeMono`** フラグ (モノクロ時にコード構文ハイライトをグレースケール版 HighlightStyle へ切替、`editor-entry.mjs`→bundle 再生成) を持たせた。設定は `modrift:settings` の `styleTheme` キー (既定 `navy`)、`useTheme()` が base 配色へ合成。選択 UI は外観 (light/dark) と操作を分けるため**横スクロールのカラードットチップ** (プリセット増加に耐える)。設定上部のライブプレビュー (read-only CM) が即時反映。プレビューのスクロール解消のため見本を H1/H2/H3＋本文へ短縮し、CM に `compact` パディングとフォントサイズ連動の高さを追加。FR-25・§5.3 相当の記述と i18n (`style`/`styleOptions`、`previewSample`) を更新
+- **2026-07-07 (改訂22)**: **[FR-16](#fr-16-ipad-大画面レイアウト最適化-v2--実装済みipad-シミュレータ確認済み) を実装 (iPad シミュレータ確認済み)**。前提として **iPad ネイティブ対応を有効化** (`app.json` の `ios.supportsTablet: true`)。従来は Expo 既定で iPhone 専用ビルドだったため iPad で iPhone 互換の小窓表示になり最適化が効かなかった。iPhone は縦固定のまま、iPad のみ `UISupportedInterfaceOrientations~ipad` で縦横両対応。UIDeviceFamily 変更のため `prebuild --clean`→再ビルドが必須。レイアウトは未使用だった `MaxContentWidth` (800) を活用し、**読みやすい最大幅で中央寄せ** (スマホでは自己ゲートで無効): エディタ面は `.cm-content` を `max-width: 42em`＋中央寄せ (`margin *: auto !important` で CM baseTheme の `margin:0` を上書き、[html.ts](../src/lib/cm/html.ts))、ホーム/設定/検索は 800pt 列に中央寄せ ([index.tsx](../src/app/index.tsx)/[settings.tsx](../src/app/settings.tsx)/[search.tsx](../src/app/search.tsx))。左右分割は引き続き非提供。app.json・FR-16 の記述を更新
