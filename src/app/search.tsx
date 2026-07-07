@@ -22,7 +22,7 @@ import {
   type SearchableFile,
   type SearchMatch,
 } from '@/lib/search';
-import { Spacing } from '@/theme';
+import { MaxContentWidth, Spacing } from '@/theme';
 
 type Section = { file: SearchableFile; fileIndex: number; data: SearchMatch[] };
 
@@ -94,6 +94,8 @@ export default function SearchScreen() {
     <ThemedView style={styles.container}>
       <Stack.Screen options={{ title: t('screens.search.title') }} />
       <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
+        {/* FR-16: cap width and centre on iPad / large screens (no-op on phones). */}
+        <View style={styles.content}>
         <View style={[styles.searchBar, { backgroundColor: theme.backgroundElement }]}>
           <SymbolView
             name="magnifyingglass"
@@ -175,6 +177,7 @@ export default function SearchScreen() {
             renderSectionFooter={() => <View style={styles.sectionGap} />}
           />
         )}
+        </View>
       </SafeAreaView>
     </ThemedView>
   );
@@ -188,6 +191,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
+  },
+  content: {
+    flex: 1,
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    alignSelf: 'center',
   },
   searchBar: {
     flexDirection: 'row',

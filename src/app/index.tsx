@@ -28,7 +28,7 @@ import {
   removeRecentFile,
   type RecentFile,
 } from '@/lib/recent-files';
-import { Spacing } from '@/theme';
+import { MaxContentWidth, Spacing } from '@/theme';
 import FileBookmarkModule from '@modules/file-bookmark';
 
 const LOCATION_KEY: Record<FileLocationKind, string> = {
@@ -366,42 +366,46 @@ export default function HomeScreen() {
         }}
       />
       <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
-        <NetworkBanner />
-        {isEmpty ? (
-          <ThemedText themeColor="textSecondary" style={styles.empty}>
-            {t('screens.recentFiles.empty')}
-          </ThemedText>
-        ) : (
-          <FlatList
-            data={recent ?? []}
-            keyExtractor={(item) => item.uri}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={styles.listContent}
-            ItemSeparatorComponent={() => (
-              <View style={[styles.separator, { backgroundColor: theme.backgroundElement }]} />
-            )}
-            renderItem={({ item }) => (
-              <RecentRow
-                item={item}
-                cloudNames={cloudNames}
-                onPress={handleRecentPress}
-                onRemoveHistory={handleRecentDelete}
-                onDeleteFile={handleDeleteFile}
-              />
-            )}
-            style={styles.list}
-          />
-        )}
+        {/* FR-16: cap width and centre on iPad / large screens; a no-op on
+            phones since the column is narrower than the cap. */}
+        <View style={styles.content}>
+          <NetworkBanner />
+          {isEmpty ? (
+            <ThemedText themeColor="textSecondary" style={styles.empty}>
+              {t('screens.recentFiles.empty')}
+            </ThemedText>
+          ) : (
+            <FlatList
+              data={recent ?? []}
+              keyExtractor={(item) => item.uri}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.listContent}
+              ItemSeparatorComponent={() => (
+                <View style={[styles.separator, { backgroundColor: theme.backgroundElement }]} />
+              )}
+              renderItem={({ item }) => (
+                <RecentRow
+                  item={item}
+                  cloudNames={cloudNames}
+                  onPress={handleRecentPress}
+                  onRemoveHistory={handleRecentDelete}
+                  onDeleteFile={handleDeleteFile}
+                />
+              )}
+              style={styles.list}
+            />
+          )}
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.openButton,
-            { backgroundColor: theme.backgroundElement },
-            pressed && styles.pressed,
-          ]}
-          onPress={handleOpen}>
-          <ThemedText type="default">{t('picker.open')}</ThemedText>
-        </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.openButton,
+              { backgroundColor: theme.backgroundElement },
+              pressed && styles.pressed,
+            ]}
+            onPress={handleOpen}>
+            <ThemedText type="default">{t('picker.open')}</ThemedText>
+          </Pressable>
+        </View>
       </SafeAreaView>
     </ThemedView>
   );
@@ -415,6 +419,12 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.four,
+  },
+  content: {
+    flex: 1,
+    width: '100%',
+    maxWidth: MaxContentWidth,
+    alignSelf: 'center',
     gap: Spacing.four,
   },
   empty: {

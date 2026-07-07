@@ -83,6 +83,14 @@ export function buildEditorHtml(opts: {
     font-size: var(--base);
     padding: 10px 10px ${padBottom}px 10px !important;
     caret-color: var(--tint) !important;
+    /* FR-16 (iPad / large screens): cap the text measure and centre it so lines
+       stay readable instead of running edge-to-edge. em-based so the column
+       scales with the font size; a no-op on phones (screen < the cap).
+       !important beats CodeMirror's baseTheme margin:0 on .cm-content, which
+       loads after this and would otherwise left-align the column. */
+    max-width: 42em;
+    margin-left: auto !important;
+    margin-right: auto !important;
   }
   /* CodeMirror's baseTheme adds .cm-line { padding: 0 2px 0 6px } after our
      styles — zero it so our own horizontal padding is the only source. */

@@ -9,6 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.modrift.app",
+      "supportsTablet": true,
       "entitlements": {
         "com.apple.developer.icloud-container-identifiers": [
           "iCloud.com.modrift.app"
@@ -23,6 +24,12 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "LSSupportsOpeningDocumentsInPlace": true,
+        "UISupportedInterfaceOrientations~ipad": [
+          "UIInterfaceOrientationPortrait",
+          "UIInterfaceOrientationPortraitUpsideDown",
+          "UIInterfaceOrientationLandscapeLeft",
+          "UIInterfaceOrientationLandscapeRight"
+        ],
         "CFBundleDevelopmentRegion": "en",
         "CFBundleLocalizations": [
           "en",

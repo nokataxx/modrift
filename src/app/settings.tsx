@@ -20,6 +20,7 @@ import {
 import { loadRecentFiles } from '@/lib/recent-files';
 import { FONT_SIZE_BASE, type AppearanceMode, type FontSizeKey } from '@/lib/settings';
 import {
+  MaxContentWidth,
   STYLE_THEME_KEYS,
   StyleThemes,
   Spacing,
@@ -218,7 +219,9 @@ export default function SettingsScreen() {
     <ThemedView style={styles.container}>
       <Stack.Screen options={{ title: t('screens.settings.title') }} />
       <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView contentContainerStyle={styles.scroll}>
+          {/* FR-16: cap width and centre on iPad / large screens (no-op on phones). */}
+          <View style={styles.content}>
           {/* Live preview — the same CodeMirror surface as the viewer, read-only,
               reflecting appearance + font size in real time. */}
           <View
@@ -358,6 +361,7 @@ export default function SettingsScreen() {
               </ThemedText>
             </>
           )}
+          </View>
         </ScrollView>
       </SafeAreaView>
     </ThemedView>
@@ -372,7 +376,13 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: Spacing.four,
   },
+  scroll: {
+    // Fill the width so the centred content column can sit in the middle.
+    alignItems: 'center',
+  },
   content: {
+    width: '100%',
+    maxWidth: MaxContentWidth,
     paddingTop: Spacing.three,
     paddingBottom: Spacing.four,
   },
