@@ -219,7 +219,7 @@ export default function SettingsScreen() {
     <ThemedView style={styles.container}>
       <Stack.Screen options={{ title: t('screens.settings.title') }} />
       <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
-        <ScrollView contentContainerStyle={styles.scroll}>
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           {/* FR-16: cap width and centre on iPad / large screens (no-op on phones). */}
           <View style={styles.content}>
           {/* Live preview — the same CodeMirror surface as the viewer, read-only,

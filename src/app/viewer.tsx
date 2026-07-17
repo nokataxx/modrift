@@ -1,5 +1,5 @@
 import { File } from "expo-file-system";
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { useHeaderHeight } from "expo-router/build/react-navigation/elements";
 import { SymbolView } from "expo-symbols";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -32,6 +32,7 @@ import {
   IcloudUnavailableError,
   NameInUseError,
   renameIcloudCopy,
+  toMarkdownFileName,
 } from "@/lib/icloud-copy";
 import {
   recordRecentFile,
@@ -52,6 +53,7 @@ export default function ViewerScreen() {
   // the whole document scales together (FR-10).
   const base = FONT_SIZE_BASE[settings.fontSize];
   const router = useRouter();
+  const navigation = useNavigation();
   const headerHeight = useHeaderHeight();
   const {
     fileUri,
@@ -111,6 +113,13 @@ export default function ViewerScreen() {
   }, []);
   // Guards the one-shot new-note creation against back-to-back keystrokes.
   const creatingNoteRef = useRef(false);
+  // FR-22×FR-23: a rename issued before the new note's file exists (lazy
+  // creation hasn't fired or is still in flight). Holds the chosen filename so
+  // the creation uses it instead of the default "Untitled.md".
+  const pendingNameRef = useRef<string | null>(null);
+  // True once this screen has unmounted — the lazy creation may still be in
+  // flight then, and its .then must not record an abandoned note (FR-23).
+  const departedRef = useRef(false);
 
   const contentRef = useRef<string | null>(null);
   const isDirtyRef = useRef(false);
@@ -317,8 +326,40 @@ export default function ViewerScreen() {
         next.length > 0
       ) {
         creatingNoteRef.current = true;
-        createIcloudCopy(next, fileName ?? "Untitled.md")
+        createIcloudCopy(next, pendingNameRef.current ?? fileName ?? "Untitled.md")
           .then(({ uri, name }) => {
+            // A rename confirmed while the creation was in flight didn't make
+            // it into the created name — apply it now (best-effort).
+            const pending = pendingNameRef.current;
+            if (pending !== null && pending !== name) {
+              try {
+                ({ uri, name } = renameIcloudCopy(uri, pending));
+              } catch {
+                // Keep the created name; the user can rename again.
+              }
+            }
+            if (departedRef.current) {
+              // The user left before the creation finished. An empty buffer
+              // means the note was abandoned — remove the just-created file so
+              // no orphan "Untitled.md" lingers. Otherwise persist the latest
+              // text and record it so what they typed isn't lost.
+              const latest = contentRef.current ?? "";
+              if (latest.trim() === "") {
+                try {
+                  new File(uri).delete();
+                } catch {
+                  // Non-fatal — worst case an empty note lingers.
+                }
+              } else {
+                try {
+                  new File(uri).write(latest);
+                } catch {
+                  // Keep the initially-created content.
+                }
+                recordRecentFile({ uri, name }).catch(() => {});
+              }
+              return;
+            }
             setActiveFile(uri);
             baselineMtimeRef.current = new File(uri).modificationTime;
             setDisplayName(name);
@@ -358,7 +399,16 @@ export default function ViewerScreen() {
   // renameRecentFile. Only reachable when the open file is such a copy.
   const handleRename = useCallback(() => {
     const uri = activeUriRef.current;
-    if (uri === null || classifyFileLocation(uri).kind !== "icloudCopy") return;
+    // Renameable targets: our own iCloud copies, plus a new note whose file
+    // doesn't exist yet (FR-23 lazy creation — possibly still in flight). For
+    // the latter we just remember the chosen name and let the creation use it.
+    const isPendingNewNote = uri === null && isNewNotePending;
+    if (
+      !isPendingNewNote &&
+      (uri === null || classifyFileLocation(uri).kind !== "icloudCopy")
+    ) {
+      return;
+    }
     Alert.prompt(
       t("screens.recentFiles.renameTitle"),
       t("screens.recentFiles.renameMessage"),
@@ -368,17 +418,26 @@ export default function ViewerScreen() {
           text: t("screens.recentFiles.renameConfirm"),
           onPress: (value?: string) => {
             if (!value || !value.trim()) return;
+            // Re-read: the lazy creation may have completed while the prompt
+            // was up, in which case this is a normal file rename after all.
+            const currentUri = activeUriRef.current;
+            if (currentUri === null) {
+              const name = toMarkdownFileName(value);
+              pendingNameRef.current = name;
+              setDisplayName(name);
+              return;
+            }
             // Flush pending edits to the current file first so the rename
             // carries the latest content across to the new name.
             if (isDirtyRef.current && contentRef.current !== null) {
               writeFile(contentRef.current);
             }
             try {
-              const result = renameIcloudCopy(uri, value);
+              const result = renameIcloudCopy(currentUri, value);
               setActiveFile(result.uri);
               setDisplayName(result.name);
               baselineMtimeRef.current = new File(result.uri).modificationTime;
-              renameRecentFile(uri, result).catch(() => {});
+              renameRecentFile(currentUri, result).catch(() => {});
             } catch (err) {
               const message =
                 err instanceof NameInUseError
@@ -392,7 +451,7 @@ export default function ViewerScreen() {
       "plain-text",
       displayName.replace(/\.md$/i, ""),
     );
-  }, [displayName, t, writeFile, setActiveFile]);
+  }, [displayName, t, writeFile, setActiveFile, isNewNotePending]);
 
   // FR-15: once the editor is ready after opening a search result, scroll to and
   // flash the matched range. Fires only for the first ready of this file open.
@@ -445,6 +504,49 @@ export default function ViewerScreen() {
       }
     };
   }, [isOpenInPending, fileUri]);
+
+  // FR-23: a new note whose buffer is empty when the user leaves (typed
+  // something, then deleted it all) is as good as never created — remove the
+  // file and its history entry so empty "Untitled.md" files don't accumulate
+  // in iCloud › Modrift. Mirrors the lazy-creation promise that a new note
+  // only exists once there's actual content.
+  const cleanupEmptyNewNote = useCallback(() => {
+    if (!isNewNotePending) return;
+    const uri = activeUriRef.current;
+    if (uri === null) return;
+    if ((contentRef.current ?? "").trim() !== "") return;
+    if (classifyFileLocation(uri).kind !== "icloudCopy") return;
+    try {
+      new File(uri).delete();
+    } catch {
+      // Non-fatal — worst case an empty note lingers in iCloud › Modrift.
+      return;
+    }
+    removeRecentFile(uri).catch(() => {});
+    // Null the active file so the unmount save can't resurrect the deletion.
+    activeUriRef.current = null;
+  }, [isNewNotePending]);
+
+  useEffect(() => {
+    // Run the empty-note cleanup on 'beforeRemove' — the moment the back
+    // navigation is dispatched, BEFORE Home regains focus and reloads the
+    // recent list — so a just-deleted note never flashes there. The unmount
+    // cleanup below is a fallback (idempotent: activeUriRef is nulled) for the
+    // window where the lazy creation resolves between the two.
+    const unsubscribe = navigation.addListener("beforeRemove", () => {
+      cleanupEmptyNewNote();
+    });
+    return unsubscribe;
+  }, [navigation, cleanupEmptyNewNote]);
+
+  useEffect(() => {
+    return () => {
+      // Flag for the lazy-creation .then: the screen is gone, don't record or
+      // keep an abandoned note (see handleChange).
+      departedRef.current = true;
+      cleanupEmptyNewNote();
+    };
+  }, [cleanupEmptyNewNote]);
 
   const performCopy = useCallback(async () => {
     if (content === null) return;
@@ -524,8 +626,12 @@ export default function ViewerScreen() {
   const editable = isNewNotePending || isInPlaceEditable(fileUri ?? "");
   // Rename (via long-press on the header title) is only for our own iCloud
   // copies — a user's own file can't be renamed (file-scope permission only).
+  // A new note is renameable from the start: before its file exists the chosen
+  // name is stored and applied at lazy creation (see handleRename).
   const renameable =
-    activeUri !== null && classifyFileLocation(activeUri).kind === "icloudCopy";
+    isNewNotePending ||
+    (activeUri !== null &&
+      classifyFileLocation(activeUri).kind === "icloudCopy");
   const loaded = content !== null && !error;
   const canToggle = loaded && editable;
   const showCopyButton = loaded && !editable;
@@ -536,6 +642,11 @@ export default function ViewerScreen() {
     <ThemedView style={styles.container}>
       <Stack.Screen
         options={{
+          // Keep the custom title centered. Without this, native-stack centers a
+          // custom headerTitle only on first layout and left-aligns it on any
+          // re-layout (e.g. the first keystroke enabling the undo button), so the
+          // title visibly jumps left. Pin it to center to match a normal title.
+          headerTitleAlign: "center",
           // Custom title so a long-press can rename a Modrift copy (FR-22). For
           // non-renameable files it's a plain, non-interactive label.
           headerTitle: () => (

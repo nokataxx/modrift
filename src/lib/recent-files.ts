@@ -28,6 +28,21 @@ export function normalizeUri(uri: string): string {
   return uri.replace(/^file:\/\/\/var\//, 'file:///private/var/');
 }
 
+// A stable identity key for deciding whether two URIs point at the same file.
+// Beyond the /var vs /private/var difference, the same iCloud file can surface
+// with different percent-encoding depending on how the URI was produced — e.g.
+// "Mobile%20Documents/あ.md" (File.uri) vs "Mobile Documents/あ.md" (decoded).
+// Comparing raw strings would then leave two history rows for one file. Decode
+// so encoded and decoded forms collapse to the same key.
+export function sameFileKey(uri: string): string {
+  const privatized = normalizeUri(uri);
+  try {
+    return decodeURI(privatized);
+  } catch {
+    return privatized;
+  }
+}
+
 function isRecentFile(value: unknown): value is RecentFile {
   if (typeof value !== 'object' || value === null) return false;
   const v = value as Record<string, unknown>;
@@ -45,7 +60,13 @@ export async function loadRecentFiles(): Promise<RecentFile[]> {
   try {
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isRecentFile);
+    const valid = parsed.filter(isRecentFile);
+    // Collapse any legacy duplicate rows: the same file recorded under
+    // different encodings (e.g. "Mobile%20Documents" vs "Mobile Documents")
+    // before sameFileKey dedup existed. Keeps the first (most recent) row.
+    return valid.filter(
+      (item, i) => valid.findIndex((o) => sameFileKey(o.uri) === sameFileKey(item.uri)) === i,
+    );
   } catch {
     return [];
   }
@@ -53,6 +74,7 @@ export async function loadRecentFiles(): Promise<RecentFile[]> {
 
 export async function recordRecentFile(entry: { uri: string; name: string }): Promise<void> {
   const normalizedUri = normalizeUri(entry.uri);
+  const key = sameFileKey(entry.uri);
   // Refresh both pieces of metadata on every open so stale bookmarks heal
   // themselves and provider renames flow through to the recent-files list.
   // Failures keep the entry but without the missing piece.
@@ -69,7 +91,9 @@ export async function recordRecentFile(entry: { uri: string; name: string }): Pr
       ...(bookmark !== null ? { bookmark } : {}),
       ...(providerName !== null ? { providerName } : {}),
     },
-    ...existing.filter((item) => normalizeUri(item.uri) !== normalizedUri),
+    // Drop any prior row for the same file, regardless of /var vs /private/var
+    // or percent-encoding differences (sameFileKey), so it never duplicates.
+    ...existing.filter((item) => sameFileKey(item.uri) !== key),
   ].slice(0, MAX_ENTRIES);
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
 }
@@ -81,27 +105,27 @@ export async function renameRecentFile(
   oldUri: string,
   next: { uri: string; name: string },
 ): Promise<void> {
-  const normalizedOld = normalizeUri(oldUri);
+  const oldKey = sameFileKey(oldUri);
   const normalizedNext = normalizeUri(next.uri);
   const existing = await loadRecentFiles();
   const updated = existing.map((item) =>
-    normalizeUri(item.uri) === normalizedOld
+    sameFileKey(item.uri) === oldKey
       ? { uri: normalizedNext, name: next.name, openedAt: item.openedAt }
       : item,
   );
   // Renaming onto a uri that another entry already occupies would leave two
-  // rows for the same file. Keep only the first occurrence of each uri so the
-  // rename can't duplicate.
+  // rows for the same file. Keep only the first occurrence of each file so the
+  // rename can't duplicate (sameFileKey ignores /var and encoding differences).
   const deduped = updated.filter(
     (item, i) =>
-      updated.findIndex((other) => normalizeUri(other.uri) === normalizeUri(item.uri)) === i,
+      updated.findIndex((other) => sameFileKey(other.uri) === sameFileKey(item.uri)) === i,
   );
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(deduped));
 }
 
 export async function removeRecentFile(uri: string): Promise<void> {
-  const normalizedUri = normalizeUri(uri);
+  const key = sameFileKey(uri);
   const existing = await loadRecentFiles();
-  const next = existing.filter((item) => normalizeUri(item.uri) !== normalizedUri);
+  const next = existing.filter((item) => sameFileKey(item.uri) !== key);
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
 }

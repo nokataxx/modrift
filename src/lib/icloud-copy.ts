@@ -69,8 +69,11 @@ export function findAvailableCopyName(
 // Copy `content` into the app's iCloud ubiquity container's Documents folder, picking a
 // non-colliding filename based on `originalName`. Returns the new file's URI and name.
 //
-// Throws IcloudUnavailableError when iCloud Drive is not signed in / disabled, and
-// IcloudCopyFailedError on filesystem errors.
+// Uses the synchronous expo-file-system File/Directory API deliberately: it
+// writes through NSFileCoordinator, which is required for the iCloud ubiquity
+// container (the async legacy writeAsStringAsync does not coordinate and fails
+// there). Throws IcloudUnavailableError when iCloud Drive is not signed in /
+// disabled, and IcloudCopyFailedError on filesystem errors.
 export async function createIcloudCopy(
   content: string,
   originalName: string,
@@ -97,7 +100,9 @@ export async function createIcloudCopy(
 // Turn a user-typed name into a `.md` filename without mangling interior dots:
 // strip any path separators, drop a trailing `.md`, then re-append it. So
 // "My Notes" → "My Notes.md" and "v1.2 plan" → "v1.2 plan.md".
-function toMarkdownFileName(input: string): string {
+// Exported for the pre-creation rename of a new note (FR-22/FR-23), which
+// stores the user-typed name until the lazy file creation uses it.
+export function toMarkdownFileName(input: string): string {
   const cleaned = input.trim().replace(/[/\\]/g, '');
   return `${cleaned.replace(/\.md$/i, '')}.md`;
 }

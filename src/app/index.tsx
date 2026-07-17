@@ -201,7 +201,22 @@ export default function HomeScreen() {
       let cancelled = false;
       Promise.all([loadRecentFiles(), loadCloudNames()]).then(([items, names]) => {
         if (cancelled) return;
-        setRecent(items);
+        // Heal stale entries: a Modrift iCloud copy whose file no longer
+        // exists (deleted on exit as an emptied new note, or removed from
+        // another device / the Files app) would be a dead tap — drop it from
+        // the list and prune it from storage. Only our own copies are checked:
+        // their existence is a cheap local stat, and iCloud reports evicted
+        // files as existing, so a merely-offloaded file is never pruned.
+        const dead = items.filter((item) => {
+          if (classifyFileLocation(item.uri).kind !== 'icloudCopy') return false;
+          try {
+            return !new File(item.uri).exists;
+          } catch {
+            return false;
+          }
+        });
+        for (const item of dead) removeRecentFile(item.uri).catch(() => {});
+        setRecent(dead.length === 0 ? items : items.filter((item) => !dead.includes(item)));
         setCloudNames(names);
       });
       return () => {
