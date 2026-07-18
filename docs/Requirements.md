@@ -152,7 +152,7 @@ iOS の標準的なメンタルモデルに合わせ、ユーザーの好みで�
 
 - **アプリアイコンの切り替え** ← [FR-29](#fr-29-アプリアイコンの切り替え-v13)。設定画面で複数のアイコンデザインからユーザーが選択 (iOS Alternate App Icons)
 - **編集オプトイン (設定「MD ファイルを編集する」トグル、既定 OFF)** ← [FR-28](#fr-28-編集オプトイン-md-編集トグル-v13)。ON のときだけ編集モード切替 (FR-03/FR-20)・新規作成 (FR-23)・タスクチェックボックスのタップトグルが有効
-- (検討) iPad マルチタスク対応 ← [FR-27](#fr-27-ipad-マルチタスク対応-split-view--slide-over-v13--検討) — v1.3 に載せるかは着手時に判断
+- ~~(検討) iPad マルチタスク対応 (FR-27)~~ → **v1.4 以降に送り (2026-07-18)**。v1.3 は上記2機能で完結させ、リリースを優先
 
 ### 5.5 v2: 他形式の単一ファイル閲覧 (Phase 6)
 
@@ -438,7 +438,7 @@ Modrift はファイルを**その場で直接編集**し、独立した「ロ�
 
 - `app.json` の `ios.supportsTablet: true` を追加。これが無いと Expo 既定で **iPhone 専用アプリ**としてビルドされ、iPad では iPhone 互換モード (幅約390pt を拡大した小窓) になり最適化が一切効かない。有効化後は iPad ネイティブ解像度で描画される。**UIDeviceFamily 変更のため `prebuild --clean` → 再ビルドが必須**。
 - 画面向き: iPhone は従来どおり縦固定 (`orientation: "portrait"` が基底キー)、iPad のみ `UISupportedInterfaceOrientations~ipad` で縦横両対応。
-- **マルチタスクは v1.2 では非対応 (常時フルスクリーン)**: `ios.requireFullScreen: true` を設定し、iPad でも常に全画面で動く (Split View / Slide Over / Stage Manager の分割表示なし)。任意幅への実行時リサイズを審査・検証対象から外して v1.2 を確実に出すための判断。**マルチタスク (分割) 対応は [FR-27](#fr-27-ipad-マルチタスク対応-split-view--slide-over-v13--検討) として v1.3 に切り出し**。
+- **マルチタスクは v1.2 では非対応 (常時フルスクリーン)**: `ios.requireFullScreen: true` を設定し、iPad でも常に全画面で動く (Split View / Slide Over / Stage Manager の分割表示なし)。任意幅への実行時リサイズを審査・検証対象から外して v1.2 を確実に出すための判断。**マルチタスク (分割) 対応は [FR-27](#fr-27-ipad-マルチタスク対応-split-view--slide-over-v14-以降--検討) として切り出し** (v1.3 → v1.4 以降へ送り)。
 
 **レイアウト最適化 — 読みやすい最大幅で中央寄せ**:
 
@@ -676,7 +676,9 @@ Modrift 内から新規の空 `.md` を作成し、そのまま書き始めら�
 - 命名対象は **名乗れない外部クラウドのみ**。iCloud 系は従来どおり自動ラベル (`iCloud` / `iCloud Drive`)。
 - 関連する微修正を同梱: 履歴ラベル `他の場所` → `他のクラウド`、および検出不能なコンテナ識別子 (UUID) を生のままプロバイダ名として表示してしまうバグの修正 (既知プロバイダにマッチした時のみ名前を返す)。
 
-### FR-27: iPad マルチタスク対応 (Split View / Slide Over) [v1.3 / 検討]
+### FR-27: iPad マルチタスク対応 (Split View / Slide Over) [v1.4 以降 / 検討]
+
+> **v1.3 から v1.4 以降へ送り (2026-07-18)**: v1.3 は FR-28/FR-29 で完結させ、`requireFullScreen` 変更＋分割表示の実機検証一式を持ち込まずリリースを優先する判断。内容自体は据え置き (以下の「v1.3」読み替え)。
 
 [FR-16](#fr-16-ipad-大画面レイアウト最適化-v12--実装済みipad-シミュレータ確認済み) で iPad ネイティブ対応 (`supportsTablet`) を有効化したが、v1.2 では `requireFullScreen: true` で**常時フルスクリーン**とし、マルチタスク (分割表示) は非対応とした。本 FR はその分割対応を v1.3 で載せる検討項目。
 
@@ -1008,7 +1010,7 @@ Modrift 内から新規の空 `.md` を作成し、そのまま書き始めら�
 - アプリアイコンの切り替え (FR-29、設定でプリセット選択。`CFBundleAlternateIcons` 登録 → `prebuild --clean` 必須)
 - 編集オプトイン トグル (FR-28、既定 OFF。編集ボタン・新規作成・チェックボックストグルをゲート)
 - 既存ユーザー向けのアップデート案内 (編集は設定で ON にできる旨) — 導線は実装時に確定
-- (検討) iPad マルチタスク対応 (FR-27)
+- ~~(検討) iPad マルチタスク対応 (FR-27)~~ → v1.4 以降に送り (2026-07-18)
 
 ### Phase 6: v2 (他形式の単一ファイル閲覧 = 有償 Pro) (v1.3 リリース後)
 
@@ -1120,3 +1122,4 @@ Modrift 内から新規の空 `.md` を作成し、そのまま書き始めら�
 - **2026-07-07 (改訂22)**: **[FR-16](#fr-16-ipad-大画面レイアウト最適化-v12--実装済みipad-シミュレータ確認済み) を実装 (iPad シミュレータ確認済み)**。前提として **iPad ネイティブ対応を有効化** (`app.json` の `ios.supportsTablet: true`)。従来は Expo 既定で iPhone 専用ビルドだったため iPad で iPhone 互換の小窓表示になり最適化が効かなかった。iPhone は縦固定のまま、iPad のみ `UISupportedInterfaceOrientations~ipad` で縦横両対応。UIDeviceFamily 変更のため `prebuild --clean`→再ビルドが必須。レイアウトは未使用だった `MaxContentWidth` (800) を活用し、**読みやすい最大幅で中央寄せ** (スマホでは自己ゲートで無効): エディタ面は `.cm-content` を `max-width: 42em`＋中央寄せ (`margin *: auto !important` で CM baseTheme の `margin:0` を上書き、[html.ts](../src/lib/cm/html.ts))、ホーム/設定/検索は 800pt 列に中央寄せ ([index.tsx](../src/app/index.tsx)/[settings.tsx](../src/app/settings.tsx)/[search.tsx](../src/app/search.tsx))。左右分割は引き続き非提供。app.json・FR-16 の記述を更新
 - **2026-07-07 (改訂23)**: **iPad は v1.2 では常時フルスクリーンに確定** (`app.json` に `ios.requireFullScreen: true`)。マルチタスク (`requireFullScreen` を外す) にすると Split View / Slide Over / Stage Manager で任意幅にリサイズされ、極狭幅・ライブリサイズ・分割時キーボードの実機検証が増える。v1.2 を確実に出すためこの変数を切り離し、**分割対応を [FR-27](#fr-27-ipad-マルチタスク対応-split-view--slide-over-v13--検討) として v1.3 に新設**。FR-16・app.json・`docs/checklist-v1.2.md` (Split View 項目を v1.3 送りに) を更新。※ requireFullScreen は UIRequiresFullScreen のネイティブ変更なので反映には `prebuild --clean`→再ビルドが必要
 - **2026-07-18 (改訂24)**: **v1.3 を §5.4 として新設** (v2 = 有償 Pro の前に挟む無料の小規模リリース)。内容: (1) **アプリアイコンの切り替え — [FR-29](#fr-29-アプリアイコンの切り替え-v13) を新設**。設定画面で複数デザインからユーザーが選択 (iOS Alternate App Icons、`CFBundleAlternateIcons` 登録で `prebuild --clean` 必須)。(2) **編集オプトイン — [FR-28](#fr-28-編集オプトイン-md-編集トグル-v13) を新設**。設定に「MD ファイルを編集する」トグル (**既定 OFF**) を設け、ON のときだけ編集モード切替 (FR-03/FR-20)・新規作成 (FR-23)・閲覧モードのタスクチェックボックスタップが有効。OFF の間 Modrift はファイルを一切書き換えない純粋ビューア (FR-22 のリネーム/削除は生成物の後始末なので OFF でも可)。課金ゲートではなく Md 編集は無料のまま (5.8 の「既存無料機能の有償化はしない」と整合)。既定 OFF は新規インストールのみ — 既存ユーザーは (b) 方式で ON に移行 (保存済み設定 or 履歴の痕跡で判定、FR-28 参照)。§5.4 挿入により旧 5.4〜5.7 を 5.5〜5.8 へ、ロードマップは Phase 5 (v1.3) 挿入で v2=Phase 6・旧 Phase 6 以降=Phase 7 以降に付け替え (改訂履歴内の旧番号表記は当時のまま)。FR-23 に OFF 時の「＋」非表示を追記
+- **2026-07-18 (改訂25)**: **v1.3 のスコープ確定とリリース準備**。[FR-27](#fr-27-ipad-マルチタスク対応-split-view--slide-over-v14-以降--検討) (iPad マルチタスク) を **v1.4 以降へ送り**、v1.3 は FR-28 (編集オプトイン)＋FR-29 (アイコン切り替え) で完結 — 両機能とも実装・実機確認済み。**v1.2.1 (スクロール修正) は単独提出せず v1.3 に統合して出す** (v1.2 審査通過が 2026-07-18、v1.3 が即提出可能な状態のため審査を2回通す意味が薄い。スクロール修正は v1.2.1 ブランチ経由で v1.3 に含まれている)。バージョンを 1.3.0 にバンプ、実機検証は `docs/checklist-v1.3.md`
