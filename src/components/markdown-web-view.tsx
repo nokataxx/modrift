@@ -109,6 +109,12 @@ export const MarkdownWebView = forwardRef<MarkdownWebViewHandle, Props>(
         style={style}
         keyboardDisplayRequiresUserAction={false}
         hideKeyboardAccessoryView
+        // The page itself scrolls (native UIScrollView) since the editor grows
+        // to its content. Without this prop react-native-webview writes its
+        // unset ivar (0.0) into scrollView.decelerationRate on every drag,
+        // killing fling momentum almost instantly — "normal" is the iOS
+        // standard 0.998.
+        decelerationRate="normal"
         // Let the page paint on the app background (no white flash pre-init).
         onMessage={(e) => {
           try {

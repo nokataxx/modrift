@@ -57,13 +57,17 @@ export function buildEditorHtml(opts: {
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <style>
   :root { color-scheme: light dark; }
-  html, body, #editor { height: 100%; margin: 0; padding: 0; }
+  /* No fixed heights: the editor grows to its content and the PAGE scrolls,
+     via WKWebView's native UIScrollView. An inner .cm-scroller overflow div
+     kills fling momentum on iOS whenever CodeMirror redraws or corrects the
+     scroll position mid-scroll; native page scrolling survives that churn. */
+  html, body, #editor { margin: 0; padding: 0; }
 
   body {
     background: var(--bg); color: var(--fg); -webkit-text-size-adjust: 100%;
     -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
   }
-  .cm-editor { height: 100%; background: transparent; }
+  .cm-editor { background: transparent; }
   .cm-editor.cm-focused { outline: none; }
   /* Base family is the Japanese font (so Japanese picks it); Latin runs are
      pushed to SF by .cm-lat below. */

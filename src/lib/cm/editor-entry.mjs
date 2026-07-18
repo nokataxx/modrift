@@ -211,11 +211,19 @@ const livePreview = ViewPlugin.fromClass(
   class {
     constructor(view) {
       this.decorations = this.build(view);
+      this.tree = syntaxTree(view.state);
     }
     update(u) {
-      // Rebuild on edits, scroll, cursor moves (reveal/hide marks), and parse
-      // progress (markdown parses async) — cheap for single-file docs.
-      this.decorations = this.build(u.view);
+      // Rebuild only on edits, viewport moves, cursor moves (reveal/hide
+      // marks), and parse progress (markdown parses async). Skipping the
+      // measure-cycle updates in between matters on iOS: a full rebuild on
+      // every update during a fling stalls the main thread, and WebKit kills
+      // scroll momentum when the DOM churns mid-scroll.
+      const tree = syntaxTree(u.state);
+      if (u.docChanged || u.viewportChanged || u.selectionSet || tree !== this.tree) {
+        this.decorations = this.build(u.view);
+        this.tree = syntaxTree(u.state);
+      }
     }
     build(view) {
       const widgets = [];
@@ -230,7 +238,10 @@ const livePreview = ViewPlugin.fromClass(
       const qDepth = new Map();
 
       for (const vr of view.visibleRanges) {
-        ensureSyntaxTree(state, vr.to, 150);
+        // Small budget: this runs during scrolling, and a long synchronous
+        // parse here freezes the fling. Anything unparsed within the budget
+        // catches up via the background parser (the tree check in update()).
+        ensureSyntaxTree(state, vr.to, 20);
         syntaxTree(state).iterate({
           from: vr.from,
           to: vr.to,
