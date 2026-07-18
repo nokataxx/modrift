@@ -93,7 +93,20 @@
           "disableAndroid": true
         }
       ],
-      "./plugins/with-share-extension-xcode-fixes"
+      "./plugins/with-share-extension-xcode-fixes",
+      [
+        "expo-alternate-app-icons",
+        [
+          {
+            "name": "Light",
+            "ios": "./assets/icon-src/modrift-icon-light-1024.png"
+          },
+          {
+            "name": "Navy",
+            "ios": "./assets/icon-src/modrift-icon-navy-1024.png"
+          }
+        ]
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

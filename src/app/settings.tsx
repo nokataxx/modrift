@@ -1,8 +1,13 @@
+import {
+  getAppIconName,
+  setAlternateAppIcon,
+  supportsAlternateIcons,
+} from 'expo-alternate-app-icons';
 import { Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MarkdownWebView } from '@/components/markdown-web-view';
@@ -32,6 +37,15 @@ type Theme = ReturnType<typeof useTheme>;
 
 const APPEARANCE_OPTIONS: AppearanceMode[] = ['system', 'light', 'dark'];
 const FONT_SIZE_OPTIONS: FontSizeKey[] = ['small', 'medium', 'large'];
+
+// FR-29 alternate app icons. `name` must match the plugin config in app.json
+// (null = the primary icon). The OS is the source of truth for the current
+// selection (getAppIconName), so nothing is persisted app-side.
+const APP_ICON_OPTIONS = [
+  { key: 'dark', name: null, source: require('../../assets/icon-src/modrift-icon-1024.png') },
+  { key: 'light', name: 'Light', source: require('../../assets/icon-src/modrift-icon-light-1024.png') },
+  { key: 'navy', name: 'Navy', source: require('../../assets/icon-src/modrift-icon-navy-1024.png') },
+] as const;
 
 // Preview card height per font size — sized so the 3-heading + body sample fits
 // the compact-padded surface without an internal scroll.
@@ -147,6 +161,16 @@ export default function SettingsScreen() {
   const theme = useTheme();
   const scheme = useResolvedColorScheme();
   const { settings, setAppearance, setFontSize, setStyleTheme, setEditEnabled } = useSettings();
+  const [appIcon, setAppIcon] = useState<string | null>(() => getAppIconName());
+
+  const handleAppIcon = async (name: 'Light' | 'Navy' | null) => {
+    try {
+      await setAlternateAppIcon(name);
+      setAppIcon(name);
+    } catch {
+      // The OS refused the switch (rare) — keep the current selection.
+    }
+  };
   const base = FONT_SIZE_BASE[settings.fontSize];
 
   // Same CodeMirror theme the viewer builds, so the live preview matches the
@@ -332,6 +356,42 @@ export default function SettingsScreen() {
           <ThemedText themeColor="textSecondary" style={styles.cloudHint}>
             {t('screens.settings.editToggleHint')}
           </ThemedText>
+
+          {/* FR-29: alternate app icon picker (hidden where unsupported). */}
+          {supportsAlternateIcons && (
+            <>
+              <ThemedText themeColor="textSecondary" style={styles.sectionLabel}>
+                {t('screens.settings.appIcon')}
+              </ThemedText>
+              <View style={styles.iconRow}>
+                {APP_ICON_OPTIONS.map((opt) => {
+                  const selected = appIcon === opt.name;
+                  return (
+                    <Pressable
+                      key={opt.key}
+                      onPress={() => handleAppIcon(opt.name)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={t(`screens.settings.appIconOptions.${opt.key}`)}
+                      style={styles.iconChoice}>
+                      <Image
+                        source={opt.source}
+                        style={[
+                          styles.iconThumb,
+                          { borderColor: selected ? theme.tint : theme.backgroundElement },
+                        ]}
+                      />
+                      <ThemedText
+                        themeColor={selected ? 'text' : 'textSecondary'}
+                        style={styles.iconLabel}>
+                        {t(`screens.settings.appIconOptions.${opt.key}`)}
+                      </ThemedText>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          )}
 
           {cloudSources.length > 0 && (
             <>
@@ -581,5 +641,25 @@ const styles = StyleSheet.create({
   },
   switchLabel: {
     fontSize: 16,
+  },
+  // FR-29 app icon picker
+  iconRow: {
+    flexDirection: 'row',
+    gap: Spacing.four,
+  },
+  iconChoice: {
+    alignItems: 'center',
+  },
+  iconThumb: {
+    width: 56,
+    height: 56,
+    // iOS squircle approximation at this size; the real mask is applied by the
+    // OS on the Home Screen, this is just the in-app preview.
+    borderRadius: 13,
+    borderWidth: 2,
+  },
+  iconLabel: {
+    fontSize: 12,
+    marginTop: Spacing.one,
   },
 });
