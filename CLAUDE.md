@@ -18,6 +18,7 @@ This file is the persistent context for Claude Code working on the Modrift proje
 **段階的な進化**:
 - MVP / v1.1: 任意の `.md` を Document Picker / Open In で開いて整形表示・軽編集 (2つの起動経路)
 - v1.2: ライブプレビュー編集 (CodeMirror 一本化) を主役に、検索・見出しテンプレート等を追加
+- v1.3: アプリアイコンの切り替え (設定で複数デザインから選択、iOS Alternate App Icons、FR-29)＋編集オプトイン (設定「MD ファイルを編集する」トグル、既定 OFF。OFF の間は編集ボタン・新規作成・チェックボックストグルを含め内容変更ゼロ、FR-28)
 - v2: 単一ファイルの PDF / Word (.docx) / xlsx 閲覧 (有償 Pro)
 
 **iOS Files App との関係**: Modrift は Files App と競合せず**補完関係**にある。Files App はファイル管理 (フォルダ階層、リネーム、移動、削除) を担い、Modrift は Md 整形表示・編集と他形式ファイルの閲覧を担う。
