@@ -740,6 +740,7 @@ Modrift 内から新規の空 `.md` を作成し、そのまま書き始めら�
   - **navy**: 背景 `#1B3A6B`・M `#F4EEE2`・バー `#E2A23B` (ネイビーは [FR-25](#fr-25-文書スタイルのユーザー選択-プリセット方式-v12--実装済み実機確認済み) navy の heading1 と同色でアプリ内配色と整合)
   - ソースは `assets/icon-src/` (バリアント別レイヤー SVG＋結合 SVG、`export-png.mjs` で 1024px 不透明 PNG を一括書き出し)
 - アイコンアセットの生成は [liquid-glass-icon-workflow](liquid-glass-icon-workflow.md) の手順を流用。
+- **既定 (プライマリ) アイコンは現行のフラット PNG を継続 (2026-07-18 確定)**。iOS 26 のシステム自動グラス変換を受容する。Icon Composer での `.icon` 化 (自動変換の制御) は比較検討の上**見送り** — フラットの見た目を好むため。ぼやけ等の実害が出たら再検討。検討時の雛形として `assets/icon-src/Modrift*.icon` (3配色の Liquid Glass 版、translucency オフ・specular あり) を保存してある。
 
 **実装 (想定)**:
 

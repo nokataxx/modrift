@@ -1,0 +1,6 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- 前景レイヤー (light バリアント): M (透明背景・ネイビー #1B3A6B = FR-25 navy) -->
+  <g fill="none" stroke="#1B3A6B" stroke-width="110" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="290,648 290,286 512,508 734,286 734,648" />
+  </g>
+</svg>
