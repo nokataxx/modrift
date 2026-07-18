@@ -80,7 +80,10 @@
       },
       "cloudNames": "クラウドの名前",
       "cloudSample": "例: {{name}}",
-      "cloudNamesHint": "Google Drive などのクラウドは iOS の制約で自動判別できません。ここで名前を付けると履歴に反映されます。"
+      "cloudNamesHint": "Google Drive などのクラウドは iOS の制約で自動判別できません。ここで名前を付けると履歴に反映されます。",
+      "editing": "編集",
+      "editToggle": "MDファイルを編集する",
+      "editToggleHint": "オフの間は閲覧専用になり、Modrift がファイルを書き換えることはありません。編集ボタンと新規作成は非表示になり、チェックボックスのタップも無効になります。"
     },
     "search": {
       "title": "検索",

@@ -633,8 +633,11 @@ export default function ViewerScreen() {
     (activeUri !== null &&
       classifyFileLocation(activeUri).kind === "icloudCopy");
   const loaded = content !== null && !error;
-  const canToggle = loaded && editable;
-  const showCopyButton = loaded && !editable;
+  // FR-28: while the edit opt-in is off, every editing entry point disappears
+  // (mode toggle, copy-to-iCloud, checkbox taps) — Modrift is a pure viewer.
+  const editOptIn = settings.editEnabled;
+  const canToggle = loaded && editable && editOptIn;
+  const showCopyButton = loaded && !editable && editOptIn;
   const toggleLabel =
     mode === "preview" ? t("screens.viewer.edit") : t("screens.viewer.preview");
 
@@ -783,7 +786,7 @@ export default function ViewerScreen() {
               imagePlaceholder={t("screens.viewer.imagePlaceholder", {
                 filename: "__F__",
               })}
-              taskInteractive={editable}
+              taskInteractive={editable && editOptIn}
               onChange={handleChange}
               onHistoryChange={handleHistoryChange}
               onReady={handleReady}

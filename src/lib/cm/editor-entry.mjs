@@ -134,15 +134,16 @@ class CheckboxWidget extends WidgetType {
     // shifts it out of alignment.
     s.className = "cm-task" + (this.checked ? " cm-task-on" : "");
     // Notion-style: tap toggles [ ] <-> [x] in the source (which auto-saves).
-    // Only for savable files; on a non-editable file it's inert.
-    if (window.CONFIG && window.CONFIG.taskInteractive) {
-      s.classList.add("cm-task-tap");
-      s.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        toggleTaskAt(view, view.posAtDOM(s));
-      });
-    }
+    // The flag is read at TAP time, not attach time — taskInteractive can be
+    // flipped at runtime (FR-28 edit opt-in) on an already-mounted editor, and
+    // widgets built earlier must honour the new value.
+    s.classList.add("cm-task-tap");
+    s.addEventListener("mousedown", (e) => {
+      if (!(window.CONFIG && window.CONFIG.taskInteractive)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      toggleTaskAt(view, view.posAtDOM(s));
+    });
     return s;
   }
   ignoreEvent() {
@@ -683,6 +684,11 @@ const highlightField = StateField.define({
     // livePreview "editing" flag (it reads window.CONFIG.editable) and the
     // caret via the body.readonly class; the dispatch forces a decoration
     // rebuild so the cursor-line syntax marks show/hide immediately.
+    // FR-28: enable/disable checkbox tap-toggling at runtime (the widget's tap
+    // handler reads this flag live, so no redraw is needed).
+    window.__cmSetTaskInteractive = function (on) {
+      window.CONFIG.taskInteractive = !!on;
+    };
     window.__cmSetEditable = function (on) {
       window.CONFIG.editable = on;
       document.body.classList.toggle("readonly", !on);

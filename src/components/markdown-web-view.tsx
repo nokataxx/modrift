@@ -77,6 +77,8 @@ export const MarkdownWebView = forwardRef<MarkdownWebViewHandle, Props>(
     );
     const editableRef = useRef(editable);
     editableRef.current = editable;
+    const taskInteractiveRef = useRef(taskInteractive);
+    taskInteractiveRef.current = taskInteractive;
 
     const inject = useCallback((js: string) => {
       webRef.current?.injectJavaScript(`${js}; true;`);
@@ -87,6 +89,14 @@ export const MarkdownWebView = forwardRef<MarkdownWebViewHandle, Props>(
     useEffect(() => {
       inject(`window.__cmSetEditable && window.__cmSetEditable(${editable})`);
     }, [editable, inject]);
+
+    // Checkbox tap-toggling can change at runtime too (FR-28 edit opt-in
+    // flipped in Settings while a file stays mounted).
+    useEffect(() => {
+      inject(
+        `window.__cmSetTaskInteractive && window.__cmSetTaskInteractive(${!!taskInteractive})`,
+      );
+    }, [taskInteractive, inject]);
 
     useImperativeHandle(
       ref,
@@ -127,9 +137,11 @@ export const MarkdownWebView = forwardRef<MarkdownWebViewHandle, Props>(
             } else if (msg.type === "link") {
               onLinkPress?.(msg.url);
             } else if (msg.type === "ready") {
-              // Sync editable in case it changed between mount and ready.
+              // Sync editable / task toggling in case they changed between
+              // mount and ready.
               inject(
-                `window.__cmSetEditable && window.__cmSetEditable(${editableRef.current})`,
+                `window.__cmSetEditable && window.__cmSetEditable(${editableRef.current});` +
+                  `window.__cmSetTaskInteractive && window.__cmSetTaskInteractive(${!!taskInteractiveRef.current})`,
               );
               onReady?.();
             }

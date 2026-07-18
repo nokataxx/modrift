@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { NetworkBanner } from '@/components/network-banner';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useSettings } from '@/hooks/use-settings';
 import { useTheme } from '@/hooks/use-theme';
 import { type CloudNames, loadCloudNames } from '@/lib/cloud-names';
 import {
@@ -192,6 +193,7 @@ function RecentRow({
 export default function HomeScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
+  const { settings } = useSettings();
   const router = useRouter();
   const [recent, setRecent] = useState<RecentFile[] | null>(null);
   const [cloudNames, setCloudNames] = useState<CloudNames>({});
@@ -341,15 +343,19 @@ export default function HomeScreen() {
       <Stack.Screen
         options={{
           title: t('screens.recentFiles.title'),
-          headerLeft: () => (
-            <Pressable
-              onPress={handleNewNote}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={t('screens.recentFiles.newNote')}>
-              <SymbolView name="plus" size={24} weight="semibold" tintColor={theme.text} />
-            </Pressable>
-          ),
+          // FR-28: new-note creation is an editing entry point — hidden until
+          // the edit opt-in is turned on in Settings.
+          headerLeft: settings.editEnabled
+            ? () => (
+                <Pressable
+                  onPress={handleNewNote}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('screens.recentFiles.newNote')}>
+                  <SymbolView name="plus" size={24} weight="semibold" tintColor={theme.text} />
+                </Pressable>
+              )
+            : undefined,
           headerRight: () => (
             <View style={styles.headerActions}>
               <Pressable

@@ -20,6 +20,20 @@ export type RecentFile = {
   providerName?: string;
 };
 
+// Whether any recent-file history exists. History is recorded automatically on
+// every open, so this is the trace of prior app use that survives even when the
+// user never touched a setting (FR-28 migration relies on it).
+export async function hasRecentFiles(): Promise<boolean> {
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 // iOS reports the same file as both `file:///var/...` and `file:///private/var/...`
 // depending on how the URL was constructed. Both resolve to the same on-disk
 // file but they are different strings, which breaks naive URI dedup. Normalize

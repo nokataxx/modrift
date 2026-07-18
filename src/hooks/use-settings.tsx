@@ -25,6 +25,7 @@ interface SettingsContextValue {
   setAppearance: (mode: AppearanceMode) => void;
   setFontSize: (size: FontSizeKey) => void;
   setStyleTheme: (key: StyleThemeKey) => void;
+  setEditEnabled: (on: boolean) => void;
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
@@ -61,6 +62,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       setAppearance: (appearance) => update({ appearance }),
       setFontSize: (fontSize) => update({ fontSize }),
       setStyleTheme: (styleTheme) => update({ styleTheme }),
+      setEditEnabled: (editEnabled) => update({ editEnabled }),
     }),
     [settings, ready, update],
   );

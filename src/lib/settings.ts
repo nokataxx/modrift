@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { hasRecentFiles } from '@/lib/recent-files';
 import { STYLE_THEME_KEYS, type StyleThemeKey } from '@/theme';
 
 const STORAGE_KEY = 'modrift:settings';
@@ -11,12 +12,17 @@ export interface Settings {
   appearance: AppearanceMode;
   fontSize: FontSizeKey;
   styleTheme: StyleThemeKey;
+  // FR-28 edit opt-in. While false, Modrift is a pure viewer: the edit-mode /
+  // copy-to-iCloud buttons, new-note creation and task-checkbox toggling are
+  // all hidden or inert, and no code path modifies a file.
+  editEnabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   appearance: 'system',
   fontSize: 'medium',
   styleTheme: 'navy',
+  editEnabled: false,
 };
 
 const APPEARANCE_VALUES: readonly AppearanceMode[] = ['system', 'light', 'dark'];
@@ -36,18 +42,37 @@ function isSettings(value: unknown): value is Settings {
   return (
     APPEARANCE_VALUES.includes(v.appearance as AppearanceMode) &&
     FONT_SIZE_VALUES.includes(v.fontSize as FontSizeKey) &&
-    STYLE_THEME_KEYS.includes(v.styleTheme as StyleThemeKey)
+    STYLE_THEME_KEYS.includes(v.styleTheme as StyleThemeKey) &&
+    typeof v.editEnabled === 'boolean'
   );
 }
 
 export async function loadSettings(): Promise<Settings> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_SETTINGS;
+    if (!raw) {
+      // First load with nothing stored. FR-28 migration: users who predate the
+      // edit opt-in keep editing ON. Settings are only persisted once changed,
+      // so the trace of prior use is the recent-file history. The resolved
+      // value is persisted immediately — otherwise a fresh (OFF) install would
+      // flip to ON on its next launch, once it has opened a few files.
+      const migrated = {
+        ...DEFAULT_SETTINGS,
+        editEnabled: await hasRecentFiles(),
+      };
+      saveSettings(migrated);
+      return migrated;
+    }
     // Merge over defaults so a partial or older-shaped stored value still
     // resolves to a complete, valid Settings object.
-    const merged = { ...DEFAULT_SETTINGS, ...(JSON.parse(raw) as object) };
-    return isSettings(merged) ? merged : DEFAULT_SETTINGS;
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    // FR-28 migration: stored settings without the flag are from pre-v1.3 —
+    // an existing user, so editing stays ON for them.
+    const legacy = typeof parsed.editEnabled !== 'boolean';
+    const merged = { ...DEFAULT_SETTINGS, ...parsed, ...(legacy ? { editEnabled: true } : null) };
+    if (!isSettings(merged)) return DEFAULT_SETTINGS;
+    if (legacy) saveSettings(merged);
+    return merged;
   } catch {
     return DEFAULT_SETTINGS;
   }

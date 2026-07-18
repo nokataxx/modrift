@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MarkdownWebView } from '@/components/markdown-web-view';
@@ -146,7 +146,7 @@ export default function SettingsScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
   const scheme = useResolvedColorScheme();
-  const { settings, setAppearance, setFontSize, setStyleTheme } = useSettings();
+  const { settings, setAppearance, setFontSize, setStyleTheme, setEditEnabled } = useSettings();
   const base = FONT_SIZE_BASE[settings.fontSize];
 
   // Same CodeMirror theme the viewer builds, so the live preview matches the
@@ -313,6 +313,25 @@ export default function SettingsScreen() {
             </View>
             <ThemedText style={styles.glyphLarge}>A</ThemedText>
           </View>
+
+          {/* FR-28: edit opt-in. Default OFF — while off, Modrift is a pure
+              viewer (edit button, new note and checkbox taps are hidden). */}
+          <ThemedText themeColor="textSecondary" style={styles.sectionLabel}>
+            {t('screens.settings.editing')}
+          </ThemedText>
+          <View style={[styles.switchRow, { backgroundColor: theme.backgroundElement }]}>
+            <ThemedText style={styles.switchLabel}>
+              {t('screens.settings.editToggle')}
+            </ThemedText>
+            <Switch
+              value={settings.editEnabled}
+              onValueChange={setEditEnabled}
+              accessibilityLabel={t('screens.settings.editToggle')}
+            />
+          </View>
+          <ThemedText themeColor="textSecondary" style={styles.cloudHint}>
+            {t('screens.settings.editToggleHint')}
+          </ThemedText>
 
           {cloudSources.length > 0 && (
             <>
@@ -549,5 +568,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: Spacing.two,
     marginLeft: Spacing.two,
+  },
+  // FR-28 edit opt-in row
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 12,
+    paddingVertical: Spacing.two,
+    paddingLeft: Spacing.four,
+    paddingRight: Spacing.three,
+  },
+  switchLabel: {
+    fontSize: 16,
   },
 });
