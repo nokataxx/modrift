@@ -83,7 +83,7 @@
       "cloudNamesHint": "iOS doesn't reveal which cloud a file comes from. Name them here and it shows in your history.",
       "editing": "Editing",
       "editToggle": "Edit MD files",
-      "editToggleHint": "While off, Modrift is view-only and never modifies your files. The edit button and new note are hidden, and checkbox taps are disabled.",
+      "editToggleHint": "While off, Modrift is view-only and your files can't be edited.",
       "appIcon": "App Icon",
       "appIconOptions": {
         "dark": "Dark",
