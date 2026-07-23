@@ -1,8 +1,8 @@
 import { Directory, File } from 'expo-file-system';
 
-import IcloudContainerModule from '@modules/icloud-container';
-
-import { classifyFileLocation } from './file-location';
+import { isHomeFile } from './file-location';
+import { getHomeDirectoryUri } from './home-files';
+import { type HomeLocation } from './settings';
 
 export class IcloudUnavailableError extends Error {
   constructor() {
@@ -77,8 +77,11 @@ export function findAvailableCopyName(
 export async function createIcloudCopy(
   content: string,
   originalName: string,
+  location: HomeLocation = 'icloud',
 ): Promise<{ uri: string; name: string }> {
-  const documentsUri = await IcloudContainerModule.getContainerDocumentsURL();
+  // FR-31: write into the active home. 'local' always resolves to a created
+  // dir; 'icloud' is null (→ IcloudUnavailableError) when iCloud is signed out.
+  const documentsUri = await getHomeDirectoryUri(location);
   if (documentsUri === null) throw new IcloudUnavailableError();
 
   try {
@@ -107,8 +110,12 @@ export function toMarkdownFileName(input: string): string {
   return `${cleaned.replace(/\.md$/i, '')}.md`;
 }
 
-function ensureIcloudCopy(uri: string): void {
-  if (classifyFileLocation(uri).kind !== 'icloudCopy') {
+// Guard for rename/delete/duplicate: the target must be one of Modrift's own
+// home files (iCloud › Modrift OR the on-device home) — never an arbitrary file.
+// FR-31 means "home" can be either location, so this uses isHomeFile rather than
+// the iCloud-only classification.
+function ensureHomeFile(uri: string): void {
+  if (!isHomeFile(uri)) {
     throw new NotAnIcloudCopyError();
   }
 }
@@ -121,7 +128,7 @@ export function renameIcloudCopy(
   uri: string,
   newBaseName: string,
 ): { uri: string; name: string } {
-  ensureIcloudCopy(uri);
+  ensureHomeFile(uri);
   if (!newBaseName.trim()) throw new IcloudCopyFailedError();
   const name = toMarkdownFileName(newBaseName);
   const file = new File(uri);
@@ -136,10 +143,33 @@ export function renameIcloudCopy(
   }
 }
 
+// Duplicate a Modrift iCloud copy in place (FR-35). Copies the file's bytes to
+// a new, non-colliding "… copy" name in the same folder and returns the new
+// uri/name. copySync (not read+write) is used so the copy goes through the same
+// NSFileCoordinator path the container requires and preserves the bytes exactly.
+// Throws NotAnIcloudCopyError outside our container, IcloudCopyFailedError on
+// filesystem failure.
+export function duplicateIcloudCopy(uri: string): { uri: string; name: string } {
+  ensureHomeFile(uri);
+  try {
+    const source = new File(uri);
+    const dir = source.parentDirectory;
+    const { base, ext } = splitFileName(source.name);
+    const name = findAvailableCopyName(`${base} copy${ext}`, (candidate) => {
+      return new File(dir, candidate).exists;
+    });
+    const dest = new File(dir, name);
+    source.copySync(dest);
+    return { uri: dest.uri, name };
+  } catch (err) {
+    throw new IcloudCopyFailedError(err);
+  }
+}
+
 // Delete a Modrift-generated iCloud copy's file body (FR-22). Caller is
 // responsible for the confirmation dialog and for pruning the history entry.
 export function deleteIcloudCopy(uri: string): void {
-  ensureIcloudCopy(uri);
+  ensureHomeFile(uri);
   try {
     new File(uri).delete();
   } catch (err) {

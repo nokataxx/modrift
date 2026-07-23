@@ -12,7 +12,7 @@ This file is the persistent context for Claude Code working on the Modrift proje
 - **「Vault」を主役にしない (2026-06-29 方針転換)**: iOS はサードパーティ File Provider のフォルダ参照を塞ぐため、フォルダ Vault は Google Drive 等で成立せず iCloud 専用だと Obsidian と競合するだけ。よって**フォルダ Vault・Vault ブラウザ・内部リンク `[[]]`・埋め込み `![[]]`・ローカル画像表示は実装しない**。単一ファイル中心に振り切る (Requirements 改訂11)
 - **ホーム = 作業場 (v1.4〜)**: 「どこのファイルでも開く」核はそのままに、**iCloud › Modrift フォルダを自分の作業ホーム**として持つ (アプリ専用の固定コンテナ。任意フォルダをピッカーで選ぶフォルダ Vault の復活ではない)。ホームは「マイファイル (場所) / 最近見た (時間)」の2ビュー。Md をここで一覧・新規・編集・整理し、Google Drive / Dropbox 等は開いて閲覧・必要ならホームへコピー。**編集はホームフォルダのファイルのみ (ポリシーA)**、他は閲覧＋コピー。システムピッカー (Recents 非表示・Browse 固定等の見た目が公開 API で制御不可) は3点メニュー内の予備 (FR-30〜35、Requirements §5.5)
 
-**対応ストレージ (重要)**: in-place 編集 (原本への書き戻し) が成立するのは **iCloud Drive のみ**。これは Modrift の設計仕様で、`isInPlaceEditable()` が iCloud Drive (`com~apple~CloudDocs`) とアプリの iCloud コンテナだけを編集可と判定する。
+**対応ストレージ (重要)**: OS 的に in-place 編集 (原本への書き戻し) が成立するのは **iCloud Drive のみ** (`com~apple~CloudDocs` / アプリの iCloud コンテナ)。その上で v1.4 の Policy A では編集可判定を **`isHomeFile()` がホーム (iCloud › Modrift コンテナ) のファイルだけ**に絞る (iCloud Drive 全般ではない)。ホーム外は閲覧＋明示「ホームにコピー」(FR-34)。
 - **iCloud Drive**: 編集がその場でクラウドへ同期される → **編集用途の推奨ストレージ** (実機確認済み)
 - **Dropbox / Google Drive 等のサードパーティ File Provider**: 閲覧は可能だが in-place 編集は不可。編集は iCloud にコピーを作成して行う (原本には書き戻らない、FR-03)。Google Drive は provider 自体が他アプリ編集をアップロードしない制約も別途確認済み。**Dropbox も書き戻し不可を実機確認 (2026-06-28)** — ただしこれは Modrift が iCloud 以外を一律ゲートしている結果で、Dropbox provider 自体の upload 可否は切り分け未実施
 - **v1.4〜 編集はホームフォルダ限定 (ポリシーA)**: iCloud Drive 全般ではなく **ホーム (iCloud › Modrift) のファイルだけ**を編集可とする。ホーム外 (Drive/Dropbox・Modrift フォルダ外の iCloud Drive) は閲覧＋明示「ホームにコピー」(FR-34) のみで、FR-03 の暗黙 iCloud コピーは廃止
@@ -141,7 +141,7 @@ Modrift は **2つの起動経路** をフラットに対応する。これは M
 - **Sandbox**: アプリは選択されたファイルにのみアクセス可能
 - **Security-Scoped Bookmark**: Document Picker の URI はセッションを跨ぐと無効化 (v1.1で対応)
 - **File Provider 同期完了は観測不可**: `writeAsStringAsync` はローカル書き込み完了までしか保証しない
-- **クラウド同期はプロバイダ依存**: 書き込みは `NSFileCoordinator` で協調済み。**in-place 編集が成立するのは iCloud Drive のみ** (`isInPlaceEditable` のゲート)。**Dropbox / Google Drive 等は in-place 編集不可** (編集は iCloud コピー経由、原本に書き戻らない)。閲覧は全プロバイダ可
+- **クラウド同期はプロバイダ依存**: 書き込みは `NSFileCoordinator` で協調済み。**in-place 編集が成立するのは iCloud Drive のみ**、さらに v1.4 Policy A では編集可はホーム (iCloud › Modrift) 限定 (`isHomeFile` のゲート)。**Dropbox / Google Drive 等・ホーム外は in-place 編集不可** (編集は「ホームにコピー」経由、原本に書き戻らない、FR-34)。閲覧は全プロバイダ可
 - **UTI 登録が必要 (Open In対応のため)**: `CFBundleDocumentTypes` で `.md` ハンドリングを宣言
 
 ### 環境

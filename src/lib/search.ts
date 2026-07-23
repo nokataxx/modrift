@@ -3,14 +3,16 @@ import { File } from 'expo-file-system';
 import FileBookmarkModule from '@modules/file-bookmark';
 
 import { classifyFileLocation, type FileLocationKind } from './file-location';
-import { loadRecentFiles, type RecentFile } from './recent-files';
+import { listHomeFiles } from './home-files';
+import { loadRecentFiles, sameFileKey, type RecentFile } from './recent-files';
+import { type HomeLocation } from './settings';
 import { normalizeMarkdown } from './text';
 
-// FR-15: full-text search is scoped to the recently-opened files (≤10), read on
-// demand — there's no disk-wide index (iOS sandboxing wouldn't allow it, and the
-// recents cap keeps in-memory search trivial). Each searchable file carries a
-// readable URI (bookmark-resolved so its security scope is live), so a matched
-// result can be opened straight from the captured URI.
+// FR-15: full-text search is scoped to the home folder (マイファイル) plus the
+// recently-opened files (最近見た), read on demand — there's no disk-wide index
+// (iOS sandboxing wouldn't allow it, and the small working set keeps in-memory
+// search trivial). Each searchable file carries a readable URI (bookmark-resolved
+// so its security scope is live), so a matched result opens from the captured URI.
 
 export type SearchableFile = {
   /** A URI readable now (bookmark-resolved, or the raw URI for iCloud copies). */
@@ -60,32 +62,65 @@ async function resolveReadableUri(item: RecentFile): Promise<string | null> {
   return null;
 }
 
-// Load and read every recent file we can actually open, returning their
-// normalized content for in-memory search. Files that fail to resolve or read
-// (evicted iCloud, dead bookmark, provider that won't hand over content) are
+// Read one file's normalized content into a SearchableFile, or null if it can't
+// be read (evicted iCloud, dead bookmark, provider that won't hand over content).
+async function readSearchable(
+  uri: string,
+  name: string,
+  providerHint?: string,
+): Promise<SearchableFile | null> {
+  try {
+    const text = await new File(uri).text();
+    const location = classifyFileLocation(uri);
+    return {
+      uri,
+      name,
+      content: normalizeMarkdown(text),
+      locationKind: location.kind,
+      providerName: providerHint ?? location.providerName,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Load and read the searchable working set: the home folder (マイファイル) plus
+// the recently-opened files (最近見た), deduplicated so a file that is in both
+// (a home file the user has also opened) is searched and shown only once.
+// Home files lead — they're the user's own workspace — and read directly by URI
+// (no bookmark needed); recent files are added only if not already covered.
+// sameFileKey ignores /var vs /private/var and encoding differences, so the same
+// file coming from the two sources collapses to one entry. Unreadable files are
 // skipped silently — search simply covers what's reachable.
-export async function loadSearchableRecentFiles(): Promise<SearchableFile[]> {
-  const items = await loadRecentFiles();
-  const results = await Promise.all(
-    items.map(async (item): Promise<SearchableFile | null> => {
+export async function loadSearchableFiles(homeLocation: HomeLocation): Promise<SearchableFile[]> {
+  const [homeFiles, recentItems] = await Promise.all([
+    listHomeFiles(homeLocation),
+    loadRecentFiles(),
+  ]);
+
+  const byKey = new Map<string, SearchableFile>();
+
+  // Home files first (read straight from their container/local URI).
+  const homeRead = await Promise.all(
+    homeFiles.map((hf) => readSearchable(hf.uri, hf.name)),
+  );
+  for (const f of homeRead) {
+    if (f !== null) byKey.set(sameFileKey(f.uri), f);
+  }
+
+  // Then recent files, skipping any already covered by a home file.
+  const recentRead = await Promise.all(
+    recentItems.map(async (item): Promise<SearchableFile | null> => {
       const uri = await resolveReadableUri(item);
-      if (uri === null) return null;
-      try {
-        const text = await new File(uri).text();
-        const location = classifyFileLocation(uri);
-        return {
-          uri,
-          name: item.name,
-          content: normalizeMarkdown(text),
-          locationKind: location.kind,
-          providerName: item.providerName ?? location.providerName,
-        };
-      } catch {
-        return null;
-      }
+      if (uri === null || byKey.has(sameFileKey(uri))) return null;
+      return readSearchable(uri, item.name, item.providerName);
     }),
   );
-  return results.filter((f): f is SearchableFile => f !== null);
+  for (const f of recentRead) {
+    if (f !== null) byKey.set(sameFileKey(f.uri), f);
+  }
+
+  return Array.from(byKey.values());
 }
 
 function snippet(content: string, from: number, to: number) {

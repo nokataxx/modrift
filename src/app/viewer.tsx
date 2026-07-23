@@ -26,7 +26,7 @@ import { ThemedView } from "@/components/themed-view";
 import { useSettings } from "@/hooks/use-settings";
 import { useTheme } from "@/hooks/use-theme";
 import { type CmTheme } from "@/lib/cm/html";
-import { classifyFileLocation, isInPlaceEditable } from "@/lib/file-location";
+import { classifyFileLocation, isHomeFile } from "@/lib/file-location";
 import {
   createIcloudCopy,
   IcloudUnavailableError,
@@ -136,9 +136,6 @@ export default function ViewerScreen() {
   // Bumped to remount the editor after a wholesale buffer replacement (file
   // open, "load latest" — FR-13), so it re-seeds from the new text.
   const [reloadNonce, setReloadNonce] = useState(0);
-  // True once an Open-In Inbox file has been copied to iCloud, so the unmount
-  // cleanup doesn't try to delete an already-consumed source.
-  const inboxConsumedRef = useRef(false);
   // FR-15: guard so we jump to the search match only on the first editor-ready
   // (the initial open), not again after a "load latest" reload remounts it.
   const revealedRef = useRef(false);
@@ -326,7 +323,11 @@ export default function ViewerScreen() {
         next.length > 0
       ) {
         creatingNoteRef.current = true;
-        createIcloudCopy(next, pendingNameRef.current ?? fileName ?? "Untitled.md")
+        createIcloudCopy(
+          next,
+          pendingNameRef.current ?? fileName ?? "Untitled.md",
+          settings.homeLocation,
+        )
           .then(({ uri, name }) => {
             // A rename confirmed while the creation was in flight didn't make
             // it into the created name — apply it now (best-effort).
@@ -380,7 +381,7 @@ export default function ViewerScreen() {
       }
       scheduleSave();
     },
-    [scheduleSave, isNewNotePending, fileName, t, setActiveFile],
+    [scheduleSave, isNewNotePending, fileName, t, setActiveFile, settings.homeLocation],
   );
 
   const handleHistoryChange = useCallback((undo: boolean, redo: boolean) => {
@@ -490,12 +491,12 @@ export default function ViewerScreen() {
   }, [saveNow]);
 
   useEffect(() => {
-    // An Open-In Inbox copy is a throwaway sandbox file. If the user reads it
-    // and leaves without turning it into an iCloud copy, delete it so we don't
-    // leave a stale sandbox file behind. When it was copied, performCopy already
-    // removed it (inboxConsumedRef guards against a double delete).
+    // An Open-In Inbox copy is a throwaway sandbox file. Delete it when the
+    // viewer unmounts so we don't leave a stale sandbox file behind. This holds
+    // whether or not the user copied it to home (FR-34) — the home copy is an
+    // independent file, so the Inbox source is always disposable on leave.
     return () => {
-      if (isOpenInPending && fileUri && !inboxConsumedRef.current) {
+      if (isOpenInPending && fileUri) {
         try {
           new File(fileUri).delete();
         } catch {
@@ -548,35 +549,21 @@ export default function ViewerScreen() {
     };
   }, [cleanupEmptyNewNote]);
 
-  const performCopy = useCallback(async () => {
+  // FR-34 (Policy A): take an explicit copy of a view-only file into the home
+  // folder (iCloud › Modrift). Per decision ⑤ we copy and return to Home — we do
+  // NOT open the copy in edit mode. The original stays untouched and in place
+  // (still viewable, still in 最近見た); the new copy appears under マイファイル
+  // because Home reloads its list on focus. This replaces the old FR-03 implicit
+  // "copy to iCloud and start editing" flow.
+  const performCopyToHome = useCallback(async () => {
     if (content === null) return;
     setCopying(true);
     try {
-      const result = await createIcloudCopy(content, fileName ?? "note.md");
-      if (isOpenInPending && fileUri) {
-        // Source was a throwaway Inbox copy — remove it now that a durable
-        // iCloud copy exists.
-        try {
-          new File(fileUri).delete();
-        } catch {
-          // Non-fatal — iOS reclaims the Inbox eventually anyway.
-        }
-        inboxConsumedRef.current = true;
-      }
-      // The editable iCloud copy supersedes the original — drop the source from
-      // history so the user isn't shown both the read-only original and the
-      // copy. Awaited before navigating so the new screen's record (the copy)
-      // doesn't race this removal on the same AsyncStorage key.
-      if (fileUri) await removeRecentFile(fileUri).catch(() => {});
-      router.replace({
-        pathname: "/viewer",
-        params: {
-          fileUri: result.uri,
-          fileName: result.name,
-          initialMode: "edit",
-          source: "icloudCopy",
-        },
-      });
+      await createIcloudCopy(content, fileName ?? "note.md", settings.homeLocation);
+      // An Open-In Inbox source is a throwaway sandbox file; the unmount cleanup
+      // deletes it when we leave, so no explicit handling is needed here.
+      if (router.canGoBack()) router.back();
+      else router.replace("/");
     } catch (err) {
       const message =
         err instanceof IcloudUnavailableError
@@ -585,22 +572,22 @@ export default function ViewerScreen() {
       Alert.alert(t("screens.viewer.copyToIcloudErrorTitle"), message);
       setCopying(false);
     }
-  }, [content, fileName, router, t, isOpenInPending, fileUri]);
+  }, [content, fileName, router, t, settings.homeLocation]);
 
-  const handleCopyToIcloud = useCallback(() => {
+  const handleCopyToHome = useCallback(() => {
     if (content === null || copying) return;
     Alert.alert(
-      t("screens.viewer.copyToIcloudDialogTitle"),
-      t("screens.viewer.copyToIcloudDialogMessage"),
+      t("screens.viewer.copyToHomeDialogTitle"),
+      t("screens.viewer.copyToHomeDialogMessage"),
       [
         { text: t("common.cancel"), style: "cancel" },
         {
-          text: t("screens.viewer.copyToIcloudDialogConfirm"),
-          onPress: () => performCopy(),
+          text: t("screens.viewer.copyToHomeDialogConfirm"),
+          onPress: () => performCopyToHome(),
         },
       ],
     );
-  }, [content, copying, performCopy, t]);
+  }, [content, copying, performCopyToHome, t]);
 
   const cmTheme: CmTheme = useMemo(
     () => ({
@@ -621,9 +608,10 @@ export default function ViewerScreen() {
     [theme, base],
   );
 
-  // A new note is editable from the start (it becomes an in-place iCloud copy on
-  // the first keystroke); otherwise editability follows the file's location.
-  const editable = isNewNotePending || isInPlaceEditable(fileUri ?? "");
+  // Policy A (v1.4): editing is limited to home-folder files (iCloud › Modrift).
+  // A new note is editable from the start (it becomes a home file on the first
+  // keystroke); every other location is view-only until copied to home (FR-34).
+  const editable = isNewNotePending || isHomeFile(fileUri ?? "");
   // Rename (via long-press on the header title) is only for our own iCloud
   // copies — a user's own file can't be renamed (file-scope permission only).
   // A new note is renameable from the start: before its file exists the chosen
@@ -741,14 +729,14 @@ export default function ViewerScreen() {
             : showCopyButton
               ? () => (
                   <Pressable
-                    onPress={handleCopyToIcloud}
+                    onPress={handleCopyToHome}
                     hitSlop={8}
                     disabled={copying}
                     accessibilityRole="button"
-                    accessibilityLabel={t("screens.viewer.copyToIcloudButton")}
+                    accessibilityLabel={t("screens.viewer.copyToHomeButton")}
                   >
                     <SymbolView
-                      name="square.and.pencil"
+                      name="folder.badge.plus"
                       size={26}
                       weight="semibold"
                       tintColor={theme.text}

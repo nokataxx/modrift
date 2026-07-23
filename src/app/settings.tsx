@@ -23,7 +23,12 @@ import {
   shortContainerTag,
 } from '@/lib/file-location';
 import { loadRecentFiles } from '@/lib/recent-files';
-import { FONT_SIZE_BASE, type AppearanceMode, type FontSizeKey } from '@/lib/settings';
+import {
+  FONT_SIZE_BASE,
+  type AppearanceMode,
+  type FontSizeKey,
+  type HomeLocation,
+} from '@/lib/settings';
 import {
   MaxContentWidth,
   STYLE_THEME_KEYS,
@@ -37,6 +42,7 @@ type Theme = ReturnType<typeof useTheme>;
 
 const APPEARANCE_OPTIONS: AppearanceMode[] = ['system', 'light', 'dark'];
 const FONT_SIZE_OPTIONS: FontSizeKey[] = ['small', 'medium', 'large'];
+const HOME_LOCATION_OPTIONS: HomeLocation[] = ['icloud', 'local'];
 
 // FR-29 alternate app icons. `name` must match the plugin config in app.json
 // (null = the primary icon). The OS is the source of truth for the current
@@ -160,7 +166,28 @@ export default function SettingsScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
   const scheme = useResolvedColorScheme();
-  const { settings, setAppearance, setFontSize, setStyleTheme, setEditEnabled } = useSettings();
+  const { settings, setAppearance, setFontSize, setStyleTheme, setEditEnabled, setHomeLocation } =
+    useSettings();
+
+  // FR-31: switching home is destructive-ish (the other folder's files vanish
+  // from view, and local isn't backed up), so confirm with a warning first. No
+  // files are moved — only which folder is listed/written changes.
+  const switchHomeLocation = (loc: HomeLocation) => {
+    if (loc === settings.homeLocation) return;
+    Alert.alert(
+      t('screens.settings.homeLocationSwitchTitle'),
+      loc === 'local'
+        ? t('screens.settings.homeLocationToLocalMessage')
+        : t('screens.settings.homeLocationToIcloudMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('screens.settings.homeLocationSwitchConfirm'),
+          onPress: () => setHomeLocation(loc),
+        },
+      ],
+    );
+  };
   const [appIcon, setAppIcon] = useState<string | null>(() => getAppIconName());
 
   const handleAppIcon = async (name: 'Light' | 'Navy' | null) => {
@@ -355,6 +382,35 @@ export default function SettingsScreen() {
           </View>
           <ThemedText themeColor="textSecondary" style={styles.cloudHint}>
             {t('screens.settings.editToggleHint')}
+          </ThemedText>
+
+          {/* FR-31: home storage location — iCloud › Modrift (default) or an
+              on-device folder. Switching only changes what マイファイル lists /
+              writes to; it never moves files (warned in switchHomeLocation). */}
+          <ThemedText themeColor="textSecondary" style={styles.sectionLabel}>
+            {t('screens.settings.homeLocation')}
+          </ThemedText>
+          <View style={[styles.segment, { backgroundColor: theme.backgroundElement }]}>
+            {HOME_LOCATION_OPTIONS.map((loc) => {
+              const active = settings.homeLocation === loc;
+              return (
+                <Pressable
+                  key={loc}
+                  onPress={() => switchHomeLocation(loc)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  style={[styles.segmentItem, active && { backgroundColor: theme.background }]}>
+                  <ThemedText
+                    themeColor={active ? undefined : 'textSecondary'}
+                    style={styles.segmentText}>
+                    {t(`screens.settings.homeLocationOptions.${loc}`)}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </View>
+          <ThemedText themeColor="textSecondary" style={styles.cloudHint}>
+            {t('screens.settings.homeLocationHint')}
           </ThemedText>
 
           {/* FR-29: alternate app icon picker (hidden where unsupported). */}
@@ -641,6 +697,22 @@ const styles = StyleSheet.create({
   },
   switchLabel: {
     fontSize: 16,
+  },
+  // FR-31 home-location segmented control (mirrors the home screen's segment).
+  segment: {
+    flexDirection: 'row',
+    borderRadius: Spacing.two,
+    padding: 2,
+  },
+  segmentItem: {
+    flex: 1,
+    paddingVertical: Spacing.two,
+    borderRadius: Spacing.two - 2,
+    alignItems: 'center',
+  },
+  segmentText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   // FR-29 app icon picker
   iconRow: {

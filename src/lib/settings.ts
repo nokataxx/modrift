@@ -7,6 +7,10 @@ const STORAGE_KEY = 'modrift:settings';
 
 export type AppearanceMode = 'system' | 'light' | 'dark';
 export type FontSizeKey = 'small' | 'medium' | 'large';
+// FR-31: where the home folder lives — the app's iCloud container (iCloud ›
+// Modrift, default) or an on-device folder (On My iPhone › Modrift). Switching
+// only changes which folder is listed / written to; it never moves files.
+export type HomeLocation = 'icloud' | 'local';
 
 export interface Settings {
   appearance: AppearanceMode;
@@ -16,6 +20,8 @@ export interface Settings {
   // copy-to-iCloud buttons, new-note creation and task-checkbox toggling are
   // all hidden or inert, and no code path modifies a file.
   editEnabled: boolean;
+  // FR-31 home storage location.
+  homeLocation: HomeLocation;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -23,10 +29,12 @@ export const DEFAULT_SETTINGS: Settings = {
   fontSize: 'medium',
   styleTheme: 'navy',
   editEnabled: false,
+  homeLocation: 'icloud',
 };
 
 const APPEARANCE_VALUES: readonly AppearanceMode[] = ['system', 'light', 'dark'];
 const FONT_SIZE_VALUES: readonly FontSizeKey[] = ['small', 'medium', 'large'];
+const HOME_LOCATION_VALUES: readonly HomeLocation[] = ['icloud', 'local'];
 
 // Base body font size (pt) per preset. Heading / code sizes derive from this so
 // the whole document scales proportionally (see viewer's markdownStyle).
@@ -43,7 +51,8 @@ function isSettings(value: unknown): value is Settings {
     APPEARANCE_VALUES.includes(v.appearance as AppearanceMode) &&
     FONT_SIZE_VALUES.includes(v.fontSize as FontSizeKey) &&
     STYLE_THEME_KEYS.includes(v.styleTheme as StyleThemeKey) &&
-    typeof v.editEnabled === 'boolean'
+    typeof v.editEnabled === 'boolean' &&
+    HOME_LOCATION_VALUES.includes(v.homeLocation as HomeLocation)
   );
 }
 

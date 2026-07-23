@@ -3,6 +3,34 @@ import { Paths } from 'expo-file-system';
 const UBIQUITY_CONTAINER_SEGMENT = '/iCloud~com~modrift~app/';
 const ICLOUD_DRIVE_SEGMENT = '/com~apple~CloudDocs/';
 
+// FR-31: the on-device home IS the app's Documents directory — that is exactly
+// what UIFileSharingEnabled surfaces as "On My iPhone › Modrift" (Modrift being
+// the app's display name). Using a subfolder here would show as a confusing
+// "Modrift › Modrift" nesting in the Files app, so the home is the Documents
+// root itself. Home files are the DIRECT children of Documents; subfolders
+// (e.g. an Open-In Inbox) are excluded from the home (see isLocalHomeFile).
+export function localHomeDirectoryUri(): string | null {
+  try {
+    const doc = Paths.document.uri; // file://.../Documents/ (trailing slash)
+    return doc.endsWith('/') ? doc : `${doc}/`;
+  } catch {
+    return null;
+  }
+}
+
+// True for a file sitting directly in the on-device home (Documents root), not
+// in a subfolder. Keeps Inbox / other sandbox subfolders out of "home" so they
+// stay view-only (Policy A) instead of becoming editable.
+function isLocalHomeFile(uri: string): boolean {
+  const home = localHomeDirectoryUri();
+  if (home === null) return false;
+  const u = normalizePrivate(uri);
+  const h = normalizePrivate(home);
+  if (!u.startsWith(h)) return false;
+  const rest = u.slice(h.length);
+  return rest.length > 0 && !rest.includes('/');
+}
+
 // iOS reports the same file as both `file:///var/...` and `file:///private/var/...`
 // depending on how the URL was constructed. They point at the same file but are
 // different strings, so a naive startsWith() comparison between the document
@@ -23,22 +51,21 @@ function appContainerRoot(): string | null {
   }
 }
 
-// Whether a file can be edited in place so that writes actually persist somewhere
-// the user can reach. iCloud Drive and the app's iCloud ubiquity container qualify.
-//
-// Files in the app's own sandbox — primarily Open-In Inbox copies — are NOT
-// treated as in-place editable: writes succeed but never leave the sandbox, so
-// the user's "edit" is invisible from any other device or app. Route them
-// through the same copy-to-iCloud flow as third-party File Providers
-// (Requirements.md FR-03) so the editing copy lives in iCloud Drive › Modrift.
-export function isInPlaceEditable(uri: string): boolean {
+// Policy A (v1.4): editing is limited to the app's home folder — the iCloud ›
+// Modrift ubiquity container. Third-party clouds, the app sandbox, AND iCloud
+// Drive files OUTSIDE the Modrift folder are all view-only; editing them means
+// first taking an explicit "copy to home" (FR-34). This replaces the pre-v1.4
+// gate (isInPlaceEditable), which let any iCloud Drive file be edited in place —
+// now iCloud Drive outside Modrift is view+copy like everything else, so there's
+// one simple rule for the user ("you can edit files in your home"). FR-31
+// (home on-device) will extend this to also accept the local home directory.
+export function isHomeFile(uri: string): boolean {
   if (!uri) return false;
-  if (uri.includes(ICLOUD_DRIVE_SEGMENT)) return true; // iCloud Drive
-  if (uri.includes(UBIQUITY_CONTAINER_SEGMENT)) return true; // app's iCloud ubiquity container
-  return false;
+  if (uri.includes(UBIQUITY_CONTAINER_SEGMENT)) return true; // iCloud home
+  return isLocalHomeFile(uri); // on-device home (direct children of Documents)
 }
 
-export type FileLocationKind = 'icloudCopy' | 'icloudDrive' | 'appSandbox' | 'external';
+export type FileLocationKind = 'icloudCopy' | 'localHome' | 'icloudDrive' | 'appSandbox' | 'external';
 
 export type FileLocation = {
   kind: FileLocationKind;
@@ -79,6 +106,9 @@ export function classifyFileLocation(uri: string): FileLocation {
   if (uri.includes(ICLOUD_DRIVE_SEGMENT)) {
     return { kind: 'icloudDrive', folder: icloudDriveFolder(uri) };
   }
+  // FR-31 on-device home (App Documents root) — checked before the generic
+  // app-sandbox test below, since it lives inside the sandbox but is a home file.
+  if (isLocalHomeFile(uri)) return { kind: 'localHome' };
   const root = appContainerRoot();
   if (root && normalizePrivate(uri).startsWith(normalizePrivate(root))) {
     return { kind: 'appSandbox' };

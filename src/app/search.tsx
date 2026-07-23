@@ -15,10 +15,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useSettings } from '@/hooks/use-settings';
 import { useTheme } from '@/hooks/use-theme';
 import {
   findMatches,
-  loadSearchableRecentFiles,
+  loadSearchableFiles,
   type SearchableFile,
   type SearchMatch,
 } from '@/lib/search';
@@ -30,6 +31,7 @@ export default function SearchScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
   const router = useRouter();
+  const { settings } = useSettings();
 
   const [files, setFiles] = useState<SearchableFile[] | null>(null);
   const [query, setQuery] = useState('');
@@ -40,13 +42,13 @@ export default function SearchScreen() {
 
   useEffect(() => {
     let cancelled = false;
-    loadSearchableRecentFiles().then((loaded) => {
+    loadSearchableFiles(settings.homeLocation).then((loaded) => {
       if (!cancelled) setFiles(loaded);
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [settings.homeLocation]);
 
   useEffect(() => {
     const id = setTimeout(() => setDebounced(query), 180);
