@@ -10,18 +10,21 @@ This file is the persistent context for Claude Code working on the Modrift proje
 - **将来的に**: PDF、Word (.docx)、xlsx、画像など他形式の**単一ファイル**も閲覧できる「知的生産ファイルクライアント」へ拡張
 - **コンセプト**: Mo (Mobile / Motion) + drift (流れる、漂う) = モバイルでファイルと思考が流れるように行き来する
 - **「Vault」を主役にしない (2026-06-29 方針転換)**: iOS はサードパーティ File Provider のフォルダ参照を塞ぐため、フォルダ Vault は Google Drive 等で成立せず iCloud 専用だと Obsidian と競合するだけ。よって**フォルダ Vault・Vault ブラウザ・内部リンク `[[]]`・埋め込み `![[]]`・ローカル画像表示は実装しない**。単一ファイル中心に振り切る (Requirements 改訂11)
+- **ホーム = 作業場 (v1.4〜)**: 「どこのファイルでも開く」核はそのままに、**iCloud › Modrift フォルダを自分の作業ホーム**として持つ (アプリ専用の固定コンテナ。任意フォルダをピッカーで選ぶフォルダ Vault の復活ではない)。ホームは「マイファイル (場所) / 最近見た (時間)」の2ビュー。Md をここで一覧・新規・編集・整理し、Google Drive / Dropbox 等は開いて閲覧・必要ならホームへコピー。**編集はホームフォルダのファイルのみ (ポリシーA)**、他は閲覧＋コピー。システムピッカー (Recents 非表示・Browse 固定等の見た目が公開 API で制御不可) は3点メニュー内の予備 (FR-30〜35、Requirements §5.5)
 
 **対応ストレージ (重要)**: in-place 編集 (原本への書き戻し) が成立するのは **iCloud Drive のみ**。これは Modrift の設計仕様で、`isInPlaceEditable()` が iCloud Drive (`com~apple~CloudDocs`) とアプリの iCloud コンテナだけを編集可と判定する。
 - **iCloud Drive**: 編集がその場でクラウドへ同期される → **編集用途の推奨ストレージ** (実機確認済み)
 - **Dropbox / Google Drive 等のサードパーティ File Provider**: 閲覧は可能だが in-place 編集は不可。編集は iCloud にコピーを作成して行う (原本には書き戻らない、FR-03)。Google Drive は provider 自体が他アプリ編集をアップロードしない制約も別途確認済み。**Dropbox も書き戻し不可を実機確認 (2026-06-28)** — ただしこれは Modrift が iCloud 以外を一律ゲートしている結果で、Dropbox provider 自体の upload 可否は切り分け未実施
+- **v1.4〜 編集はホームフォルダ限定 (ポリシーA)**: iCloud Drive 全般ではなく **ホーム (iCloud › Modrift) のファイルだけ**を編集可とする。ホーム外 (Drive/Dropbox・Modrift フォルダ外の iCloud Drive) は閲覧＋明示「ホームにコピー」(FR-34) のみで、FR-03 の暗黙 iCloud コピーは廃止
 
 **段階的な進化**:
 - MVP / v1.1: 任意の `.md` を Document Picker / Open In で開いて整形表示・軽編集 (2つの起動経路)
 - v1.2: ライブプレビュー編集 (CodeMirror 一本化) を主役に、検索・見出しテンプレート等を追加
 - v1.3: アプリアイコンの切り替え (設定で複数デザインから選択、iOS Alternate App Icons、FR-29)＋編集オプトイン (設定「MD ファイルを編集する」トグル、既定 OFF。OFF の間は編集ボタン・新規作成・チェックボックストグルを含め内容変更ゼロ、FR-28)
+- v1.4: ファイル選択 UX 刷新。ホームを **iCloud › Modrift フォルダ中心の作業場**に (「マイファイル / 最近見た」2ビュー)、システムピッカーは3点メニュー内の予備、**編集はホームフォルダ限定 (ポリシーA)**、設定でホームを iPhone内に切替可 (FR-30〜35、Requirements §5.5)
 - v2: 単一ファイルの PDF / Word (.docx) / xlsx 閲覧 (有償 Pro)
 
-**iOS Files App との関係**: Modrift は Files App と競合せず**補完関係**にある。Files App はファイル管理 (フォルダ階層、リネーム、移動、削除) を担い、Modrift は Md 整形表示・編集と他形式ファイルの閲覧を担う。
+**iOS Files App との関係**: Modrift は Files App と競合せず**補完関係**にある。Files App は一般のファイル管理 (任意フォルダの階層・移動・削除) を担い、Modrift は Md 整形表示・編集と他形式ファイルの閲覧を担う。v1.4〜 は Modrift 自身の作業ホーム (iCloud › Modrift) 内に限りリネーム・削除・複製・新規を持つ (自領域の操作であり一般ファイルマネージャ化ではない)。
 
 詳細仕様は `Requirements.md` を参照。
 

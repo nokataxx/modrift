@@ -12,15 +12,19 @@ Modrift は **クラウドストレージ (iCloud Drive / Google Drive / Dropbox
 
 **「どこのファイルでも開ける軽量 Markdown ビューア＆クイックエディタ」**が核。特定の Vault やアプリに縛られず、あらゆる場所の**単一ファイル**を整形表示し、その場で軽編集する。将来は **PDF・Word (.docx)・xlsx・画像など他形式の単一ファイル閲覧**にも広げ、「知的生産ファイルクライアント」を目指す。
 
+**ホーム = 作業場 (v1.4〜)**: 「どこのファイルでも開く」核はそのままに、**iCloud › Modrift フォルダを自分の作業ホーム**として持つ (アプリ専用の固定コンテナ)。ここで Md を一覧・新規・編集・整理し、Google Drive / Dropbox 等は開いて閲覧・必要ならホームへコピーする。**編集はホームフォルダのファイルのみ (ポリシーA)**、他は閲覧＋コピー。システムピッカーは予備 (Recents 非表示等の見た目制御が公開 API で不可なため主役から外した)。詳細は [5.5](#55-v14-ホームフォルダ中心リデザイン-phase-6)。
+
 **段階的な進化**:
 
 - **MVP / v1.1**: 任意の `.md` を Document Picker / Open In で開いて整形表示・軽編集 (2つの起動経路)
 - **v1.2**: ライブプレビュー編集 (CodeMirror 一本化) で書き味を飛躍させ、検索・見出しテンプレート等を追加
+- **v1.3**: 編集オプトイン (既定 OFF の「まずビューア」) ＋ アプリアイコン切り替え
+- **v1.4**: ファイル選択 UX を刷新。ホームを **iCloud › Modrift フォルダ中心の作業場** (「マイファイル / 最近見た」2ビュー) にし、システムピッカーを予備化 ([5.5](#55-v14-ホームフォルダ中心リデザイン-phase-6))
 - **v2**: 単一ファイルの PDF / Word (.docx) / xlsx 閲覧 (有償 Pro)
 
-**iOS Files App との関係**: Modrift は Files App と競合せず**補完関係**にある。Files App はファイル管理 (フォルダ階層、リネーム、移動、削除) を担い、Modrift は Md 整形表示・編集と他形式ファイルの閲覧を担う。
+**iOS Files App との関係**: Modrift は Files App と競合せず**補完関係**にある。Files App は一般のファイル管理 (任意フォルダの階層・移動・削除) を担い、Modrift は Md 整形表示・編集と他形式ファイルの閲覧を担う。v1.4〜 は **Modrift 自身の作業ホーム (iCloud › Modrift) 内に限り**リネーム・削除・複製・新規を持つが、これは自領域の操作であり一般ファイルマネージャ化ではない ([5.8](#58-意図的に実装しないもの))。
 
-**「Vault」を主役にしない理由 (重要・2026-06-29 方針転換)**: 当初はクラウド上の Obsidian Vault を**フォルダ単位**で扱う構想だった。しかし **iOS はサードパーティ File Provider (Google Drive / Dropbox 等) のフォルダ参照を全面的に塞ぐ** (Apple "by design"、[10.1](#101-file-provider関連) / [10.4](#104-iosapp-store関連))。フォルダ Vault は Google Drive 等で成立せず、iCloud 専用にすると Obsidian Mobile と正面競合するだけ。そこで**フォルダ Vault を廃し、「単一ファイルをどこからでも」に振り切った** (改訂11)。フォルダ参照に依存する内部リンク `[[]]` / 埋め込み `![[]]` / ローカル画像表示も同じ理由で対象外。
+**「Vault」を主役にしない理由 (重要・2026-06-29 方針転換)**: 当初はクラウド上の Obsidian Vault を**フォルダ単位**で扱う構想だった。しかし **iOS はサードパーティ File Provider (Google Drive / Dropbox 等) のフォルダ参照を全面的に塞ぐ** (Apple "by design"、[10.1](#101-file-provider関連) / [10.4](#104-iosapp-store関連))。フォルダ Vault は Google Drive 等で成立せず、iCloud 専用にすると Obsidian Mobile と正面競合するだけ。そこで**フォルダ Vault を廃し、「単一ファイルをどこからでも」に振り切った** (改訂11)。フォルダ参照に依存する内部リンク `[[]]` / 埋め込み `![[]]` / ローカル画像表示も同じ理由で対象外。なお **v1.4 のホーム (iCloud › Modrift) はアプリ専用の固定コンテナ**であり、任意フォルダをピッカーで選ぶフォルダ Vault の復活ではない — サードパーティのフォルダ参照制約に触れず、Obsidian 的機能も持ち込まない ([5.5](#55-v14-ホームフォルダ中心リデザイン-phase-6))。
 
 **名前の由来**: **Mo** (Mobile / Motion) + **drift** (漂う、流れる) の合成。「モバイルで思考やファイルが軽やかに流れるように行き来する」コンセプト。
 
@@ -193,6 +197,7 @@ iOS の標準的なメンタルモデルに合わせ、ユーザーの好みで�
 - **システムピッカー (`UIDocumentPickerViewController`) は制御不能**: Apple 所有・別プロセスの UI。Recents 非表示/Browse 最上位固定/非モーダル化/内容の追加・削除・履歴制御は**すべて公開 API で不可**。`directoryURL` も best-effort でファイルピッカーでは無視されがち (iOS 18 で無視)。→ ピッカーは予備に留める。
 - **ピッカーの Recents に Drive/Dropbox が出ない** (実機観測) → 再オープンは Modrift 履歴 (最近見た) が担う。
 - **ブラウザ=ルート案 (`UIDocumentBrowserViewController`) は不採用**: Apple 仕様でルート VC 必須 (子 VC 化・モーダル提示不可)。Expo/expo-router の土台を反転する重改修＋前例なし＋SDK 更新で壊れやすく solo 保守の範囲外。
+- **各クラウド API を OAuth で自前ブラウザ化する案も不採用**: Drive/Dropbox を自前 UI で出せるが、Google CASA 年額監査＋Dropbox 本番審査＋OAuth 管理＋in-place 編集喪失で solo にはコスト過大。
 - iCloud › Modrift コンテナは document-scope-public 済み (app.json `NSUbiquitousContainerIsDocumentScopePublic: true`, name "Modrift") → アプリから自前で列挙・読み書き・in-place 編集が可能。既存の `icloud-container` (`getContainerDocumentsURL`)・`recent-files`・rename/delete 資産を流用 (ネイティブ反転も OAuth も不要 = 最軽量)。
 
 **廃止した「フォルダ Vault」(改訂11) との違い:** 任意フォルダをピッカーで選ぶ (FR-18・FR-24、いずれも廃止) のではなく、**アプリ専用の固定フォルダ**に限定する。iOS がサードパーティのフォルダ参照を塞ぐ問題 (Vault を葬った理由) にそもそも触れない。内部リンク `[[]]`・埋め込み `![[]]`・ローカル画像は持ち込まない ([5.8](#58-意図的に実装しないもの) 維持)。
