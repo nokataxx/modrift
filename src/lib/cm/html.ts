@@ -96,6 +96,13 @@ export function buildEditorHtml(opts: {
     margin-left: auto !important;
     margin-right: auto !important;
   }
+  /* FR-36: a phone held in landscape drops the cap and uses the full width —
+     widening the measure is the whole point of rotating. Keyed on viewport
+     height, not width: a landscape phone is short (<=500px tall) while a
+     landscape iPad is not, so iPad keeps its FR-16 reading column. */
+  @media (orientation: landscape) and (max-height: 500px) {
+    .cm-content { max-width: none; }
+  }
   /* CodeMirror's baseTheme adds .cm-line { padding: 0 2px 0 6px } after our
      styles — zero it so our own horizontal padding is the only source. */
   .cm-line { padding-left: 0 !important; padding-right: 0 !important; }

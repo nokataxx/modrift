@@ -9,6 +9,7 @@ import { ShareIntentHandler } from '@/components/share-intent-handler';
 import { NetworkProvider } from '@/hooks/use-network';
 import { SettingsProvider } from '@/hooks/use-settings';
 import { useResolvedColorScheme } from '@/hooks/use-theme';
+import { lockPortraitOnPhone } from '@/lib/orientation';
 import IcloudContainerModule from '@modules/icloud-container';
 
 export const unstable_settings = {
@@ -41,6 +42,13 @@ export default function RootLayout() {
     IcloudContainerModule.getContainerDocumentsURL().catch(() => {
       // Non-fatal: copy flow handles unavailability with its own error path.
     });
+  }, []);
+
+  useEffect(() => {
+    // FR-36: the phone starts (and stays) portrait; only the viewer opts into
+    // landscape. Info.plist allows every orientation, so without this lock the
+    // list screens would rotate too. No-op on iPad, which keeps all four.
+    lockPortraitOnPhone();
   }, []);
 
   return (
