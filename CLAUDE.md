@@ -20,8 +20,8 @@ This file is the persistent context for Claude Code working on the Modrift proje
 **段階的な進化**:
 - MVP / v1.1: 任意の `.md` を Document Picker / Open In で開いて整形表示・軽編集 (2つの起動経路)
 - v1.2: ライブプレビュー編集 (CodeMirror 一本化) を主役に、検索・見出しテンプレート等を追加
-- v1.3: アプリアイコンの切り替え (設定で複数デザインから選択、iOS Alternate App Icons、FR-29)＋編集オプトイン (設定「MD ファイルを編集する」トグル、既定 OFF。OFF の間は編集ボタン・新規作成・チェックボックストグルを含め内容変更ゼロ、FR-28)
-- v1.4: ファイル選択 UX 刷新。ホームを **iCloud › Modrift フォルダ中心の作業場**に (「マイファイル / 最近見た」2ビュー)、システムピッカーは3点メニュー内の予備、**編集はホームフォルダ限定 (ポリシーA)**、設定でホームを iPhone内に切替可 (FR-30〜35、Requirements §5.5)
+- v1.3: アプリアイコンの切り替え (設定で複数デザインから選択、iOS Alternate App Icons、FR-29)＋編集オプトイン (設定「MD ファイルを編集する」トグル、既定 OFF、FR-28。**v1.4 で撤去 → 編集は常時有効**)
+- v1.4: ファイル選択 UX 刷新。ホームを **iCloud › Modrift フォルダ中心の作業場**に (「マイファイル / 最近見た」2ビュー)、システムピッカーは3点メニュー内の予備、**編集はホームフォルダ限定 (ポリシーA・`isHomeFile`)**、設定でホームを iPhone内に切替可 (ローカルは Documents 直下)。マイファイルは更新日付表示＋並び替え (3点メニュー内)、操作は両ビューとも長押し ActionSheet に統一 (履歴スワイプ廃止・ファイル削除はマイファイルのみ)。**編集オプトイン (FR-28) は撤去し編集を常時有効に** (FR-30〜35、Requirements §5.5)
 - v2: 単一ファイルの PDF / Word (.docx) / xlsx 閲覧 (有償 Pro)
 
 **iOS Files App との関係**: Modrift は Files App と競合せず**補完関係**にある。Files App は一般のファイル管理 (任意フォルダの階層・移動・削除) を担い、Modrift は Md 整形表示・編集と他形式ファイルの閲覧を担う。v1.4〜 は Modrift 自身の作業ホーム (iCloud › Modrift) 内に限りリネーム・削除・複製・新規を持つ (自領域の操作であり一般ファイルマネージャ化ではない)。

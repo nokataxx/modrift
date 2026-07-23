@@ -45,7 +45,10 @@
       "tabMyFiles": "My Files",
       "tabRecent": "Recent",
       "myFilesEmpty": "No files in your home folder yet. Tap ＋ to create one.",
-      "recentEmpty": "No recently opened files yet."
+      "recentEmpty": "No recently opened files yet.",
+      "sortTitle": "Sort by",
+      "sortByDate": "Date modified",
+      "sortByName": "Name"
     },
     "viewer": {
       "edit": "Edit",
@@ -90,9 +93,6 @@
       "cloudNames": "Cloud names",
       "cloudSample": "e.g. {{name}}",
       "cloudNamesHint": "iOS doesn't reveal which cloud a file comes from. Name them here and it shows in your history.",
-      "editing": "Editing",
-      "editToggle": "Edit MD files",
-      "editToggleHint": "While off, Modrift is view-only and your files can't be edited.",
       "homeLocation": "Home location",
       "homeLocationOptions": {
         "icloud": "iCloud",

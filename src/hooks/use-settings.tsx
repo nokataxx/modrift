@@ -26,7 +26,6 @@ interface SettingsContextValue {
   setAppearance: (mode: AppearanceMode) => void;
   setFontSize: (size: FontSizeKey) => void;
   setStyleTheme: (key: StyleThemeKey) => void;
-  setEditEnabled: (on: boolean) => void;
   setHomeLocation: (location: HomeLocation) => void;
 }
 
@@ -64,7 +63,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       setAppearance: (appearance) => update({ appearance }),
       setFontSize: (fontSize) => update({ fontSize }),
       setStyleTheme: (styleTheme) => update({ styleTheme }),
-      setEditEnabled: (editEnabled) => update({ editEnabled }),
       setHomeLocation: (homeLocation) => update({ homeLocation }),
     }),
     [settings, ready, update],

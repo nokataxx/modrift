@@ -3,12 +3,9 @@ import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActionSheetIOS, Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
-import ReanimatedSwipeable, {
-  type SwipeableMethods,
-} from 'react-native-gesture-handler/ReanimatedSwipeable';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { NetworkBanner } from '@/components/network-banner';
@@ -48,11 +45,6 @@ const LOCATION_KEY: Record<FileLocationKind, string> = {
   external: 'screens.recentFiles.locationExternal',
 };
 
-// The one swipe action ("remove from list") is non-destructive, so it uses a
-// neutral gray. Red is reserved for the destructive file delete, which lives
-// only in the long-press action sheet.
-const REMOVE_GRAY = '#636366';
-
 function locationLabel(
   file: RecentFile,
   t: (key: string) => string,
@@ -86,124 +78,75 @@ function locationLabel(
 // text files instead of .txt.
 const SUPPORTED_EXTENSIONS = ['.md', '.markdown', '.txt', '.text'] as const;
 
-// One history row. Each row owns its own swipe handle and an `openRef` flag so a
-// tap while the actions are revealed closes the row instead of opening the file
-// (iOS Mail behaviour). The flag is set the moment an open-drag starts — not on
-// "will open" — so a release that both finishes the swipe and fires the row's
-// press can't sneak a navigation through before the guard is in place.
-//
-// Swipe reveals one non-destructive action: "remove from list" (history only)
-// for every row. Renaming a Modrift copy now happens by long-pressing the file
-// name in the viewer header (FR-22), not on the swipe. The one destructive
-// operation — deleting a Modrift-generated copy's file body — still lives behind
-// a deliberate long-press action sheet so a quick swipe can't trigger it.
+// One history row. Tap opens the file; long-press opens an action sheet with a
+// single, non-destructive "remove from list" action — unified with the My Files
+// long-press UX (FR-32) so both lists behave the same way (no swipe). History
+// never deletes the file itself: file deletion lives in My Files, where the home
+// files actually reside.
 function RecentRow({
   item,
   cloudNames,
   onPress,
   onRemoveHistory,
-  onDeleteFile,
 }: {
   item: RecentFile;
   cloudNames: CloudNames;
   onPress: (item: RecentFile) => void;
   onRemoveHistory: (item: RecentFile) => void;
-  onDeleteFile: (item: RecentFile) => void;
 }) {
   const { t } = useTranslation();
   const theme = useTheme();
-  const swipeRef = useRef<SwipeableMethods>(null);
-  const openRef = useRef(false);
-  // A gesture-handler Swipeable fires a phantom press on the underlying RN
-  // Pressable when the swipe releases. Without this guard that press hits the
-  // row's onPress and (seeing the row now open) immediately closes it — so the
-  // revealed action never stays. Set on open-drag, this absorbs that one press.
-  const swipingRef = useRef(false);
-  const isCopy = classifyFileLocation(item.uri).kind === 'icloudCopy';
 
   const handleLongPress = () => {
-    // FR-22: file deletion is offered only for our own iCloud copies, and only
-    // via this long-press. The action sheet's title/message plus its destructive
-    // button is the required confirmation — no quick gesture deletes a file.
-    if (!isCopy) return;
     ActionSheetIOS.showActionSheetWithOptions(
       {
-        title: t('screens.recentFiles.deleteFileTitle', { name: item.name }),
-        message: t('screens.recentFiles.deleteFileMessage'),
-        options: [t('screens.recentFiles.deleteFileAction'), t('common.cancel')],
-        destructiveButtonIndex: 0,
+        title: item.name,
+        options: [t('screens.recentFiles.removeFromListAction'), t('common.cancel')],
         cancelButtonIndex: 1,
       },
       (index) => {
-        if (index === 0) onDeleteFile(item);
+        if (index === 0) onRemoveHistory(item);
       },
     );
   };
 
   return (
-    <ReanimatedSwipeable
-      ref={swipeRef}
-      friction={2}
-      rightThreshold={40}
-      onSwipeableOpenStartDrag={() => {
-        openRef.current = true;
-        swipingRef.current = true;
-      }}
-      onSwipeableOpen={() => {
-        // Open settled — the phantom release-press (if any) has already been
-        // absorbed by now, so clear the guard for genuine taps.
-        swipingRef.current = false;
-      }}
-      onSwipeableClose={() => {
-        openRef.current = false;
-        swipingRef.current = false;
-      }}
-      renderRightActions={() => (
-        <View style={styles.actions}>
-          {/* History-only removal for every row — never touches the file. */}
-          <Pressable style={styles.removeAction} onPress={() => onRemoveHistory(item)}>
-            <ThemedText numberOfLines={2} style={styles.actionText}>
-              {t('screens.recentFiles.removeFromListAction')}
-            </ThemedText>
-          </Pressable>
-        </View>
-      )}>
-      <Pressable
-        onPress={() => {
-          // Absorb the phantom press that fires when the swipe releases, so
-          // revealing the actions doesn't immediately close them.
-          if (swipingRef.current) {
-            swipingRef.current = false;
-            return;
-          }
-          // Swiped open → tap closes the row rather than opening the file, so
-          // the revealed actions stay reachable.
-          if (openRef.current) {
-            swipeRef.current?.close();
-            return;
-          }
-          onPress(item);
-        }}
-        onLongPress={handleLongPress}
-        style={({ pressed }) => [
-          styles.row,
-          { backgroundColor: theme.background },
-          pressed && { backgroundColor: theme.backgroundElement },
-        ]}>
-        <ThemedText numberOfLines={1}>{item.name}</ThemedText>
-        <ThemedText themeColor="textSecondary" numberOfLines={1} style={styles.rowSubtitle}>
-          {locationLabel(item, t, cloudNames)}
-        </ThemedText>
-      </Pressable>
-    </ReanimatedSwipeable>
+    <Pressable
+      onPress={() => onPress(item)}
+      onLongPress={handleLongPress}
+      style={({ pressed }) => [
+        styles.row,
+        { backgroundColor: theme.background },
+        pressed && { backgroundColor: theme.backgroundElement },
+      ]}>
+      <ThemedText numberOfLines={1}>{item.name}</ThemedText>
+      <ThemedText themeColor="textSecondary" numberOfLines={1} style={styles.rowSubtitle}>
+        {locationLabel(item, t, cloudNames)}
+      </ThemedText>
+    </Pressable>
   );
 }
 
-// A home-folder file row (FR-32 マイファイル). These files live in iCloud ›
-// Modrift, our own ubiquity container, so a tap opens straight into the
-// (editable) viewer — no bookmark or security scope needed. Rename / delete /
-// duplicate (FR-22 / FR-35) arrive as a later increment; for now the row is a
-// plain open target, matching the picker-free home the redesign is built around.
+// Format a home file's modification time as a plain localized date, for the row
+// subtitle. Empty string when the filesystem reported no mtime (sinks silently).
+function formatModifiedDate(ms: number | null, language: string): string {
+  if (ms === null) return '';
+  const locale = language.startsWith('ja') ? 'ja-JP' : 'en-US';
+  try {
+    return new Date(ms).toLocaleDateString(locale, {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+  } catch {
+    return '';
+  }
+}
+
+// A home-folder file row (FR-32 マイファイル). These files live in the home
+// folder, so a tap opens straight into the (editable) viewer — no bookmark or
+// security scope needed. The subtitle shows the modification date, styled like
+// the history row's location subtitle so both lists read the same.
 function MyFileRow({
   item,
   onPress,
@@ -213,7 +156,9 @@ function MyFileRow({
   onPress: (item: HomeFile) => void;
   onLongPress: (item: HomeFile) => void;
 }) {
+  const { i18n } = useTranslation();
   const theme = useTheme();
+  const date = formatModifiedDate(item.modifiedAt, i18n.language);
   return (
     <Pressable
       onPress={() => onPress(item)}
@@ -224,6 +169,11 @@ function MyFileRow({
         pressed && { backgroundColor: theme.backgroundElement },
       ]}>
       <ThemedText numberOfLines={1}>{item.name}</ThemedText>
+      {date !== '' && (
+        <ThemedText themeColor="textSecondary" numberOfLines={1} style={styles.rowSubtitle}>
+          {date}
+        </ThemedText>
+      )}
     </Pressable>
   );
 }
@@ -239,6 +189,8 @@ export default function HomeScreen() {
   // and 最近見た (everything recently opened, a timeline). マイファイル leads,
   // since the redesign makes the home folder the default workspace.
   const [tab, setTab] = useState<'files' | 'recent'>('files');
+  // My Files sort order: newest-modified first (default) or by file name.
+  const [sortMode, setSortMode] = useState<'date' | 'name'>('date');
   const [cloudNames, setCloudNames] = useState<CloudNames>({});
 
   useFocusEffect(
@@ -324,17 +276,53 @@ export default function HomeScreen() {
   // 最近見た afterwards.
   const handleHomeFilePress = useCallback(
     (file: HomeFile) => {
+      // A My Files listing can momentarily include a file with no substance —
+      // e.g. one deleted on another device that iCloud hasn't finished removing.
+      // Rather than open the viewer only for it to show a read error inside,
+      // catch it here: tell the user with a dialog and drop the dead row from
+      // the list. `exists` (not a read) keeps a valid-but-evicted file — which
+      // reports exists=true and downloads on open — from being wrongly removed.
+      let exists = false;
+      try {
+        exists = new File(file.uri).exists;
+      } catch {
+        exists = false;
+      }
+      if (!exists) {
+        setMyFiles((prev) => (prev === null ? prev : prev.filter((f) => f.uri !== file.uri)));
+        Alert.alert(
+          t('screens.recentFiles.reopenFailedTitle'),
+          t('screens.recentFiles.reopenFailedMessage'),
+        );
+        return;
+      }
       router.push({
         pathname: '/viewer',
         params: { fileUri: file.uri, fileName: file.name, source: 'history' },
       });
     },
-    [router],
+    [router, t],
   );
 
   const refreshMyFiles = useCallback(async () => {
     setMyFiles(await listHomeFiles(settings.homeLocation));
   }, [settings.homeLocation]);
+
+  // Apply the chosen sort to the home listing. Date is newest-first (matching
+  // the default listHomeFiles order); name is a natural, case-insensitive sort
+  // so "file2" < "file10".
+  const sortedMyFiles = useMemo(() => {
+    if (myFiles === null) return null;
+    const arr = [...myFiles];
+    if (sortMode === 'name') {
+      arr.sort((a, b) =>
+        a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
+      );
+    } else {
+      arr.sort((a, b) => (b.modifiedAt ?? 0) - (a.modifiedAt ?? 0));
+    }
+    return arr;
+  }, [myFiles, sortMode]);
 
   // FR-35: copy a home file in place ("… copy.md"). No history impact — a
   // duplicate only surfaces under 最近見た once the user actually opens it.
@@ -492,27 +480,11 @@ export default function HomeScreen() {
     Alert.alert(t('screens.recentFiles.reopenFailedTitle'), t('screens.recentFiles.reopenFailedMessage'));
   };
 
+  // FR-32: remove a file from 最近見た. Non-destructive — the file itself is
+  // untouched (delete lives in My Files). Reached via the RecentRow long-press.
   const handleRecentDelete = useCallback(async (item: RecentFile) => {
     setRecent((prev) => (prev === null ? prev : prev.filter((r) => r.uri !== item.uri)));
     await removeRecentFile(item.uri);
-  }, []);
-
-  // FR-22: delete a Modrift-generated iCloud copy's file body. Reached only
-  // through the long-press action sheet (RecentRow), which carries the required
-  // confirmation, so this just performs the deletion and prunes the history
-  // entry. If the file is already gone we still drop the now-dead entry.
-  const handleDeleteFile = useCallback((item: RecentFile) => {
-    try {
-      deleteIcloudCopy(item.uri);
-    } catch {
-      // File may have been deleted externally — fall through and still remove
-      // the now-dead history entry below.
-    }
-    removeRecentFile(item.uri)
-      .then(() =>
-        setRecent((prev) => (prev === null ? prev : prev.filter((r) => r.uri !== item.uri))),
-      )
-      .catch(() => {});
   }, []);
 
   const filesEmpty = myFiles !== null && myFiles.length === 0;
@@ -523,19 +495,17 @@ export default function HomeScreen() {
       <Stack.Screen
         options={{
           title: t('app.name'),
-          // FR-28: new-note creation is an editing entry point — hidden until
-          // the edit opt-in is turned on in Settings.
-          headerLeft: settings.editEnabled
-            ? () => (
-                <Pressable
-                  onPress={handleNewNote}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('screens.recentFiles.newNote')}>
-                  <SymbolView name="plus" size={24} weight="semibold" tintColor={theme.text} />
-                </Pressable>
-              )
-            : undefined,
+          // FR-23 new-note creation (＋). Editing is always available in the
+          // home-folder-centric model, so this is shown unconditionally.
+          headerLeft: () => (
+            <Pressable
+              onPress={handleNewNote}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t('screens.recentFiles.newNote')}>
+              <SymbolView name="plus" size={24} weight="semibold" tintColor={theme.text} />
+            </Pressable>
+          ),
           // FR-33: native iOS pull-down menu (UIMenu), anchored under the ⋯
           // button. Consolidates the now-secondary entry points — the system
           // picker (ファイルを開く), search, and settings. Demoting the picker
@@ -547,6 +517,8 @@ export default function HomeScreen() {
                 if (nativeEvent.event === 'open') handleOpen();
                 else if (nativeEvent.event === 'search') router.push('/search');
                 else if (nativeEvent.event === 'settings') router.push('/settings');
+                else if (nativeEvent.event === 'sort-date') setSortMode('date');
+                else if (nativeEvent.event === 'sort-name') setSortMode('name');
               }}
               // imageColor is REQUIRED on New Architecture: the Fabric path
               // always sends imageColor (defaulting to 0 = transparent) and the
@@ -554,6 +526,31 @@ export default function HomeScreen() {
               // so omitting it renders the icon fully transparent (invisible).
               // Passing the theme text colour makes the icons match the labels.
               actions={[
+                // Sort submenu — only for My Files (the home listing); the 最近見た
+                // history has its own fixed newest-first order, so it's omitted
+                // there. The checkmark (state 'on') shows the current order.
+                ...(tab === 'files'
+                  ? [
+                      {
+                        id: 'sort',
+                        title: t('screens.recentFiles.sortTitle'),
+                        image: 'arrow.up.arrow.down',
+                        imageColor: theme.text,
+                        subactions: [
+                          {
+                            id: 'sort-date',
+                            title: t('screens.recentFiles.sortByDate'),
+                            state: (sortMode === 'date' ? 'on' : 'off') as 'on' | 'off',
+                          },
+                          {
+                            id: 'sort-name',
+                            title: t('screens.recentFiles.sortByName'),
+                            state: (sortMode === 'name' ? 'on' : 'off') as 'on' | 'off',
+                          },
+                        ],
+                      },
+                    ]
+                  : []),
                 { id: 'open', title: t('picker.open'), image: 'folder', imageColor: theme.text },
                 {
                   id: 'search',
@@ -595,10 +592,17 @@ export default function HomeScreen() {
                   key={key}
                   onPress={() => setTab(key)}
                   accessibilityRole="button"
-                  style={[styles.segmentItem, active && { backgroundColor: theme.background }]}>
+                  accessibilityState={{ selected: active }}
+                  style={[
+                    styles.segmentItem,
+                    active && [
+                      styles.segmentItemActive,
+                      { backgroundColor: theme.background, borderColor: theme.backgroundSelected },
+                    ],
+                  ]}>
                   <ThemedText
-                    themeColor={active ? undefined : 'textSecondary'}
-                    style={styles.segmentText}>
+                    themeColor={active ? 'tint' : 'textSecondary'}
+                    style={[styles.segmentText, active && styles.segmentTextActive]}>
                     {t(
                       key === 'files'
                         ? 'screens.recentFiles.tabMyFiles'
@@ -617,7 +621,7 @@ export default function HomeScreen() {
               </ThemedText>
             ) : (
               <FlatList
-                data={myFiles ?? []}
+                data={sortedMyFiles ?? []}
                 keyExtractor={(item) => item.uri}
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.listContent}
@@ -653,7 +657,6 @@ export default function HomeScreen() {
                   cloudNames={cloudNames}
                   onPress={handleRecentPress}
                   onRemoveHistory={handleRecentDelete}
-                  onDeleteFile={handleDeleteFile}
                 />
               )}
               style={styles.list}
@@ -701,25 +704,6 @@ const styles = StyleSheet.create({
   separator: {
     height: StyleSheet.hairlineWidth,
   },
-  actions: {
-    flexDirection: 'row',
-  },
-  // Compact, fixed-width swipe action (iOS-style). A narrow button means the row
-  // only slides a little on open, so the file name stays as visible as possible.
-  removeAction: {
-    backgroundColor: REMOVE_GRAY,
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 88,
-    paddingHorizontal: Spacing.two,
-  },
-  actionText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 13,
-    lineHeight: 16,
-    textAlign: 'center',
-  },
   // iOS-style segmented control: a rounded track (backgroundElement) with the
   // active pill raised on the base background.
   segment: {
@@ -732,10 +716,26 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
     borderRadius: Spacing.two - 2,
     alignItems: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    // Transparent border on the inactive item so adding a border to the active
+    // pill doesn't shift layout (same box size either way).
+    borderColor: 'transparent',
+  },
+  // The active pill: raised off the track with a hairline border + soft shadow
+  // so the selection reads clearly even where the pill/track contrast is low
+  // (e.g. white pill on a near-white track in light mode).
+  segmentItemActive: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.18,
+    shadowRadius: 1.5,
   },
   segmentText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  segmentTextActive: {
+    fontWeight: '700',
   },
   // Even padding around the ⋯ glyph so it sits centred in the anchor and the
   // UIMenu still has a comfortable tap target.
