@@ -33,6 +33,7 @@ import {
   normalizeUri,
   removeRecentFile,
   renameRecentFile,
+  sameFileKey,
   type RecentFile,
 } from '@/lib/recent-files';
 import { MaxContentWidth, Spacing } from '@/theme';
@@ -404,8 +405,22 @@ export default function HomeScreen() {
               if (!next) return;
               try {
                 const result = renameIcloudCopy(file.uri, next);
-                // Keep any 最近見た entry pointing at the new uri/name.
+                // Keep any 最近見た entry pointing at the new uri/name — both in
+                // storage and in the list currently on screen. Updating storage
+                // alone left the visible row showing the old name until the
+                // screen happened to be re-focused. Mirrors renameRecentFile's
+                // shape: the bookmark is dropped because it no longer resolves.
                 renameRecentFile(file.uri, result).catch(() => {});
+                const renamedKey = sameFileKey(file.uri);
+                setRecent((prev) =>
+                  prev === null
+                    ? prev
+                    : prev.map((r) =>
+                        sameFileKey(r.uri) === renamedKey
+                          ? { uri: result.uri, name: result.name, openedAt: r.openedAt }
+                          : r,
+                      ),
+                );
               } catch (err) {
                 Alert.alert(
                   t('screens.recentFiles.renameErrorTitle'),
@@ -445,8 +460,15 @@ export default function HomeScreen() {
               } catch {
                 // Already gone externally — still prune history and refresh.
               }
+              // Compare by sameFileKey, not raw string: history uris are stored
+              // normalized (/private/var) and may differ in percent-encoding
+              // from the uri Directory.list() reports, so a raw !== left the
+              // deleted file sitting in 最近見た even though storage was pruned.
+              const deletedKey = sameFileKey(file.uri);
               removeRecentFile(file.uri).catch(() => {});
-              setRecent((prev) => (prev === null ? prev : prev.filter((r) => r.uri !== file.uri)));
+              setRecent((prev) =>
+                prev === null ? prev : prev.filter((r) => sameFileKey(r.uri) !== deletedKey),
+              );
               refreshMyFiles();
             },
           },
