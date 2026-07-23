@@ -2,7 +2,7 @@ import { MenuView } from '@react-native-menu/menu';
 import * as DocumentPicker from 'expo-document-picker';
 import { File } from 'expo-file-system';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ActionSheetIOS, Alert, FlatList, Pressable, StyleSheet, View } from 'react-native';
@@ -28,6 +28,7 @@ import {
   renameIcloudCopy,
 } from '@/lib/icloud-copy';
 import {
+  clearRecentFiles,
   loadRecentFiles,
   normalizeUri,
   removeRecentFile,
@@ -78,6 +79,43 @@ function locationLabel(
 // text files instead of .txt.
 const SUPPORTED_EXTENSIONS = ['.md', '.markdown', '.txt', '.text'] as const;
 
+// A file-type icon shown at the left of each list row. Distinction is carried by
+// the glyph SHAPE (not colour) — every icon uses the same neutral tint. There
+// are no dedicated SF Symbols for PDF/Word/Excel, so each type maps to a clearly
+// different doc-family shape (lined page / formatted page / solid page / grid).
+// Covers the v2 formats (PDF/xlsx/docx, view-only then) as well as today's md.
+type FileKind = 'markdown' | 'pdf' | 'sheet' | 'word' | 'other';
+
+function fileKind(name: string): FileKind {
+  const lower = name.toLowerCase();
+  if (/\.(md|markdown|txt|text)$/.test(lower)) return 'markdown';
+  if (lower.endsWith('.pdf')) return 'pdf';
+  if (/\.(xls|xlsx|csv)$/.test(lower)) return 'sheet';
+  if (/\.(doc|docx)$/.test(lower)) return 'word';
+  return 'other';
+}
+
+const FILE_ICON: Record<FileKind, SymbolViewProps['name']> = {
+  markdown: 'doc.text', // page with text lines
+  pdf: 'doc.fill', // solid page — a rendered/final document
+  sheet: 'tablecells', // grid — spreadsheet
+  word: 'doc.richtext', // page with a formatted header block — rich text
+  other: 'doc', // blank page
+};
+
+function FileIcon({ name }: { name: string }) {
+  const theme = useTheme();
+  return (
+    <SymbolView
+      name={FILE_ICON[fileKind(name)]}
+      size={22}
+      weight="regular"
+      tintColor={theme.text}
+      style={styles.rowIcon}
+    />
+  );
+}
+
 // One history row. Tap opens the file; long-press opens an action sheet with a
 // single, non-destructive "remove from list" action — unified with the My Files
 // long-press UX (FR-32) so both lists behave the same way (no swipe). History
@@ -119,10 +157,13 @@ function RecentRow({
         { backgroundColor: theme.background },
         pressed && { backgroundColor: theme.backgroundElement },
       ]}>
-      <ThemedText numberOfLines={1}>{item.name}</ThemedText>
-      <ThemedText themeColor="textSecondary" numberOfLines={1} style={styles.rowSubtitle}>
-        {locationLabel(item, t, cloudNames)}
-      </ThemedText>
+      <FileIcon name={item.name} />
+      <View style={styles.rowText}>
+        <ThemedText numberOfLines={1}>{item.name}</ThemedText>
+        <ThemedText themeColor="textSecondary" numberOfLines={1} style={styles.rowSubtitle}>
+          {locationLabel(item, t, cloudNames)}
+        </ThemedText>
+      </View>
     </Pressable>
   );
 }
@@ -168,12 +209,15 @@ function MyFileRow({
         { backgroundColor: theme.background },
         pressed && { backgroundColor: theme.backgroundElement },
       ]}>
-      <ThemedText numberOfLines={1}>{item.name}</ThemedText>
-      {date !== '' && (
-        <ThemedText themeColor="textSecondary" numberOfLines={1} style={styles.rowSubtitle}>
-          {date}
-        </ThemedText>
-      )}
+      <FileIcon name={item.name} />
+      <View style={styles.rowText}>
+        <ThemedText numberOfLines={1}>{item.name}</ThemedText>
+        {date !== '' && (
+          <ThemedText themeColor="textSecondary" numberOfLines={1} style={styles.rowSubtitle}>
+            {date}
+          </ThemedText>
+        )}
+      </View>
     </Pressable>
   );
 }
@@ -487,6 +531,26 @@ export default function HomeScreen() {
     await removeRecentFile(item.uri);
   }, []);
 
+  // Clear the whole 最近見た list (from the 3-dot menu, Recent tab). Confirmed
+  // first; only the history entries go — the files themselves are untouched.
+  const handleClearHistory = () => {
+    Alert.alert(
+      t('screens.recentFiles.clearHistoryTitle'),
+      t('screens.recentFiles.clearHistoryMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('screens.recentFiles.clearHistoryConfirm'),
+          style: 'destructive',
+          onPress: () => {
+            clearRecentFiles().catch(() => {});
+            setRecent([]);
+          },
+        },
+      ],
+    );
+  };
+
   const filesEmpty = myFiles !== null && myFiles.length === 0;
   const recentEmpty = recent !== null && recent.length === 0;
 
@@ -506,73 +570,96 @@ export default function HomeScreen() {
               <SymbolView name="plus" size={24} weight="semibold" tintColor={theme.text} />
             </Pressable>
           ),
-          // FR-33: native iOS pull-down menu (UIMenu), anchored under the ⋯
-          // button. Consolidates the now-secondary entry points — the system
-          // picker (ファイルを開く), search, and settings. Demoting the picker
-          // here is the crux of the redesign: a fallback, not the front door.
+          // Search sits as its own icon (used often enough to warrant one tap),
+          // beside the FR-33 ⋯ pull-down menu that holds the secondary entry
+          // points (sort — My Files only, the system picker, and settings).
           headerRight: () => (
-            <MenuView
-              title=""
-              onPressAction={({ nativeEvent }) => {
-                if (nativeEvent.event === 'open') handleOpen();
-                else if (nativeEvent.event === 'search') router.push('/search');
-                else if (nativeEvent.event === 'settings') router.push('/settings');
-                else if (nativeEvent.event === 'sort-date') setSortMode('date');
-                else if (nativeEvent.event === 'sort-name') setSortMode('name');
-              }}
-              // imageColor is REQUIRED on New Architecture: the Fabric path
-              // always sends imageColor (defaulting to 0 = transparent) and the
-              // native side tints the SF Symbol with it whenever the key exists,
-              // so omitting it renders the icon fully transparent (invisible).
-              // Passing the theme text colour makes the icons match the labels.
-              actions={[
-                // Sort submenu — only for My Files (the home listing); the 最近見た
-                // history has its own fixed newest-first order, so it's omitted
-                // there. The checkmark (state 'on') shows the current order.
-                ...(tab === 'files'
-                  ? [
-                      {
-                        id: 'sort',
-                        title: t('screens.recentFiles.sortTitle'),
-                        image: 'arrow.up.arrow.down',
-                        imageColor: theme.text,
-                        subactions: [
-                          {
-                            id: 'sort-date',
-                            title: t('screens.recentFiles.sortByDate'),
-                            state: (sortMode === 'date' ? 'on' : 'off') as 'on' | 'off',
-                          },
-                          {
-                            id: 'sort-name',
-                            title: t('screens.recentFiles.sortByName'),
-                            state: (sortMode === 'name' ? 'on' : 'off') as 'on' | 'off',
-                          },
-                        ],
-                      },
-                    ]
-                  : []),
-                { id: 'open', title: t('picker.open'), image: 'folder', imageColor: theme.text },
-                {
-                  id: 'search',
-                  title: t('screens.search.title'),
-                  image: 'magnifyingglass',
-                  imageColor: theme.text,
-                },
-                {
-                  id: 'settings',
-                  title: t('screens.settings.title'),
-                  image: 'gearshape',
-                  imageColor: theme.text,
-                },
-              ]}
-              shouldOpenOnLongPress={false}>
-              <View
+            <View style={styles.headerActions}>
+              <Pressable
+                onPress={() => router.push('/search')}
+                hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel={t('screens.recentFiles.menu')}
-                style={styles.menuAnchor}>
-                <SymbolView name="ellipsis" size={24} weight="semibold" tintColor={theme.text} />
-              </View>
-            </MenuView>
+                accessibilityLabel={t('screens.search.title')}
+                style={styles.headerIcon}>
+                <SymbolView
+                  name="magnifyingglass"
+                  size={20}
+                  weight="semibold"
+                  tintColor={theme.text}
+                />
+              </Pressable>
+              <MenuView
+                title=""
+                onPressAction={({ nativeEvent }) => {
+                  if (nativeEvent.event === 'open') handleOpen();
+                  else if (nativeEvent.event === 'settings') router.push('/settings');
+                  else if (nativeEvent.event === 'sort-date') setSortMode('date');
+                  else if (nativeEvent.event === 'sort-name') setSortMode('name');
+                  else if (nativeEvent.event === 'clear-history') handleClearHistory();
+                }}
+                // imageColor is REQUIRED on New Architecture: the Fabric path
+                // always sends imageColor (defaulting to 0 = transparent) and the
+                // native side tints the SF Symbol with it whenever the key
+                // exists, so omitting it renders the icon fully transparent
+                // (invisible). The theme text colour makes icons match labels.
+                actions={[
+                  // Sort submenu — only for My Files (the home listing); the
+                  // 最近見た history has its own fixed newest-first order, so it's
+                  // omitted there. The checkmark (state 'on') shows the order.
+                  ...(tab === 'files'
+                    ? [
+                        {
+                          id: 'sort',
+                          title: t('screens.recentFiles.sortTitle'),
+                          image: 'arrow.up.arrow.down',
+                          imageColor: theme.text,
+                          subactions: [
+                            {
+                              id: 'sort-date',
+                              title: t('screens.recentFiles.sortByDate'),
+                              state: (sortMode === 'date' ? 'on' : 'off') as 'on' | 'off',
+                            },
+                            {
+                              id: 'sort-name',
+                              title: t('screens.recentFiles.sortByName'),
+                              state: (sortMode === 'name' ? 'on' : 'off') as 'on' | 'off',
+                            },
+                          ],
+                        },
+                      ]
+                    : []),
+                  // Clear-all — the 最近見た tab's context action, mirroring the
+                  // sort submenu's top spot on My Files. Normal colour (not
+                  // destructive red): it clears only the list, never the files.
+                  // Shown only when there is history to clear; confirmation lives
+                  // in handleClearHistory.
+                  ...(tab === 'recent' && recent !== null && recent.length > 0
+                    ? [
+                        {
+                          id: 'clear-history',
+                          title: t('screens.recentFiles.clearHistoryAction'),
+                          image: 'trash',
+                          imageColor: theme.text,
+                        },
+                      ]
+                    : []),
+                  { id: 'open', title: t('picker.open'), image: 'folder', imageColor: theme.text },
+                  {
+                    id: 'settings',
+                    title: t('screens.settings.title'),
+                    image: 'gearshape',
+                    imageColor: theme.text,
+                  },
+                ]}
+                shouldOpenOnLongPress={false}>
+                <View
+                  accessibilityRole="button"
+                  accessibilityLabel={t('screens.recentFiles.menu')}
+                  style={styles.headerIcon}>
+                  <SymbolView name="ellipsis" size={24} weight="semibold" tintColor={theme.text} />
+                </View>
+              </MenuView>
+            </View>
           ),
         }}
       />
@@ -694,8 +781,23 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.three,
   },
   row: {
+    flexDirection: 'row',
+    // Align to the top so the icon lines up with the file-name row, not the
+    // vertical centre of the name + date/location block.
+    alignItems: 'flex-start',
+    gap: Spacing.two,
     paddingVertical: Spacing.three,
     paddingHorizontal: Spacing.two,
+  },
+  // Fixed width so every row's file name starts at the same x regardless of
+  // which type glyph precedes it. marginTop nudges the 22pt glyph to sit centred
+  // on the 24pt file-name line.
+  rowIcon: {
+    width: 22,
+    marginTop: 1,
+  },
+  rowText: {
+    flex: 1,
   },
   rowSubtitle: {
     fontSize: 12,
@@ -737,10 +839,17 @@ const styles = StyleSheet.create({
   segmentTextActive: {
     fontWeight: '700',
   },
-  // Even padding around the ⋯ glyph so it sits centred in the anchor and the
-  // UIMenu still has a comfortable tap target.
-  menuAnchor: {
+  // Header-right row: the search icon beside the ⋯ menu.
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  // Generous, even padding around each header glyph so it sits centred with room
+  // inside its (native, for the menu) highlight box rather than touching its
+  // edges, and so both icons keep a comfortable tap target.
+  headerIcon: {
     paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.one,
+    paddingHorizontal: Spacing.two,
   },
 });

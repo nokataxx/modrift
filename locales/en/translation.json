@@ -48,7 +48,11 @@
       "recentEmpty": "No recently opened files yet.",
       "sortTitle": "Sort by",
       "sortByDate": "Date modified",
-      "sortByName": "Name"
+      "sortByName": "Name",
+      "clearHistoryAction": "Clear all history",
+      "clearHistoryTitle": "Clear all history?",
+      "clearHistoryMessage": "This clears your Recent list. The files themselves are not deleted.",
+      "clearHistoryConfirm": "Clear"
     },
     "viewer": {
       "edit": "Edit",

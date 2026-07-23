@@ -129,3 +129,9 @@ export async function removeRecentFile(uri: string): Promise<void> {
   const next = existing.filter((item) => sameFileKey(item.uri) !== key);
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
 }
+
+// Clear the whole recently-opened list (FR-06 / 最近見た). Non-destructive to
+// the files themselves — only the history entries are removed.
+export async function clearRecentFiles(): Promise<void> {
+  await AsyncStorage.removeItem(STORAGE_KEY);
+}
