@@ -40,17 +40,21 @@ Modrift は、クラウド上の Markdown ファイルを iPhone でサッと開
 ■ 主な機能
 ・Markdown ファイル（.md / .txt / .markdown）を開いて整形表示
 ・Files アプリや他アプリの「Modriftで開く」からそのまま起動
+・自分の作業ホーム（iCloud › Modrift）でファイルを一覧・新規作成・整理
+・「マイファイル」（場所）と「最近見た」（時間）の2つの見方を切り替え
 ・編集モード ⇄ プレビューモードをワンタップで切り替え
 ・自動保存（手動セーブ不要）
-・最近開いたファイルにすぐ戻れる
+・本文の検索、更新日 / 名前での並び替え
+・横向きにすると行が長くなり、長文や表が読みやすい
 ・日本語 / 英語の UI 切り替え
 
-■ 編集の保存について
-・iCloud Drive: 編集がその場でクラウドへ同期されます（編集用途におすすめ）
-・その他のクラウド（Dropbox / Google Drive 等）: 閲覧できます。編集するときは iCloud にコピーを作成して編集します（原本には書き戻りません）
+■ ホームと編集について
+・ホーム（iCloud › Modrift）のファイルは、そのまま編集できます。編集は iCloud に同期されます
+・ホーム以外のファイル（Dropbox / Google Drive、Modrift フォルダ外の iCloud Drive など）は閲覧できます。編集したいときは「ホームにコピー」でホームに取り込んでから編集します（原本には書き戻りません）
+・ホームの保存先は設定で「iCloud」と「この iPhone」から選べます
 
 ■ Files アプリとの関係
-Modrift は Files アプリの代わりではなく、補完するアプリです。フォルダ管理は Files に任せ、Modrift は Markdown の整形表示と軽い編集に集中します。
+Modrift は Files アプリの代わりではなく、補完するアプリです。一般的なフォルダ管理は Files に任せ、Modrift は Markdown の整形表示と軽い編集、そして自分のホームフォルダの整理に集中します。
 
 名前の由来は Mo（Mobile / Motion）+ drift（漂う、流れる）。モバイルで思考やファイルが軽やかに行き来する体験を目指しています。
 
@@ -78,17 +82,81 @@ Key features
 
 - Open Markdown files (.md / .txt / .markdown) with clean formatted rendering
 - Launch straight from Files or any app via "Open in Modrift"
+- Keep your own working home (iCloud › Modrift): list, create and organise files there
+- Switch between My Files (by place) and Recent (by time)
 - Toggle between edit and preview with one tap
 - Automatic saving (no manual save button)
-- Jump back to recently opened files
+- Full-text search, and sorting by date modified or name
+- Turn to landscape for longer lines — easier on long paragraphs and tables
 - Japanese / English interface
 
-About saving edits
+About your home and editing
 
-- iCloud Drive: edits sync to the cloud in place (recommended for editing)
-- Other clouds (Dropbox / Google Drive, etc.): viewing works; to edit, Modrift makes a copy in iCloud and edits that (the original is not written back)
+- Files in your home (iCloud › Modrift) are editable in place, and edits sync to iCloud
+- Files outside your home (Dropbox / Google Drive, or iCloud Drive outside the Modrift folder) are view-only. To edit one, use "Copy to Home" and edit the copy (the original is not written back)
+- You can choose whether your home lives in iCloud or on this iPhone, in Settings
 
 Relationship to the Files app
-Modrift complements the Files app rather than replacing it. Leave folder management to Files; Modrift focuses on formatted Markdown viewing and light editing.
+Modrift complements the Files app rather than replacing it. Leave general folder management to Files; Modrift focuses on formatted Markdown viewing, light editing, and tidying its own home folder.
 
 The name combines Mo (Mobile / Motion) + drift — the idea of thoughts and files flowing freely on mobile.
+
+---
+
+## リリースノート (What's New)
+
+App Store Connect のバージョンごとの「このバージョンの新機能」欄。**掲載文の Description とは別枠**なので、バージョンを作るたびにここから貼る。
+
+### 1.4.0 — ホームフォルダ中心のリデザイン
+
+> **重要な変更点**: 編集できる範囲がホームフォルダ内に変わった。v1.3 までは Modrift フォルダ外の iCloud Drive ファイルもその場で編集できたため、既存ユーザーが気付く変更。リリースノートで明示し、代替手段 (ホームにコピー) を必ず併記する。
+
+**日本語 (ja)**
+
+```
+自分の「作業ホーム」ができました。
+
+・ホーム（iCloud › Modrift）にファイルをまとめて、一覧・新規作成・名前変更・複製・削除ができます
+・ホームは「マイファイル」（場所）と「最近見た」（時間）の2つの見方を切り替えて使えます
+・マイファイルに更新日付を表示。更新日 / ファイル名で並び替えできます
+・ファイルの種類がアイコンで見分けられるようになりました
+・検索がマイファイルと最近見たの両方に対応しました
+・横向きに対応（ファイルを開いているとき）。行が長くなり、長文や表が読みやすくなります
+・ホームの保存先を「iCloud」と「この iPhone」から選べます
+
+編集できる範囲について:
+編集はホームフォルダ内のファイルが対象になりました。ホーム以外のファイル（Dropbox / Google Drive、Modrift フォルダ外の iCloud Drive など）は閲覧できます。編集したいときは「ホームにコピー」でホームに取り込んでください。
+```
+
+**English (en)**
+
+```
+Modrift now has a working home of its own.
+
+- Keep your files in your home (iCloud › Modrift): list, create, rename, duplicate and delete them there
+- Switch the home between two views: My Files (by place) and Recent (by time)
+- My Files now shows the date modified, and can be sorted by date or name
+- File types are now distinguishable at a glance by their icons
+- Search now covers both My Files and Recent
+- Landscape support while viewing a file — longer lines make long paragraphs and tables easier to read
+- Choose whether your home lives in iCloud or on this iPhone
+
+About what you can edit:
+Editing now applies to files in your home folder. Files outside it (Dropbox / Google Drive, or iCloud Drive outside the Modrift folder) are view-only — use "Copy to Home" to bring one in and edit the copy.
+```
+
+---
+
+## スクリーンショット
+
+現行: 6.9" iPhone (1320×2868) 3枚 ＋ 13" iPad 3枚 → `store-assets/screenshots/`（01 ビューア / 02 設定 / 03 ホーム）
+
+**v1.4 での差し替え要否:**
+
+| ファイル | 要否 | 理由 |
+|---|---|---|
+| `*-03-home.png` | **必須** | ホームが2ビュー（マイファイル/最近見た）に全面刷新。旧スクショは現行 UI と別物 |
+| `*-02-settings.png` | **必須** | 「編集」トグルが消え「ホームの保存先」が増えた |
+| `*-01-viewer.png` | 任意 | ビューア本体の見た目は不変。差し替えなくても齟齬は出ない |
+
+> 撮影は iPhone 実機 or シミュレータ。iPad は 13" シミュレータ（[[project_ipad_native_support]] の手順）。ホームは実ファイルが数件入った状態で撮ると内容が伝わりやすい。
