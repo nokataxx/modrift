@@ -114,7 +114,7 @@ App Store Connect のバージョンごとの「このバージョンの新機�
 **日本語 (ja)**
 
 ```
-自分の「作業ホーム」ができました。
+Modrift のホーム画面を刷新しました。
 
 ・ホーム（iCloud › Modrift）にファイルをまとめて、一覧・新規作成・名前変更・複製・削除ができます
 ・ホームは「マイファイル」（場所）と「最近見た」（時間）の2つの見方を切り替えて使えます
@@ -131,7 +131,7 @@ App Store Connect のバージョンごとの「このバージョンの新機�
 **English (en)**
 
 ```
-Modrift now has a working home of its own.
+Modrift's home screen has been redesigned.
 
 - Keep your files in your home (iCloud › Modrift): list, create, rename, duplicate and delete them there
 - Switch the home between two views: My Files (by place) and Recent (by time)
