@@ -571,17 +571,24 @@ export default function ViewerScreen() {
 
   // FR-34 (Policy A): take an explicit copy of a view-only file into the home
   // folder (iCloud › Modrift). Per decision ⑤ we copy and return to Home — we do
-  // NOT open the copy in edit mode. The original stays untouched and in place
-  // (still viewable, still in 最近見た); the new copy appears under マイファイル
+  // NOT open the copy in edit mode. The original file stays untouched and in
+  // place (still viewable if re-picked); the new copy appears under the Home view
   // because Home reloads its list on focus. This replaces the old FR-03 implicit
   // "copy to iCloud and start editing" flow.
   const performCopyToHome = useCallback(async () => {
     if (content === null) return;
     setCopying(true);
     try {
-      await createIcloudCopy(content, fileName ?? "note.md", settings.homeLocation);
-      // An Open-In Inbox source is a throwaway sandbox file; the unmount cleanup
-      // deletes it when we leave, so no explicit handling is needed here.
+      const copy = await createIcloudCopy(content, fileName ?? "note.md", settings.homeLocation);
+      // v1.5 (④): the document now lives in Home. Move its history entry from the
+      // external source to the home copy — record the copy so 履歴 keeps a working,
+      // editable entry, then drop the source's entry so the same file doesn't
+      // linger as a second, view-only record from e.g. Google Drive. Removal is a
+      // no-op when the source was never recorded (Open-In / share); that Inbox
+      // source is also a throwaway sandbox file the unmount cleanup deletes on
+      // leave, so nothing else is needed here.
+      await recordRecentFile({ uri: copy.uri, name: copy.name }).catch(() => {});
+      await removeRecentFile(fileUri ?? "").catch(() => {});
       if (router.canGoBack()) router.back();
       else router.replace("/");
     } catch (err) {
@@ -592,7 +599,7 @@ export default function ViewerScreen() {
       Alert.alert(t("screens.viewer.copyToIcloudErrorTitle"), message);
       setCopying(false);
     }
-  }, [content, fileName, router, t, settings.homeLocation]);
+  }, [content, fileName, fileUri, router, t, settings.homeLocation]);
 
   const handleCopyToHome = useCallback(() => {
     if (content === null || copying) return;

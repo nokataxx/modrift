@@ -42,16 +42,16 @@
       "newNote": "新規ノート",
       "untitledNote": "無題",
       "menu": "メニュー",
-      "tabMyFiles": "マイファイル",
-      "tabRecent": "最近見た",
+      "tabMyFiles": "ホーム",
+      "tabRecent": "履歴",
       "myFilesEmpty": "ホームフォルダにファイルがありません。＋ から新規作成できます。",
-      "recentEmpty": "最近見たファイルはまだありません。",
+      "recentEmpty": "履歴はまだありません。",
       "sortTitle": "並び替え",
       "sortByDate": "更新日",
       "sortByName": "ファイル名",
       "clearHistoryAction": "すべての履歴を消去",
       "clearHistoryTitle": "すべての履歴を消去しますか？",
-      "clearHistoryMessage": "「最近見た」の履歴をすべて消去します。ファイル自体は削除されません。",
+      "clearHistoryMessage": "履歴をすべて消去します。ファイル自体は削除されません。",
       "clearHistoryConfirm": "消去"
     },
     "viewer": {
@@ -102,7 +102,7 @@
         "icloud": "iCloud",
         "local": "この iPhone"
       },
-      "homeLocationHint": "「マイファイル」の保存先です。切り替えてもファイルは移動しません（もう片方は一時的に非表示になり、実体は残ります）。",
+      "homeLocationHint": "切り替えても既存のファイルは移動しません。",
       "homeLocationSwitchTitle": "ホームの保存先を変更",
       "homeLocationToLocalMessage": "「この iPhone」に切り替えます。表示中の iCloud のファイルは一時的に見えなくなります（消えません）。この iPhone のファイルは iCloud 同期・バックアップの対象外で、アプリを削除すると失われます。",
       "homeLocationToIcloudMessage": "「iCloud」に切り替えます。表示中のこの iPhone のファイルは一時的に見えなくなります（消えません）。iCloud を使うには iCloud Drive が有効である必要があります。",
@@ -116,8 +116,8 @@
     },
     "search": {
       "title": "検索",
-      "placeholder": "マイファイルと最近見たを検索",
-      "hint": "マイファイルと最近見たファイルの本文を検索します",
+      "placeholder": "ホームと履歴を検索",
+      "hint": "ホームと履歴の本文を検索します",
       "noResults": "見つかりませんでした",
       "truncated": "結果が多いため一部のみ表示しています"
     }

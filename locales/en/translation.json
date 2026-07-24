@@ -42,7 +42,7 @@
       "newNote": "New note",
       "untitledNote": "Untitled",
       "menu": "Menu",
-      "tabMyFiles": "My Files",
+      "tabMyFiles": "Home",
       "tabRecent": "Recent",
       "myFilesEmpty": "No files in your home folder yet. Tap ＋ to create one.",
       "recentEmpty": "No recently opened files yet.",
@@ -102,7 +102,7 @@
         "icloud": "iCloud",
         "local": "This iPhone"
       },
-      "homeLocationHint": "Where “My Files” is stored. Switching doesn't move files — the other location is just hidden for now (files stay put).",
+      "homeLocationHint": "Switching won't move your existing files.",
       "homeLocationSwitchTitle": "Change home location",
       "homeLocationToLocalMessage": "Switch to This iPhone. Your iCloud files will be hidden for now (not deleted). Files on This iPhone are not synced to iCloud or backed up, and are lost if you delete the app.",
       "homeLocationToIcloudMessage": "Switch to iCloud. Your This-iPhone files will be hidden for now (not deleted). Using iCloud requires iCloud Drive to be enabled.",
@@ -116,8 +116,8 @@
     },
     "search": {
       "title": "Search",
-      "placeholder": "Search My Files and Recent",
-      "hint": "Search the text of your files and recently opened files",
+      "placeholder": "Search Home and Recent",
+      "hint": "Search the text of your Home and Recent files",
       "noResults": "No results found",
       "truncated": "Showing partial results (too many matches)"
     }
