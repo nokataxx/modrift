@@ -699,6 +699,194 @@ const highlightField = StateField.define({
       if (on) view.focus();
     };
 
+    // v1.5 (FR-37): formatting-toolbar commands. Each toggles or inserts the
+    // Markdown syntax for the current selection and re-focuses the editor; the
+    // dispatch fires the updateListener above, which posts the change so the
+    // file auto-saves. All operate on the primary selection (single caret/range
+    // — multi-cursor isn't reachable on the phone editor).
+    //
+    // Toggle a line-head prefix on every line the selection spans. `match`
+    // returns the existing prefix string to strip (null → the line gets `add`).
+    function toggleLinePrefix(match, add) {
+      const { state } = view;
+      const r = state.selection.main;
+      const first = state.doc.lineAt(r.from);
+      const last = state.doc.lineAt(r.to);
+      const changes = [];
+      for (let n = first.number; n <= last.number; n++) {
+        const line = state.doc.line(n);
+        const found = match(line.text);
+        if (found != null) {
+          changes.push({ from: line.from, to: line.from + found.length, insert: "" });
+        } else {
+          changes.push({ from: line.from, insert: add });
+        }
+      }
+      view.dispatch({ changes, scrollIntoView: true });
+      view.focus();
+    }
+    // Wrap the selection in `marker`, or insert an empty pair with the caret
+    // between it when nothing is selected. Unwraps when the selection is already
+    // wrapped (adjacent markers or the markers sit just inside), so the same
+    // button removes the emphasis.
+    function toggleWrap(marker) {
+      const { state } = view;
+      const r = state.selection.main;
+      const len = marker.length;
+      if (r.empty) {
+        view.dispatch({
+          changes: { from: r.from, insert: marker + marker },
+          selection: { anchor: r.from + len },
+          scrollIntoView: true,
+        });
+        view.focus();
+        return;
+      }
+      const inner = state.doc.sliceString(r.from, r.to);
+      const before = state.doc.sliceString(Math.max(0, r.from - len), r.from);
+      const after = state.doc.sliceString(r.to, Math.min(state.doc.length, r.to + len));
+      if (before === marker && after === marker) {
+        view.dispatch({
+          changes: [
+            { from: r.from - len, to: r.from, insert: "" },
+            { from: r.to, to: r.to + len, insert: "" },
+          ],
+          selection: { anchor: r.from - len, head: r.to - len },
+          scrollIntoView: true,
+        });
+      } else if (inner.length >= len * 2 && inner.startsWith(marker) && inner.endsWith(marker)) {
+        const stripped = inner.slice(len, inner.length - len);
+        view.dispatch({
+          changes: { from: r.from, to: r.to, insert: stripped },
+          selection: { anchor: r.from, head: r.from + stripped.length },
+          scrollIntoView: true,
+        });
+      } else {
+        view.dispatch({
+          changes: { from: r.from, to: r.to, insert: marker + inner + marker },
+          selection: { anchor: r.from + len, head: r.to + len },
+          scrollIntoView: true,
+        });
+      }
+      view.focus();
+    }
+    // Cycle the current line's heading level none → # → ## → ### → none.
+    window.__cmHeading = function () {
+      const { state } = view;
+      const line = state.doc.lineAt(state.selection.main.head);
+      const m = /^(#{1,6}) /.exec(line.text);
+      const cur = m ? Math.min(m[1].length, 3) : 0;
+      const next = cur >= 3 ? 0 : cur + 1;
+      const insert = next === 0 ? "" : "#".repeat(next) + " ";
+      view.dispatch({
+        changes: { from: line.from, to: line.from + (m ? m[0].length : 0), insert },
+        scrollIntoView: true,
+      });
+      view.focus();
+    };
+    window.__cmBulletList = function () {
+      toggleLinePrefix((t) => {
+        const m = /^[-*+] /.exec(t);
+        return m ? m[0] : null;
+      }, "- ");
+    };
+    window.__cmNumberedList = function () {
+      toggleLinePrefix((t) => {
+        const m = /^\d+\. /.exec(t);
+        return m ? m[0] : null;
+      }, "1. ");
+    };
+    // Checkbox is bullet-aware: a plain bullet gains "[ ] " after its marker, a
+    // task line drops the whole "- [ ] " back to plain text, anything else gets
+    // a fresh "- [ ] " — so it never produces a double marker.
+    window.__cmCheckbox = function () {
+      const { state } = view;
+      const r = state.selection.main;
+      const first = state.doc.lineAt(r.from);
+      const last = state.doc.lineAt(r.to);
+      const changes = [];
+      for (let n = first.number; n <= last.number; n++) {
+        const line = state.doc.line(n);
+        let m;
+        if ((m = /^[-*+] \[[ xX]\] /.exec(line.text))) {
+          changes.push({ from: line.from, to: line.from + m[0].length, insert: "" });
+        } else if ((m = /^[-*+] /.exec(line.text))) {
+          changes.push({ from: line.from + m[0].length, insert: "[ ] " });
+        } else {
+          changes.push({ from: line.from, insert: "- [ ] " });
+        }
+      }
+      view.dispatch({ changes, scrollIntoView: true });
+      view.focus();
+    };
+    window.__cmQuote = function () {
+      toggleLinePrefix((t) => {
+        const m = /^> ?/.exec(t);
+        return m && m[0] ? m[0] : null;
+      }, "> ");
+    };
+    window.__cmBold = function () {
+      toggleWrap("**");
+    };
+    window.__cmItalic = function () {
+      toggleWrap("*");
+    };
+    window.__cmStrikethrough = function () {
+      toggleWrap("~~");
+    };
+    window.__cmCode = function () {
+      toggleWrap("`");
+    };
+    window.__cmLink = function () {
+      const { state } = view;
+      const r = state.selection.main;
+      if (r.empty) {
+        view.dispatch({
+          changes: { from: r.from, insert: "[]()" },
+          selection: { anchor: r.from + 1 },
+          scrollIntoView: true,
+        });
+      } else {
+        const inner = state.doc.sliceString(r.from, r.to);
+        view.dispatch({
+          changes: { from: r.from, to: r.to, insert: "[" + inner + "]()" },
+          selection: { anchor: r.from + inner.length + 3 },
+          scrollIntoView: true,
+        });
+      }
+      view.focus();
+    };
+    window.__cmCodeBlock = function () {
+      const { state } = view;
+      const r = state.selection.main;
+      const inner = state.doc.sliceString(r.from, r.to);
+      view.dispatch({
+        changes: { from: r.from, to: r.to, insert: "```\n" + inner + "\n```" },
+        selection: { anchor: r.from + 4, head: r.from + 4 + inner.length },
+        scrollIntoView: true,
+      });
+      view.focus();
+    };
+    window.__cmHorizontalRule = function () {
+      const { state } = view;
+      const line = state.doc.lineAt(state.selection.main.head);
+      if (line.text.trim() === "") {
+        view.dispatch({
+          changes: { from: line.from, to: line.to, insert: "---" },
+          selection: { anchor: line.from + 3 },
+          scrollIntoView: true,
+        });
+      } else {
+        const insert = "\n\n---\n";
+        view.dispatch({
+          changes: { from: line.to, insert },
+          selection: { anchor: line.to + insert.length },
+          scrollIntoView: true,
+        });
+      }
+      view.focus();
+    };
+
     // FR-15: scroll to a match (char offsets on the same normalized text the RN
     // side searched), select it, and flash a highlight that auto-clears. Called
     // from RN once the editor is ready after opening a search result.

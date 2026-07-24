@@ -11,12 +11,29 @@ import { WebView } from "react-native-webview";
 
 import { buildEditorHtml, type CmTheme } from "@/lib/cm/html";
 
+/** FR-37 formatting-toolbar commands (see editor-entry.mjs window.__cm*). */
+export type EditCommand =
+  | "heading"
+  | "bulletList"
+  | "numberedList"
+  | "checkbox"
+  | "bold"
+  | "italic"
+  | "strikethrough"
+  | "code"
+  | "quote"
+  | "codeBlock"
+  | "link"
+  | "horizontalRule";
+
 export type MarkdownWebViewHandle = {
   undo: () => void;
   redo: () => void;
   setEditable: (on: boolean) => void;
   /** FR-15: scroll to and flash-highlight a match range (char offsets). */
   reveal: (from: number, to: number) => void;
+  /** FR-37: run a formatting-toolbar command on the current selection. */
+  runCommand: (command: EditCommand) => void;
 };
 
 type Props = {
@@ -107,6 +124,11 @@ export const MarkdownWebView = forwardRef<MarkdownWebViewHandle, Props>(
           inject(`window.__cmSetEditable && window.__cmSetEditable(${on})`),
         reveal: (from: number, to: number) =>
           inject(`window.__cmReveal && window.__cmReveal(${from | 0}, ${to | 0})`),
+        runCommand: (command: EditCommand) => {
+          // Command keys map to window.__cm<Pascal> (heading → __cmHeading).
+          const fn = `__cm${command.charAt(0).toUpperCase()}${command.slice(1)}`;
+          inject(`window.${fn} && window.${fn}()`);
+        },
       }),
       [inject],
     );

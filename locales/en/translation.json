@@ -71,7 +71,21 @@
       "conflictKeepMine": "Keep my edits",
       "conflictLoadLatest": "Load latest (discard edits)",
       "undo": "Undo",
-      "redo": "Redo"
+      "redo": "Redo",
+      "toolbar": {
+        "heading": "Heading",
+        "bulletList": "Bullet list",
+        "numberedList": "Numbered list",
+        "checkbox": "Checkbox",
+        "bold": "Bold",
+        "italic": "Italic",
+        "strikethrough": "Strikethrough",
+        "code": "Inline code",
+        "quote": "Quote",
+        "codeBlock": "Code block",
+        "link": "Link",
+        "horizontalRule": "Horizontal rule"
+      }
     },
     "settings": {
       "title": "Settings",

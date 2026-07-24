@@ -13,6 +13,7 @@ import { useTranslation } from "react-i18next";
 import {
   Alert,
   AppState,
+  Keyboard,
   KeyboardAvoidingView,
   Linking,
   Platform,
@@ -22,7 +23,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { EditToolbar } from "@/components/edit-toolbar";
 import {
+  type EditCommand,
   MarkdownWebView,
   type MarkdownWebViewHandle,
 } from "@/components/markdown-web-view";
@@ -103,6 +106,10 @@ export default function ViewerScreen() {
     initialMode === "edit" ? "edit" : "preview",
   );
   const [copying, setCopying] = useState(false);
+  // FR-37: the formatting toolbar rides above the software keyboard, so it shows
+  // only while the keyboard is up (i.e. actively editing). Tracked from the
+  // keyboard events rather than `mode` so dismissing the keyboard hides it too.
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   // The name shown in the header. Starts from the route param; for a new note it
   // updates to the deduped filename once the file is actually created.
   const [displayName, setDisplayName] = useState(fileName ?? "");
@@ -168,6 +175,23 @@ export default function ViewerScreen() {
       };
     }, []),
   );
+
+  // FR-37: track the keyboard so the formatting toolbar appears only while it's
+  // up. "Will" events fire ahead of the frame so the toolbar rides in with the
+  // keyboard rather than trailing it.
+  useEffect(() => {
+    const show = Keyboard.addListener("keyboardWillShow", () => setKeyboardVisible(true));
+    const hide = Keyboard.addListener("keyboardWillHide", () => setKeyboardVisible(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
+  // FR-37: run a toolbar command against the live editor selection.
+  const runCommand = useCallback((cmd: EditCommand) => {
+    editorRef.current?.runCommand(cmd);
+  }, []);
 
   useEffect(() => {
     // FR-23: a brand-new note has no file to read — content is initialized empty
@@ -811,6 +835,9 @@ export default function ViewerScreen() {
               }}
               style={[styles.flex, { backgroundColor: theme.background }]}
             />
+            {canToggle && mode === "edit" && keyboardVisible && (
+              <EditToolbar onCommand={runCommand} />
+            )}
           </KeyboardAvoidingView>
         )}
       </SafeAreaView>

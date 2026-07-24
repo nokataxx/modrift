@@ -71,7 +71,21 @@
       "conflictKeepMine": "編集中の内容を保持",
       "conflictLoadLatest": "最新版を取得（編集を破棄）",
       "undo": "元に戻す",
-      "redo": "やり直す"
+      "redo": "やり直す",
+      "toolbar": {
+        "heading": "見出し",
+        "bulletList": "箇条書き",
+        "numberedList": "番号付きリスト",
+        "checkbox": "チェックボックス",
+        "bold": "太字",
+        "italic": "斜体",
+        "strikethrough": "打ち消し線",
+        "code": "インラインコード",
+        "quote": "引用",
+        "codeBlock": "コードブロック",
+        "link": "リンク",
+        "horizontalRule": "水平線"
+      }
     },
     "settings": {
       "title": "設定",
