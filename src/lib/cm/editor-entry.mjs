@@ -746,49 +746,112 @@ const highlightField = StateField.define({
           changes.push({ from: line.from, insert: add });
         }
       }
-      view.dispatch({ changes, scrollIntoView: true });
+      // Map the caret with assoc +1 so it lands AFTER the inserted marker
+      // (default mapping keeps it before, leaving you unable to type on).
+      const changeSet = state.changes(changes);
+      view.dispatch({
+        changes: changeSet,
+        selection: state.selection.map(changeSet, 1),
+        scrollIntoView: true,
+      });
       view.focus();
     }
-    // Wrap the selection in `marker`, or insert an empty pair with the caret
-    // between it when nothing is selected. Unwraps when the selection is already
-    // wrapped (adjacent markers or the markers sit just inside), so the same
-    // button removes the emphasis.
-    function toggleWrap(marker) {
+    // The three list styles (bullet / numbered / task) share one line-head slot,
+    // so they must be mutually exclusive: detect whichever marker a line already
+    // has. Task is checked first since "- [ ] " also starts with a bullet "- ".
+    function listMarker(text) {
+      let m;
+      if ((m = /^[-*+] \[[ xX]\] /.exec(text))) return { type: "task", len: m[0].length };
+      if ((m = /^[-*+] /.exec(text))) return { type: "bullet", len: m[0].length };
+      if ((m = /^\d+\. /.exec(text))) return { type: "numbered", len: m[0].length };
+      return null;
+    }
+    const LIST_PREFIX = { bullet: "- ", numbered: "1. ", task: "- [ ] " };
+    // Set every selected line to `target`: same type → remove (toggle off),
+    // a different list type → convert (replace its marker, no stacking), none →
+    // add. Fixes "tap bullet then number leaves both".
+    function toggleListType(target) {
       const { state } = view;
       const r = state.selection.main;
-      const len = marker.length;
+      const first = state.doc.lineAt(r.from);
+      const last = state.doc.lineAt(r.to);
+      const changes = [];
+      for (let n = first.number; n <= last.number; n++) {
+        const line = state.doc.line(n);
+        const cur = listMarker(line.text);
+        if (cur && cur.type === target) {
+          changes.push({ from: line.from, to: line.from + cur.len, insert: "" });
+        } else if (cur) {
+          changes.push({ from: line.from, to: line.from + cur.len, insert: LIST_PREFIX[target] });
+        } else {
+          changes.push({ from: line.from, insert: LIST_PREFIX[target] });
+        }
+      }
+      const changeSet = state.changes(changes);
+      view.dispatch({
+        changes: changeSet,
+        selection: state.selection.map(changeSet, 1),
+        scrollIntoView: true,
+      });
+      view.focus();
+    }
+    // Count the run of `ch` immediately before / after `pos`.
+    function runBefore(doc, pos, ch) {
+      let n = 0;
+      while (pos - n - 1 >= 0 && doc.sliceString(pos - n - 1, pos - n) === ch) n++;
+      return n;
+    }
+    function runAfter(doc, pos, ch) {
+      const len = doc.length;
+      let n = 0;
+      while (pos + n + 1 <= len && doc.sliceString(pos + n, pos + n + 1) === ch) n++;
+      return n;
+    }
+    // Toggle an inline emphasis made of `k` copies of `ch` around the selection.
+    // These are independent toggles that can stack: bold (**), italic (*),
+    // strikethrough (~~), inline code (`). Nothing selected → insert an empty
+    // pair with the caret between it.
+    //
+    // The tricky pair is * / ** — they share the "*" char, so a fixed-length
+    // string peek let italic eat a bold asterisk (**x** → *x*). We instead read
+    // the run of `ch` already surrounding the selection:
+    //   italic present ⇔ that "*" run is ODD (1 or 3);  bold present ⇔ run ≥ 2.
+    // So italic-on-bold ADDS a level (**x** → ***x***) instead of converting,
+    // and pressing the same button again removes exactly its own level.
+    function toggleEmphasis(ch, k) {
+      const { state } = view;
+      const r = state.selection.main;
+      const pair = ch.repeat(k);
       if (r.empty) {
         view.dispatch({
-          changes: { from: r.from, insert: marker + marker },
-          selection: { anchor: r.from + len },
+          changes: { from: r.from, insert: pair + pair },
+          selection: { anchor: r.from + k },
           scrollIntoView: true,
         });
         view.focus();
         return;
       }
-      const inner = state.doc.sliceString(r.from, r.to);
-      const before = state.doc.sliceString(Math.max(0, r.from - len), r.from);
-      const after = state.doc.sliceString(r.to, Math.min(state.doc.length, r.to + len));
-      if (before === marker && after === marker) {
+      const pre = Math.min(
+        runBefore(state.doc, r.from, ch),
+        runAfter(state.doc, r.to, ch),
+      );
+      const present = ch === "*" && k === 1 ? (pre & 1) === 1 : pre >= k;
+      if (present) {
         view.dispatch({
           changes: [
-            { from: r.from - len, to: r.from, insert: "" },
-            { from: r.to, to: r.to + len, insert: "" },
+            { from: r.from - k, to: r.from, insert: "" },
+            { from: r.to, to: r.to + k, insert: "" },
           ],
-          selection: { anchor: r.from - len, head: r.to - len },
-          scrollIntoView: true,
-        });
-      } else if (inner.length >= len * 2 && inner.startsWith(marker) && inner.endsWith(marker)) {
-        const stripped = inner.slice(len, inner.length - len);
-        view.dispatch({
-          changes: { from: r.from, to: r.to, insert: stripped },
-          selection: { anchor: r.from, head: r.from + stripped.length },
+          selection: { anchor: r.from - k, head: r.to - k },
           scrollIntoView: true,
         });
       } else {
         view.dispatch({
-          changes: { from: r.from, to: r.to, insert: marker + inner + marker },
-          selection: { anchor: r.from + len, head: r.to + len },
+          changes: [
+            { from: r.from, insert: pair },
+            { from: r.to, insert: pair },
+          ],
+          selection: { anchor: r.from + k, head: r.to + k },
           scrollIntoView: true,
         });
       }
@@ -802,46 +865,26 @@ const highlightField = StateField.define({
       const cur = m ? Math.min(m[1].length, 3) : 0;
       const next = cur >= 3 ? 0 : cur + 1;
       const insert = next === 0 ? "" : "#".repeat(next) + " ";
+      const changeSet = state.changes({
+        from: line.from,
+        to: line.from + (m ? m[0].length : 0),
+        insert,
+      });
       view.dispatch({
-        changes: { from: line.from, to: line.from + (m ? m[0].length : 0), insert },
+        changes: changeSet,
+        selection: state.selection.map(changeSet, 1),
         scrollIntoView: true,
       });
       view.focus();
     };
     window.__cmBulletList = function () {
-      toggleLinePrefix((t) => {
-        const m = /^[-*+] /.exec(t);
-        return m ? m[0] : null;
-      }, "- ");
+      toggleListType("bullet");
     };
     window.__cmNumberedList = function () {
-      toggleLinePrefix((t) => {
-        const m = /^\d+\. /.exec(t);
-        return m ? m[0] : null;
-      }, "1. ");
+      toggleListType("numbered");
     };
-    // Checkbox is bullet-aware: a plain bullet gains "[ ] " after its marker, a
-    // task line drops the whole "- [ ] " back to plain text, anything else gets
-    // a fresh "- [ ] " — so it never produces a double marker.
     window.__cmCheckbox = function () {
-      const { state } = view;
-      const r = state.selection.main;
-      const first = state.doc.lineAt(r.from);
-      const last = state.doc.lineAt(r.to);
-      const changes = [];
-      for (let n = first.number; n <= last.number; n++) {
-        const line = state.doc.line(n);
-        let m;
-        if ((m = /^[-*+] \[[ xX]\] /.exec(line.text))) {
-          changes.push({ from: line.from, to: line.from + m[0].length, insert: "" });
-        } else if ((m = /^[-*+] /.exec(line.text))) {
-          changes.push({ from: line.from + m[0].length, insert: "[ ] " });
-        } else {
-          changes.push({ from: line.from, insert: "- [ ] " });
-        }
-      }
-      view.dispatch({ changes, scrollIntoView: true });
-      view.focus();
+      toggleListType("task");
     };
     window.__cmQuote = function () {
       toggleLinePrefix((t) => {
@@ -850,16 +893,16 @@ const highlightField = StateField.define({
       }, "> ");
     };
     window.__cmBold = function () {
-      toggleWrap("**");
+      toggleEmphasis("*", 2);
     };
     window.__cmItalic = function () {
-      toggleWrap("*");
+      toggleEmphasis("*", 1);
     };
     window.__cmStrikethrough = function () {
-      toggleWrap("~~");
+      toggleEmphasis("~", 2);
     };
     window.__cmCode = function () {
-      toggleWrap("`");
+      toggleEmphasis("`", 1);
     };
     window.__cmLink = function () {
       const { state } = view;
