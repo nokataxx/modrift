@@ -756,6 +756,9 @@ export default function HomeScreen() {
                 data={sortedMyFiles ?? []}
                 keyExtractor={(item) => item.uri}
                 showsVerticalScrollIndicator={false}
+                // Bounce even when the list is shorter than the screen, so a drag
+                // anywhere (including the empty area below the rows) responds.
+                alwaysBounceVertical
                 contentContainerStyle={styles.listContent}
                 ItemSeparatorComponent={() => (
                   <View style={[styles.separator, { backgroundColor: theme.backgroundElement }]} />
@@ -779,6 +782,9 @@ export default function HomeScreen() {
               data={recent ?? []}
               keyExtractor={(item) => item.uri}
               showsVerticalScrollIndicator={false}
+              // Bounce even when the list is shorter than the screen, so a drag
+              // anywhere (including the empty area below the rows) responds.
+              alwaysBounceVertical
               contentContainerStyle={styles.listContent}
               ItemSeparatorComponent={() => (
                 <View style={[styles.separator, { backgroundColor: theme.backgroundElement }]} />
@@ -824,6 +830,11 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: Spacing.three,
+    // Fill the list's frame even when there are few rows, so the empty area
+    // below them is part of the scrollable content and responds to drags
+    // (with alwaysBounceVertical). Without this the touch-catching content is
+    // only as tall as the rows, so the empty area below is dead.
+    flexGrow: 1,
   },
   row: {
     flexDirection: 'row',
