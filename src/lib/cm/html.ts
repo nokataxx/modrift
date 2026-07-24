@@ -125,6 +125,9 @@ export function buildEditorHtml(opts: {
   .cm-h4 { font-size: 1.03em; font-weight: 500; color: var(--h4); padding-top: 6px; }
   .cm-h5 { font-size: 1em;    font-weight: 500; color: var(--h4); }
   .cm-h6 { font-size: 0.95em; font-weight: 500; color: var(--h4); }
+  /* Setext underline (===/---) hidden off-cursor: collapse its empty line so no
+     gap shows below the heading (matches HTML <h1>/<h2>, which drop it). */
+  .cm-setext-underline { line-height: 0; font-size: 0; }
 
   .cm-strong { font-weight: 700; }
   .cm-em { font-style: italic; }

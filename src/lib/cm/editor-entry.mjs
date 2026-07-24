@@ -292,6 +292,31 @@ const livePreview = ViewPlugin.fromClass(
               return;
             }
 
+            // Setext heading — "text\n===" (H1) or "text\n---" (H2). The text
+            // line(s) are enlarged like a heading; the underline (===/---) is
+            // hidden off-cursor and its line collapsed. This is why a bare line
+            // of text directly above "---" (no blank line) is a heading, not a
+            // horizontal rule — per CommonMark.
+            const sh = /^SetextHeading(\d)$/.exec(name);
+            if (sh) {
+              const firstLine = state.doc.lineAt(node.from);
+              const lastLine = state.doc.lineAt(node.to);
+              if (lastLine.number > firstLine.number) {
+                for (let n = firstLine.number; n < lastLine.number; n++) {
+                  widgets.push(
+                    Decoration.line({ class: "cm-h" + sh[1] }).range(state.doc.line(n).from),
+                  );
+                }
+                if (!editing || !selTouches(state, lastLine.from, lastLine.to)) {
+                  widgets.push(
+                    Decoration.line({ class: "cm-setext-underline" }).range(lastLine.from),
+                  );
+                  widgets.push(Decoration.replace({}).range(lastLine.from, lastLine.to));
+                }
+              }
+              return;
+            }
+
             if (name === "StrongEmphasis" || name === "Emphasis") {
               const cls = name === "StrongEmphasis" ? "cm-strong" : "cm-em";
               const len = name === "StrongEmphasis" ? 2 : 1;
