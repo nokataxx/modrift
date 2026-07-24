@@ -213,10 +213,15 @@ function formatShortDate(ms: number | null, language: string): string {
 // the history row's location subtitle so both lists read the same.
 function MyFileRow({
   item,
+  selectMode,
+  selected,
   onPress,
   onLongPress,
 }: {
   item: HomeFile;
+  /** FR-39 bulk delete: rows show a checkmark and taps toggle instead of open. */
+  selectMode: boolean;
+  selected: boolean;
   onPress: (item: HomeFile) => void;
   onLongPress: (item: HomeFile) => void;
 }) {
@@ -226,13 +231,27 @@ function MyFileRow({
   return (
     <Pressable
       onPress={() => onPress(item)}
-      onLongPress={() => onLongPress(item)}
+      // Long-press management actions are single-file; suppressed while
+      // selecting so a slow tap doesn't open a sheet over the selection.
+      onLongPress={selectMode ? undefined : () => onLongPress(item)}
       style={({ pressed }) => [
         styles.row,
         { backgroundColor: theme.background },
         pressed && { backgroundColor: theme.backgroundElement },
       ]}>
-      <FileIcon name={item.name} />
+      {/* The checkmark takes the file glyph's slot (same 22pt rowIcon box), so
+          entering select mode doesn't reflow the row. */}
+      {selectMode ? (
+        <SymbolView
+          name={selected ? 'checkmark.circle.fill' : 'circle'}
+          size={22}
+          weight="regular"
+          tintColor={selected ? theme.tint : theme.textSecondary}
+          style={styles.rowIcon}
+        />
+      ) : (
+        <FileIcon name={item.name} />
+      )}
       <View style={styles.rowText}>
         <ThemedText numberOfLines={1}>{item.name}</ThemedText>
         {date !== '' && (
@@ -259,6 +278,16 @@ export default function HomeScreen() {
   // My Files sort order: newest-modified first (default) or by file name.
   const [sortMode, setSortMode] = useState<'date' | 'name'>('date');
   const [cloudNames, setCloudNames] = useState<CloudNames>({});
+  // FR-39: bulk delete. Entered from the ⋯ menu on My Files; rows then toggle a
+  // checkmark and a bottom bar carries すべて選択 / 削除. Kept as a plain uri Set —
+  // the selection is transient and never outlives the mode.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedUris, setSelectedUris] = useState<ReadonlySet<string>>(() => new Set());
+
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false);
+    setSelectedUris(new Set());
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -501,6 +530,64 @@ export default function HomeScreen() {
     [t, refreshMyFiles],
   );
 
+  // FR-39: in select mode a tap toggles the row's checkmark instead of opening.
+  const handleMyFileRowPress = useCallback(
+    (file: HomeFile) => {
+      if (!selectMode) {
+        handleHomeFilePress(file);
+        return;
+      }
+      setSelectedUris((prev) => {
+        const next = new Set(prev);
+        if (!next.delete(file.uri)) next.add(file.uri);
+        return next;
+      });
+    },
+    [selectMode, handleHomeFilePress],
+  );
+
+  const toggleSelectAll = useCallback(() => {
+    const all = myFiles ?? [];
+    setSelectedUris((prev) =>
+      prev.size >= all.length ? new Set() : new Set(all.map((f) => f.uri)),
+    );
+  }, [myFiles]);
+
+  // FR-39: delete every selected home file behind one confirmation. Same
+  // per-file semantics as confirmDeleteMyFile (delete, then prune 最近見た by
+  // sameFileKey), just batched so the user confirms once rather than N times.
+  const confirmDeleteSelected = useCallback(() => {
+    const targets = (myFiles ?? []).filter((f) => selectedUris.has(f.uri));
+    if (targets.length === 0) return;
+    Alert.alert(
+      t('screens.recentFiles.deleteSelectedTitle', { count: targets.length }),
+      t('screens.recentFiles.deleteSelectedMessage'),
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('screens.recentFiles.deleteFileAction'),
+          style: 'destructive',
+          onPress: () => {
+            for (const file of targets) {
+              try {
+                deleteIcloudCopy(file.uri);
+              } catch {
+                // Already gone externally — still prune history below.
+              }
+              removeRecentFile(file.uri).catch(() => {});
+            }
+            const deletedKeys = new Set(targets.map((f) => sameFileKey(f.uri)));
+            setRecent((prev) =>
+              prev === null ? prev : prev.filter((r) => !deletedKeys.has(sameFileKey(r.uri))),
+            );
+            exitSelectMode();
+            refreshMyFiles();
+          },
+        },
+      ],
+    );
+  }, [t, myFiles, selectedUris, exitSelectMode, refreshMyFiles]);
+
   // FR-22/FR-35: long-press a home file for its management actions. These are
   // file operations (not content editing), so they stay available regardless of
   // the FR-28 edit opt-in — consistent with RecentRow's delete.
@@ -603,109 +690,137 @@ export default function HomeScreen() {
     <ThemedView style={styles.container}>
       <Stack.Screen
         options={{
-          title: t('app.name'),
+          // FR-39: while selecting, the bar reports the count and offers only
+          // キャンセル — the destructive action lives in the bottom bar, away
+          // from the thumb's path back out.
+          title: selectMode
+            ? selectedUris.size === 0
+              ? t('screens.recentFiles.selectTitleEmpty')
+              : t('screens.recentFiles.selectedCount', { count: selectedUris.size })
+            : t('app.name'),
           // FR-23 new-note creation (＋). Editing is always available in the
           // home-folder-centric model, so this is shown unconditionally.
-          headerLeft: () => (
-            <Pressable
-              onPress={handleNewNote}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={t('screens.recentFiles.newNote')}>
-              <SymbolView name="plus" size={24} weight="semibold" tintColor={theme.text} />
-            </Pressable>
-          ),
+          headerLeft: selectMode
+            ? () => (
+                <Pressable onPress={exitSelectMode} hitSlop={8} accessibilityRole="button">
+                  <ThemedText themeColor="tint">{t('common.cancel')}</ThemedText>
+                </Pressable>
+              )
+            : () => (
+                <Pressable
+                  onPress={handleNewNote}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('screens.recentFiles.newNote')}>
+                  <SymbolView name="plus" size={24} weight="semibold" tintColor={theme.text} />
+                </Pressable>
+              ),
           // Search sits as its own icon (used often enough to warrant one tap),
           // beside the FR-33 ⋯ pull-down menu that holds the secondary entry
           // points (sort — My Files only, the system picker, and settings).
-          headerRight: () => (
-            <View style={styles.headerActions}>
-              <Pressable
-                onPress={() => router.push('/search')}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={t('screens.search.title')}
-                style={styles.headerIcon}>
-                <SymbolView
-                  name="magnifyingglass"
-                  size={20}
-                  weight="semibold"
-                  tintColor={theme.text}
-                />
-              </Pressable>
-              <MenuView
-                title=""
-                onPressAction={({ nativeEvent }) => {
-                  if (nativeEvent.event === 'open') handleOpen();
-                  else if (nativeEvent.event === 'settings') router.push('/settings');
-                  else if (nativeEvent.event === 'sort-date') setSortMode('date');
-                  else if (nativeEvent.event === 'sort-name') setSortMode('name');
-                  else if (nativeEvent.event === 'clear-history') handleClearHistory();
-                }}
-                // imageColor is REQUIRED on New Architecture: the Fabric path
-                // always sends imageColor (defaulting to 0 = transparent) and the
-                // native side tints the SF Symbol with it whenever the key
-                // exists, so omitting it renders the icon fully transparent
-                // (invisible). The theme text colour makes icons match labels.
-                actions={[
-                  // Sort submenu — only for My Files (the home listing); the
-                  // 最近見た history has its own fixed newest-first order, so it's
-                  // omitted there. The checkmark (state 'on') shows the order.
-                  ...(tab === 'files'
-                    ? [
-                        {
-                          id: 'sort',
-                          title: t('screens.recentFiles.sortTitle'),
-                          image: 'arrow.up.arrow.down',
-                          imageColor: theme.text,
-                          subactions: [
+          headerRight: selectMode
+            ? () => null
+            : () => (
+                <View style={styles.headerActions}>
+                  <Pressable
+                    onPress={() => router.push('/search')}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('screens.search.title')}
+                    style={styles.headerIcon}>
+                    <SymbolView
+                      name="magnifyingglass"
+                      size={20}
+                      weight="semibold"
+                      tintColor={theme.text}
+                    />
+                  </Pressable>
+                  <MenuView
+                    title=""
+                    onPressAction={({ nativeEvent }) => {
+                      if (nativeEvent.event === 'open') handleOpen();
+                      else if (nativeEvent.event === 'settings') router.push('/settings');
+                      else if (nativeEvent.event === 'sort-date') setSortMode('date');
+                      else if (nativeEvent.event === 'sort-name') setSortMode('name');
+                      else if (nativeEvent.event === 'clear-history') handleClearHistory();
+                      else if (nativeEvent.event === 'select') setSelectMode(true);
+                    }}
+                    // imageColor is REQUIRED on New Architecture: the Fabric path
+                    // always sends imageColor (defaulting to 0 = transparent) and the
+                    // native side tints the SF Symbol with it whenever the key
+                    // exists, so omitting it renders the icon fully transparent
+                    // (invisible). The theme text colour makes icons match labels.
+                    actions={[
+                      // Sort submenu — only for My Files (the home listing); the
+                      // 最近見た history has its own fixed newest-first order, so it's
+                      // omitted there. The checkmark (state 'on') shows the order.
+                      ...(tab === 'files'
+                        ? [
                             {
-                              id: 'sort-date',
-                              title: t('screens.recentFiles.sortByDate'),
-                              state: (sortMode === 'date' ? 'on' : 'off') as 'on' | 'off',
+                              id: 'sort',
+                              title: t('screens.recentFiles.sortTitle'),
+                              image: 'arrow.up.arrow.down',
+                              imageColor: theme.text,
+                              subactions: [
+                                {
+                                  id: 'sort-date',
+                                  title: t('screens.recentFiles.sortByDate'),
+                                  state: (sortMode === 'date' ? 'on' : 'off') as 'on' | 'off',
+                                },
+                                {
+                                  id: 'sort-name',
+                                  title: t('screens.recentFiles.sortByName'),
+                                  state: (sortMode === 'name' ? 'on' : 'off') as 'on' | 'off',
+                                },
+                              ],
                             },
+                          ]
+                        : []),
+                      // FR-39 bulk delete entry point. My Files only (history rows
+                      // aren't files) and only when there is something to select.
+                      ...(tab === 'files' && myFiles !== null && myFiles.length > 0
+                        ? [
                             {
-                              id: 'sort-name',
-                              title: t('screens.recentFiles.sortByName'),
-                              state: (sortMode === 'name' ? 'on' : 'off') as 'on' | 'off',
+                              id: 'select',
+                              title: t('screens.recentFiles.selectAction'),
+                              image: 'checkmark.circle',
+                              imageColor: theme.text,
                             },
-                          ],
-                        },
-                      ]
-                    : []),
-                  // Clear-all — the 最近見た tab's context action, mirroring the
-                  // sort submenu's top spot on My Files. Normal colour (not
-                  // destructive red): it clears only the list, never the files.
-                  // Shown only when there is history to clear; confirmation lives
-                  // in handleClearHistory.
-                  ...(tab === 'recent' && recent !== null && recent.length > 0
-                    ? [
-                        {
-                          id: 'clear-history',
-                          title: t('screens.recentFiles.clearHistoryAction'),
-                          image: 'trash',
-                          imageColor: theme.text,
-                        },
-                      ]
-                    : []),
-                  { id: 'open', title: t('picker.open'), image: 'folder', imageColor: theme.text },
-                  {
-                    id: 'settings',
-                    title: t('screens.settings.title'),
-                    image: 'gearshape',
-                    imageColor: theme.text,
-                  },
-                ]}
-                shouldOpenOnLongPress={false}>
-                <View
-                  accessibilityRole="button"
-                  accessibilityLabel={t('screens.recentFiles.menu')}
-                  style={styles.headerIcon}>
-                  <SymbolView name="ellipsis" size={24} weight="semibold" tintColor={theme.text} />
+                          ]
+                        : []),
+                      // Clear-all — the 最近見た tab's context action, mirroring the
+                      // sort submenu's top spot on My Files. Normal colour (not
+                      // destructive red): it clears only the list, never the files.
+                      // Shown only when there is history to clear; confirmation lives
+                      // in handleClearHistory.
+                      ...(tab === 'recent' && recent !== null && recent.length > 0
+                        ? [
+                            {
+                              id: 'clear-history',
+                              title: t('screens.recentFiles.clearHistoryAction'),
+                              image: 'trash',
+                              imageColor: theme.text,
+                            },
+                          ]
+                        : []),
+                      { id: 'open', title: t('picker.open'), image: 'folder', imageColor: theme.text },
+                      {
+                        id: 'settings',
+                        title: t('screens.settings.title'),
+                        image: 'gearshape',
+                        imageColor: theme.text,
+                      },
+                    ]}
+                    shouldOpenOnLongPress={false}>
+                    <View
+                      accessibilityRole="button"
+                      accessibilityLabel={t('screens.recentFiles.menu')}
+                      style={styles.headerIcon}>
+                      <SymbolView name="ellipsis" size={24} weight="semibold" tintColor={theme.text} />
+                    </View>
+                  </MenuView>
                 </View>
-              </MenuView>
-            </View>
-          ),
+              ),
         }}
       />
       <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
@@ -722,7 +837,12 @@ export default function HomeScreen() {
               return (
                 <Pressable
                   key={key}
-                  onPress={() => setTab(key)}
+                  onPress={() => {
+                    // Selection is a My-Files concept; leaving the view drops it
+                    // rather than letting a hidden selection survive the switch.
+                    exitSelectMode();
+                    setTab(key);
+                  }}
                   accessibilityRole="button"
                   accessibilityState={{ selected: active }}
                   style={[
@@ -763,10 +883,13 @@ export default function HomeScreen() {
                 ItemSeparatorComponent={() => (
                   <View style={[styles.separator, { backgroundColor: theme.backgroundElement }]} />
                 )}
+                extraData={selectMode ? selectedUris : null}
                 renderItem={({ item }) => (
                   <MyFileRow
                     item={item}
-                    onPress={handleHomeFilePress}
+                    selectMode={selectMode}
+                    selected={selectedUris.has(item.uri)}
+                    onPress={handleMyFileRowPress}
                     onLongPress={handleMyFileLongPress}
                   />
                 )}
@@ -799,6 +922,34 @@ export default function HomeScreen() {
               )}
               style={styles.list}
             />
+          )}
+
+          {/* FR-39: selection toolbar. Bottom-anchored (iOS Files / Photos
+              convention) so the destructive action sits under the thumb and
+              well away from キャンセル in the nav bar. */}
+          {selectMode && (
+            <View style={[styles.selectionBar, { borderTopColor: theme.backgroundElement }]}>
+              <Pressable onPress={toggleSelectAll} hitSlop={8} accessibilityRole="button">
+                <ThemedText themeColor="tint">
+                  {t(
+                    selectedUris.size >= (myFiles?.length ?? 0)
+                      ? 'screens.recentFiles.deselectAll'
+                      : 'screens.recentFiles.selectAll',
+                  )}
+                </ThemedText>
+              </Pressable>
+              <Pressable
+                onPress={confirmDeleteSelected}
+                disabled={selectedUris.size === 0}
+                hitSlop={8}
+                accessibilityRole="button">
+                <ThemedText
+                  themeColor={selectedUris.size === 0 ? 'textSecondary' : 'danger'}
+                  style={styles.selectionDelete}>
+                  {t('screens.recentFiles.deleteSelectedAction', { count: selectedUris.size })}
+                </ThemedText>
+              </Pressable>
+            </View>
           )}
         </View>
       </SafeAreaView>
@@ -894,6 +1045,19 @@ const styles = StyleSheet.create({
   },
   segmentTextActive: {
     fontWeight: '700',
+  },
+  // FR-39 selection toolbar: すべて選択 on the left, 削除 on the right, divided
+  // from the list by a hairline so it reads as chrome rather than a last row.
+  selectionBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: Spacing.three,
+    paddingHorizontal: Spacing.two,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  selectionDelete: {
+    fontWeight: '600',
   },
   // Header-right row: the search icon beside the ⋯ menu.
   headerActions: {

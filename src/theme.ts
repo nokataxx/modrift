@@ -15,6 +15,8 @@ export const Colors = {
     backgroundSelected: '#E0E1E6',
     textSecondary: '#60646C',
     tint: '#007AFF',
+    // Destructive actions (iOS system red) — e.g. the bulk-delete button.
+    danger: '#FF3B30',
     // Heading hierarchy: H1 pops in a navy accent, H2–H4 step down through
     // neutral tones (iOS-native feel). H5/H6 reuse heading4.
     heading1: '#1B3A6B',
@@ -29,6 +31,7 @@ export const Colors = {
     backgroundSelected: '#2E3135',
     textSecondary: '#B0B4BA',
     tint: '#0A84FF',
+    danger: '#FF453A',
     heading1: '#7E9ED6',
     heading2: '#9DB4E0',
     heading3: '#C7CAD1',
