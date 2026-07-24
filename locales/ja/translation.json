@@ -19,7 +19,7 @@
       "reopenFailedTitle": "再オープンできませんでした",
       "reopenFailedMessage": "ファイルが移動・削除されたか、まだ iCloud からダウンロードされていない可能性があります。「開く」から選び直すか、しばらくしてからもう一度お試しください。",
       "locationIcloudCopy": "iCloud › Modrift",
-      "locationLocalHome": "この iPhone › Modrift",
+      "locationLocalHome": "Local › Modrift",
       "locationIcloudDrive": "iCloud",
       "locationAppSandbox": "他のアプリから",
       "locationExternal": "他のクラウド",
@@ -122,12 +122,12 @@
       "homeLocation": "ホームの保存先",
       "homeLocationOptions": {
         "icloud": "iCloud",
-        "local": "この iPhone"
+        "local": "Local"
       },
       "homeLocationHint": "切り替えても既存のファイルは移動しません。",
       "homeLocationSwitchTitle": "ホームの保存先を変更",
-      "homeLocationToLocalMessage": "「この iPhone」に切り替えます。表示中の iCloud のファイルは一時的に見えなくなります（消えません）。この iPhone のファイルは iCloud 同期・バックアップの対象外で、アプリを削除すると失われます。",
-      "homeLocationToIcloudMessage": "「iCloud」に切り替えます。表示中のこの iPhone のファイルは一時的に見えなくなります（消えません）。iCloud を使うには iCloud Drive が有効である必要があります。",
+      "homeLocationToLocalMessage": "「Local」に切り替えます。表示中の iCloud のファイルは一時的に見えなくなります（消えません）。Local のファイルは iCloud 同期・バックアップの対象外で、アプリを削除すると失われます。",
+      "homeLocationToIcloudMessage": "「iCloud」に切り替えます。表示中の Local のファイルは一時的に見えなくなります（消えません）。iCloud を使うには iCloud Drive が有効である必要があります。",
       "homeLocationSwitchConfirm": "切り替える",
       "appIcon": "アプリアイコン",
       "appIconOptions": {

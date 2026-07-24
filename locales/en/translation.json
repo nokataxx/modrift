@@ -19,7 +19,7 @@
       "reopenFailedTitle": "Couldn't re-open",
       "reopenFailedMessage": "The file may have been moved or deleted, or not yet downloaded from iCloud. Tap Open to pick it again, or try again later.",
       "locationIcloudCopy": "iCloud › Modrift",
-      "locationLocalHome": "This iPhone › Modrift",
+      "locationLocalHome": "Local › Modrift",
       "locationIcloudDrive": "iCloud",
       "locationAppSandbox": "From other apps",
       "locationExternal": "Other cloud",
@@ -122,12 +122,12 @@
       "homeLocation": "Home location",
       "homeLocationOptions": {
         "icloud": "iCloud",
-        "local": "This iPhone"
+        "local": "Local"
       },
       "homeLocationHint": "Switching won't move your existing files.",
       "homeLocationSwitchTitle": "Change home location",
-      "homeLocationToLocalMessage": "Switch to This iPhone. Your iCloud files will be hidden for now (not deleted). Files on This iPhone are not synced to iCloud or backed up, and are lost if you delete the app.",
-      "homeLocationToIcloudMessage": "Switch to iCloud. Your This-iPhone files will be hidden for now (not deleted). Using iCloud requires iCloud Drive to be enabled.",
+      "homeLocationToLocalMessage": "Switch to Local. Your iCloud files will be hidden for now (not deleted). Local files are not synced to iCloud or backed up, and are lost if you delete the app.",
+      "homeLocationToIcloudMessage": "Switch to iCloud. Your Local files will be hidden for now (not deleted). Using iCloud requires iCloud Drive to be enabled.",
       "homeLocationSwitchConfirm": "Switch",
       "appIcon": "App Icon",
       "appIconOptions": {
