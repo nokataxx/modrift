@@ -75,26 +75,24 @@ function locationLabel(
   return t(LOCATION_KEY[location.kind]);
 }
 
-// Subtitle for a history row. Home files (iCloud › Modrift or the on-device home)
-// are the default workspace, so spelling out their location on every row is
-// noise; instead we show "<modified date> · マイファイル" — the date is the
-// useful bit and "マイファイル" keeps the two-line layout while still marking the
-// file as living in the home (vs an external source). Non-home files keep the
-// full location label, which is the provenance cue (FR-06) that lets the user
-// tell same-named files from different clouds apart.
+// Subtitle for a history row: "<opened date> · <place>". The date is when the
+// file was last opened (openedAt) — always present, needs no stat, so it shows
+// uniformly for every row including third-party clouds, and it fits a history
+// (time-ordered) list. The place is the short "Home" label for home files (their
+// full "iCloud › Modrift" location is redundant since home is the default place)
+// and the full location label otherwise (the provenance cue, FR-06, that tells
+// same-named files from different clouds apart).
 function recentSubtitle(
   file: RecentFile,
-  modifiedAt: number | null,
   t: (key: string) => string,
   cloudNames: CloudNames,
   language: string,
 ): string {
-  if (isHomeFile(file.uri)) {
-    const date = formatModifiedDate(modifiedAt, language);
-    const label = t('screens.recentFiles.tabMyFiles');
-    return [date, label].filter(Boolean).join(' · ');
-  }
-  return locationLabel(file, t, cloudNames);
+  const date = formatShortDate(file.openedAt, language);
+  const place = isHomeFile(file.uri)
+    ? t('screens.recentFiles.tabMyFiles')
+    : locationLabel(file, t, cloudNames);
+  return [date, place].filter(Boolean).join(' · ');
 }
 
 // Mirrors the public.plain-text UTI we declare in CFBundleDocumentTypes so the
@@ -148,15 +146,11 @@ function FileIcon({ name }: { name: string }) {
 function RecentRow({
   item,
   cloudNames,
-  modifiedAt,
   onPress,
   onRemoveHistory,
 }: {
   item: RecentFile;
   cloudNames: CloudNames;
-  // Modification time (epoch ms) for a home file, statted in the focus effect;
-  // null for non-home files or when the fs reported none. See recentSubtitle.
-  modifiedAt: number | null;
   onPress: (item: RecentFile) => void;
   onRemoveHistory: (item: RecentFile) => void;
 }) {
@@ -189,16 +183,17 @@ function RecentRow({
       <View style={styles.rowText}>
         <ThemedText numberOfLines={1}>{item.name}</ThemedText>
         <ThemedText themeColor="textSecondary" numberOfLines={1} style={styles.rowSubtitle}>
-          {recentSubtitle(item, modifiedAt, t, cloudNames, i18n.language)}
+          {recentSubtitle(item, t, cloudNames, i18n.language)}
         </ThemedText>
       </View>
     </Pressable>
   );
 }
 
-// Format a home file's modification time as a plain localized date, for the row
-// subtitle. Empty string when the filesystem reported no mtime (sinks silently).
-function formatModifiedDate(ms: number | null, language: string): string {
+// Format an epoch-ms timestamp as a plain localized date for a row subtitle —
+// a home file's modification time (My Files) or an opened time (history). Empty
+// string when null (no mtime reported), which then sinks silently.
+function formatShortDate(ms: number | null, language: string): string {
   if (ms === null) return '';
   const locale = language.startsWith('ja') ? 'ja-JP' : 'en-US';
   try {
@@ -227,7 +222,7 @@ function MyFileRow({
 }) {
   const { i18n } = useTranslation();
   const theme = useTheme();
-  const date = formatModifiedDate(item.modifiedAt, i18n.language);
+  const date = formatShortDate(item.modifiedAt, i18n.language);
   return (
     <Pressable
       onPress={() => onPress(item)}
@@ -264,10 +259,6 @@ export default function HomeScreen() {
   // My Files sort order: newest-modified first (default) or by file name.
   const [sortMode, setSortMode] = useState<'date' | 'name'>('date');
   const [cloudNames, setCloudNames] = useState<CloudNames>({});
-  // Modified date per home file shown in 最近見た, keyed by uri. Statted in the
-  // focus effect (cheap for the local/iCloud-container home files); non-home
-  // files aren't statted and fall back to their location label.
-  const [homeDates, setHomeDates] = useState<Record<string, number>>({});
 
   useFocusEffect(
     useCallback(() => {
@@ -291,20 +282,7 @@ export default function HomeScreen() {
           });
           for (const item of dead) removeRecentFile(item.uri).catch(() => {});
           const live = dead.length === 0 ? items : items.filter((item) => !dead.includes(item));
-          // Read the modification date for each home file so its history row can
-          // show "<date> · マイファイル" instead of the redundant home location.
-          const dates: Record<string, number> = {};
-          for (const item of live) {
-            if (!isHomeFile(item.uri)) continue;
-            try {
-              const m = new File(item.uri).modificationTime;
-              if (m != null) dates[item.uri] = m;
-            } catch {
-              // Unreadable (evicted / moved) — omit the date, keep the label.
-            }
-          }
           setRecent(live);
-          setHomeDates(dates);
           setCloudNames(names);
           setMyFiles(home);
         },
@@ -809,7 +787,6 @@ export default function HomeScreen() {
                 <RecentRow
                   item={item}
                   cloudNames={cloudNames}
-                  modifiedAt={homeDates[item.uri] ?? null}
                   onPress={handleRecentPress}
                   onRemoveHistory={handleRecentDelete}
                 />

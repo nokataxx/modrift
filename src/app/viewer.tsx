@@ -19,7 +19,6 @@ import {
   Platform,
   Pressable,
   StyleSheet,
-  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -726,55 +725,21 @@ export default function ViewerScreen() {
           ),
           headerRight: canToggle
             ? () => (
-                <View style={styles.headerActions}>
-                  {mode === "edit" && (
-                    <>
-                      <Pressable
-                        onPress={() => editorRef.current?.undo()}
-                        disabled={!canUndo}
-                        hitSlop={8}
-                        accessibilityRole="button"
-                        accessibilityState={{ disabled: !canUndo }}
-                        accessibilityLabel={t("screens.viewer.undo")}
-                      >
-                        <SymbolView
-                          name="arrow.uturn.backward"
-                          size={22}
-                          weight="semibold"
-                          tintColor={canUndo ? theme.text : theme.textSecondary}
-                        />
-                      </Pressable>
-                      <Pressable
-                        onPress={() => editorRef.current?.redo()}
-                        disabled={!canRedo}
-                        hitSlop={8}
-                        accessibilityRole="button"
-                        accessibilityState={{ disabled: !canRedo }}
-                        accessibilityLabel={t("screens.viewer.redo")}
-                      >
-                        <SymbolView
-                          name="arrow.uturn.forward"
-                          size={22}
-                          weight="semibold"
-                          tintColor={canRedo ? theme.text : theme.textSecondary}
-                        />
-                      </Pressable>
-                    </>
-                  )}
-                  <Pressable
-                    onPress={handleToggleMode}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel={toggleLabel}
-                  >
-                    <SymbolView
-                      name={mode === "preview" ? "square.and.pencil" : "eye"}
-                      size={26}
-                      weight="semibold"
-                      tintColor={theme.text}
-                    />
-                  </Pressable>
-                </View>
+                // undo/redo moved into the edit toolbar (FR-37) — thumb-reachable
+                // above the keyboard — so the header keeps only the mode toggle.
+                <Pressable
+                  onPress={handleToggleMode}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={toggleLabel}
+                >
+                  <SymbolView
+                    name={mode === "preview" ? "square.and.pencil" : "eye"}
+                    size={26}
+                    weight="semibold"
+                    tintColor={theme.text}
+                  />
+                </Pressable>
               )
             : showCopyButton
               ? () => (
@@ -836,7 +801,13 @@ export default function ViewerScreen() {
               style={[styles.flex, { backgroundColor: theme.background }]}
             />
             {canToggle && mode === "edit" && keyboardVisible && (
-              <EditToolbar onCommand={runCommand} />
+              <EditToolbar
+                onCommand={runCommand}
+                onUndo={() => editorRef.current?.undo()}
+                onRedo={() => editorRef.current?.redo()}
+                canUndo={canUndo}
+                canRedo={canRedo}
+              />
             )}
           </KeyboardAvoidingView>
         )}
@@ -858,11 +829,6 @@ const styles = StyleSheet.create({
   message: {
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
-  },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.four,
   },
   // Match the iOS navigation title so the custom (long-pressable) title looks
   // identical to a default one.
