@@ -125,9 +125,9 @@ export default function SearchScreen() {
             <ActivityIndicator color={theme.textSecondary} />
           </View>
         ) : showHint ? (
-          <ThemedText themeColor="textSecondary" style={styles.message}>
-            {t('screens.search.hint')}
-          </ThemedText>
+          // Nothing typed yet: the field's placeholder already says what this
+          // searches, so a restating line below it would just be noise.
+          <View style={styles.center} />
         ) : showEmpty ? (
           <ThemedText themeColor="textSecondary" style={styles.message}>
             {t('screens.search.noResults')}

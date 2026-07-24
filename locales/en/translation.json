@@ -139,7 +139,6 @@
     "search": {
       "title": "Search",
       "placeholder": "Search Home and Recent",
-      "hint": "Search the text of your Home and Recent files",
       "noResults": "No results found",
       "truncated": "Showing partial results (too many matches)"
     }
