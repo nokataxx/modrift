@@ -78,6 +78,16 @@ const codeLanguages = [
 // Japanese/CJK range: kana, kanji (+ ext-A), CJK punctuation, fullwidth forms.
 const CJK = /[　-〿぀-ヿ㐀-鿿豈-﫿＀-￯]/;
 
+// Below this document size we decorate the WHOLE document instead of only the
+// visible range, so scrolling never triggers a decoration rebuild. That rebuild,
+// running on every viewport move during a fling, churns the DOM and — when the
+// editor is an active (focused) contentEditable — makes WebKit reconcile the
+// editable selection, which kills scroll momentum ("カチン") in edit mode.
+// Whole-doc decoration costs more per keystroke, so it's capped to small/medium
+// files; larger ones keep the visible-range behaviour (rarer, and any stall is
+// proportional to the doc anyway).
+const WHOLE_DOC_DECORATE_LIMIT = 20000;
+
 function post(o) {
   try {
     window.ReactNativeWebView && window.ReactNativeWebView.postMessage(JSON.stringify(o));
@@ -220,8 +230,14 @@ const livePreview = ViewPlugin.fromClass(
       // measure-cycle updates in between matters on iOS: a full rebuild on
       // every update during a fling stalls the main thread, and WebKit kills
       // scroll momentum when the DOM churns mid-scroll.
+      //
+      // For small/medium docs we decorate the whole document, so a viewport
+      // move (scrolling) needs NO rebuild at all — this is what removes the
+      // edit-mode fling stall. Only larger docs still rebuild on viewport move.
       const tree = syntaxTree(u.state);
-      if (u.docChanged || u.viewportChanged || u.selectionSet || tree !== this.tree) {
+      const wholeDoc = u.state.doc.length <= WHOLE_DOC_DECORATE_LIMIT;
+      const viewportTrigger = !wholeDoc && u.viewportChanged;
+      if (u.docChanged || viewportTrigger || u.selectionSet || tree !== this.tree) {
         this.decorations = this.build(u.view);
         this.tree = syntaxTree(u.state);
       }
@@ -231,6 +247,14 @@ const livePreview = ViewPlugin.fromClass(
       const state = view.state;
       const editing = !!(window.CONFIG && window.CONFIG.editable);
 
+      // Whole-doc vs visible-range decoration (see WHOLE_DOC_DECORATE_LIMIT).
+      // Decorating the whole doc means scrolling triggers no rebuild, so the
+      // fling isn't stalled; only large docs fall back to the visible range.
+      const ranges =
+        state.doc.length <= WHOLE_DOC_DECORATE_LIMIT
+          ? [{ from: 0, to: state.doc.length }]
+          : view.visibleRanges;
+
       // Ranges the text passes below (CJK spacing, Latin sizing) must skip:
       // code (its own monospace font) and widget-replaced spans (image/HR),
       // where inline marks would clash with the replacement.
@@ -238,7 +262,7 @@ const livePreview = ViewPlugin.fromClass(
       // Blockquote nesting depth per line number (for stacked bars + indent).
       const qDepth = new Map();
 
-      for (const vr of view.visibleRanges) {
+      for (const vr of ranges) {
         // Small budget: this runs during scrolling, and a long synchronous
         // parse here freezes the fling. Anything unparsed within the budget
         // catches up via the background parser (the tree check in update()).
@@ -449,7 +473,7 @@ const livePreview = ViewPlugin.fromClass(
       // Tighten ASCII spaces that touch a CJK character. Japanese authors often
       // wrap inline Latin in spaces ("これは CodeMirror と …"); a full word-gap on
       // each side leaves lone particles floating. Skip code/widget spans.
-      for (const vr of view.visibleRanges) {
+      for (const vr of ranges) {
         const text = state.doc.sliceString(vr.from, vr.to);
         for (let i = 0; i < text.length; i++) {
           if (text[i] !== " ") continue;
@@ -466,7 +490,7 @@ const livePreview = ViewPlugin.fromClass(
       // Enlarge Latin runs so SF's cap-height matches the kanji body height. iOS
       // WebKit ignores @font-face size-adjust, so we scale per-run with an inline
       // font-size (.cm-lat). Skip code/widget spans.
-      for (const vr of view.visibleRanges) {
+      for (const vr of ranges) {
         const text = state.doc.sliceString(vr.from, vr.to);
         const re = /[0-9A-Za-zÀ-ɏ]+/g;
         let m;
