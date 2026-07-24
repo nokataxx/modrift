@@ -49,10 +49,17 @@ type Props = {
   taskInteractive?: boolean;
   /** Preview mode: trim the reading surface's bottom scroll margin. */
   compact?: boolean;
+  /** Extra top padding (px) so the first lines clear the floating, transparent
+   *  header (FR-38 hide-on-scroll). Baked into the HTML at mount. */
+  topInset?: number;
   onChange?: (doc: string) => void;
   onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void;
   onLinkPress?: (url: string) => void;
   onReady?: () => void;
+  /** Vertical scroll offset (px) of the editor page, for the hide-on-scroll
+   *  header. Sourced from an injected JS scroll listener (posted over the
+   *  message bridge), not react-native-webview's onScroll. */
+  onScroll?: (offsetY: number) => void;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -71,10 +78,12 @@ export const MarkdownWebView = forwardRef<MarkdownWebViewHandle, Props>(
       imagePlaceholder,
       taskInteractive,
       compact,
+      topInset,
       onChange,
       onHistoryChange,
       onLinkPress,
       onReady,
+      onScroll,
       style,
     },
     ref,
@@ -90,6 +99,7 @@ export const MarkdownWebView = forwardRef<MarkdownWebViewHandle, Props>(
         imagePlaceholder,
         taskInteractive,
         compact,
+        topInset,
       }),
     );
     const editableRef = useRef(editable);
@@ -158,6 +168,8 @@ export const MarkdownWebView = forwardRef<MarkdownWebViewHandle, Props>(
               onHistoryChange?.(!!msg.canUndo, !!msg.canRedo);
             } else if (msg.type === "link") {
               onLinkPress?.(msg.url);
+            } else if (msg.type === "scroll") {
+              onScroll?.(msg.y);
             } else if (msg.type === "ready") {
               // Sync editable / task toggling in case they changed between
               // mount and ready.

@@ -47,9 +47,14 @@ export function buildEditorHtml(opts: {
   // Preview mode (settings screen): trims the scroller's bottom padding so a
   // short sample fits its card without the reading surface's scroll margin.
   compact?: boolean;
+  // Extra top padding (px) so the first lines clear the transparent, floating
+  // header (FR-38 hide-on-scroll). It scrolls away with the content, so the only
+  // place it shows is at the very top — where the header is shown anyway.
+  topInset?: number;
 }): string {
   const config = JSON.stringify(opts).replace(/</g, "\\u003c");
   const padBottom = opts.compact ? 12 : 34;
+  const padTop = 10 + (opts.topInset ?? 0);
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -85,7 +90,7 @@ export function buildEditorHtml(opts: {
   .cm-tsp { font-size: 0.34em; }
   .cm-content {
     font-size: var(--base);
-    padding: 10px 10px ${padBottom}px 10px !important;
+    padding: ${padTop}px 10px ${padBottom}px 10px !important;
     caret-color: var(--tint) !important;
     /* FR-16 (iPad / large screens): cap the text measure and centre it so lines
        stay readable instead of running edge-to-edge. em-based so the column

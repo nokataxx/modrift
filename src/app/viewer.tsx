@@ -6,7 +6,6 @@ import {
   useNavigation,
   useRouter,
 } from "expo-router";
-import { useHeaderHeight } from "expo-router/build/react-navigation/elements";
 import { SymbolView } from "expo-symbols";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -19,10 +18,13 @@ import {
   Platform,
   Pressable,
   StyleSheet,
+  View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSharedValue, withTiming } from "react-native-reanimated";
 
 import { EditToolbar } from "@/components/edit-toolbar";
+import { ViewerHeader } from "@/components/viewer-header";
 import {
   type EditCommand,
   MarkdownWebView,
@@ -54,6 +56,15 @@ import { Spacing } from "@/theme";
 
 type Mode = "preview" | "edit";
 
+// FR-38 hide-on-scroll tuning: how far (px) the document must move past the
+// anchor before the header toggles, the minimum offset before hiding is allowed
+// (so short docs near the top keep their header), and the nav-bar row height
+// under the status bar (iOS standard) — used since the native header is off and
+// its height would report 0.
+const HEADER_SCROLL_THRESHOLD = 64;
+const HEADER_HIDE_MIN_OFFSET = 96;
+const HEADER_BAR_HEIGHT = 44;
+
 export default function ViewerScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
@@ -63,7 +74,8 @@ export default function ViewerScreen() {
   const base = FONT_SIZE_BASE[settings.fontSize];
   const router = useRouter();
   const navigation = useNavigation();
-  const headerHeight = useHeaderHeight();
+  const insets = useSafeAreaInsets();
+  const headerHeight = insets.top + HEADER_BAR_HEIGHT;
   const {
     fileUri,
     fileName,
@@ -109,6 +121,14 @@ export default function ViewerScreen() {
   // only while the keyboard is up (i.e. actively editing). Tracked from the
   // keyboard events rather than `mode` so dismissing the keyboard hides it too.
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  // FR-38 hide-on-scroll: the header slides via a reanimated shared value
+  // (0 shown → 1 hidden) driven straight from the scroll handler, so scrolling
+  // never triggers a React re-render or native-nav change. headerTargetRef
+  // mirrors the current target so we don't restart the animation every frame;
+  // lastScrollY is the anchor the next move is measured against.
+  const headerProgress = useSharedValue(0);
+  const headerTargetRef = useRef(0);
+  const lastScrollY = useRef(0);
   // The name shown in the header. Starts from the route param; for a new note it
   // updates to the deduped filename once the file is actually created.
   const [displayName, setDisplayName] = useState(fileName ?? "");
@@ -191,6 +211,47 @@ export default function ViewerScreen() {
   const runCommand = useCallback((cmd: EditCommand) => {
     editorRef.current?.runCommand(cmd);
   }, []);
+
+  // FR-38 hide-on-scroll. Compare the offset to an anchor: crossing it downward
+  // past the threshold hides the header, upward shows it, the top always shows.
+  // Only the shared value is touched (no setState) so the fling is never
+  // interrupted; the slide runs on the UI thread. headerTargetRef guards against
+  // restarting the animation every frame. Applies to preview AND edit — edit is
+  // where the keyboard shrinks the view most, so reclaiming the header matters
+  // most there (the edit-mode fling stall was a separate, now-fixed bug).
+  const setHeaderTarget = useCallback(
+    (target: 0 | 1) => {
+      if (headerTargetRef.current === target) return;
+      headerTargetRef.current = target;
+      // eslint-disable-next-line react-hooks/immutability
+      headerProgress.value = withTiming(target, { duration: 200 });
+    },
+    [headerProgress],
+  );
+  const handleScroll = useCallback(
+    (y: number) => {
+      const anchor = lastScrollY.current;
+      if (y <= 0) {
+        lastScrollY.current = 0;
+        setHeaderTarget(0);
+        return;
+      }
+      if (y > anchor + HEADER_SCROLL_THRESHOLD && y > HEADER_HIDE_MIN_OFFSET) {
+        lastScrollY.current = y;
+        setHeaderTarget(1);
+      } else if (y < anchor - HEADER_SCROLL_THRESHOLD) {
+        lastScrollY.current = y;
+        setHeaderTarget(0);
+      }
+    },
+    [setHeaderTarget],
+  );
+  // Reveal the header when switching modes or loading a different file, so it's
+  // never left hidden after a context change.
+  useEffect(() => {
+    lastScrollY.current = 0;
+    setHeaderTarget(0);
+  }, [mode, fileUri, reloadNonce, setHeaderTarget]);
 
   useEffect(() => {
     // FR-23: a brand-new note has no file to read — content is initialized empty
@@ -678,91 +739,48 @@ export default function ViewerScreen() {
   const toggleLabel =
     mode === "preview" ? t("screens.viewer.edit") : t("screens.viewer.preview");
 
+  // Right-side header action: the preview⇄edit toggle for editable files, else
+  // the "copy to home" button for view-only files. undo/redo live in the edit
+  // toolbar (FR-37).
+  const headerRightNode = canToggle ? (
+    <Pressable
+      onPress={handleToggleMode}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={toggleLabel}
+    >
+      <SymbolView
+        name={mode === "preview" ? "square.and.pencil" : "eye"}
+        size={26}
+        weight="semibold"
+        tintColor={theme.text}
+      />
+    </Pressable>
+  ) : showCopyButton ? (
+    <Pressable
+      onPress={handleCopyToHome}
+      hitSlop={8}
+      disabled={copying}
+      accessibilityRole="button"
+      accessibilityLabel={t("screens.viewer.copyToHomeButton")}
+    >
+      <SymbolView name="folder.badge.plus" size={26} weight="semibold" tintColor={theme.text} />
+    </Pressable>
+  ) : null;
+
   return (
     <ThemedView style={styles.container}>
-      <Stack.Screen
-        options={{
-          // Keep the custom title centered. Without this, native-stack centers a
-          // custom headerTitle only on first layout and left-aligns it on any
-          // re-layout (e.g. the first keystroke enabling the undo button), so the
-          // title visibly jumps left. Pin it to center to match a normal title.
-          headerTitleAlign: "center",
-          // Custom title so a long-press can rename a Modrift copy (FR-22). For
-          // non-renameable files it's a plain, non-interactive label.
-          headerTitle: () => (
-            <Pressable
-              onLongPress={renameable ? handleRename : undefined}
-              disabled={!renameable}
-              hitSlop={8}
-              accessibilityRole="header"
-              accessibilityLabel={displayName}
-              accessibilityHint={
-                renameable ? t("screens.recentFiles.renameTitle") : undefined
-              }
-            >
-              <ThemedText numberOfLines={1} style={styles.headerTitle}>
-                {displayName}
-              </ThemedText>
-            </Pressable>
-          ),
-          // Replace the system back button with our own chevron so it renders
-          // at the exact same size/weight/tint as the headerRight icon — the
-          // native back chevron ignores size and draws larger.
-          headerLeft: () => (
-            <Pressable
-              onPress={() => router.back()}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={t("common.back")}
-            >
-              <SymbolView
-                name="chevron.backward"
-                size={20}
-                weight="semibold"
-                tintColor={theme.text}
-              />
-            </Pressable>
-          ),
-          headerRight: canToggle
-            ? () => (
-                // undo/redo moved into the edit toolbar (FR-37) — thumb-reachable
-                // above the keyboard — so the header keeps only the mode toggle.
-                <Pressable
-                  onPress={handleToggleMode}
-                  hitSlop={8}
-                  accessibilityRole="button"
-                  accessibilityLabel={toggleLabel}
-                >
-                  <SymbolView
-                    name={mode === "preview" ? "square.and.pencil" : "eye"}
-                    size={26}
-                    weight="semibold"
-                    tintColor={theme.text}
-                  />
-                </Pressable>
-              )
-            : showCopyButton
-              ? () => (
-                  <Pressable
-                    onPress={handleCopyToHome}
-                    hitSlop={8}
-                    disabled={copying}
-                    accessibilityRole="button"
-                    accessibilityLabel={t("screens.viewer.copyToHomeButton")}
-                  >
-                    <SymbolView
-                      name="folder.badge.plus"
-                      size={26}
-                      weight="semibold"
-                      tintColor={theme.text}
-                    />
-                  </Pressable>
-                )
-              : undefined,
-        }}
-      />
+      {/* The native header is disabled; FR-38 renders its own header (below) so
+          hide-on-scroll can slide it via a shared value without a re-render. */}
+      <Stack.Screen options={{ headerShown: false }} />
+      {/* No top edge: content runs full-height under the floating header (whose
+          own top inset it carries); the editor's topInset keeps text clear. */}
       <SafeAreaView style={styles.safeArea} edges={["bottom", "left", "right"]}>
-        <NetworkBanner />
+        {/* Overlay the offline banner just below the header so it never adds
+            layout height to the full-height editor (that would resize it). */}
+        <View style={[styles.bannerOverlay, { top: headerHeight }]} pointerEvents="box-none">
+          <NetworkBanner />
+        </View>
         {error ? (
           <ThemedText themeColor="textSecondary" style={styles.message}>
             {error}
@@ -775,7 +793,9 @@ export default function ViewerScreen() {
           <KeyboardAvoidingView
             style={styles.flex}
             behavior={Platform.OS === "ios" ? "padding" : undefined}
-            keyboardVerticalOffset={headerHeight}
+            // Content starts at the top of the screen (the header floats over
+            // it), so no header-height offset is needed.
+            keyboardVerticalOffset={0}
           >
             <MarkdownWebView
               // Remount per file (and on "load latest") so it re-seeds the
@@ -790,9 +810,13 @@ export default function ViewerScreen() {
                 filename: "__F__",
               })}
               taskInteractive={editable}
+              // Clear the floating header so the first lines aren't hidden behind
+              // it; scrolls away with the content past the top.
+              topInset={headerHeight}
               onChange={handleChange}
               onHistoryChange={handleHistoryChange}
               onReady={handleReady}
+              onScroll={handleScroll}
               onLinkPress={(url) => {
                 Linking.openURL(url).catch(() => {
                   // Malformed or unsupported scheme — nothing actionable.
@@ -812,6 +836,18 @@ export default function ViewerScreen() {
           </KeyboardAvoidingView>
         )}
       </SafeAreaView>
+      {/* FR-38: our own header, floating over the full-height content and slid
+          by the shared value on scroll. Painted last so it sits on top. */}
+      <ViewerHeader
+        progress={headerProgress}
+        insetTop={insets.top}
+        barHeight={HEADER_BAR_HEIGHT}
+        title={displayName}
+        renameable={renameable}
+        onRename={handleRename}
+        onBack={() => router.back()}
+        right={headerRightNode}
+      />
     </ThemedView>
   );
 }
@@ -830,12 +866,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
   },
-  // Match the iOS navigation title so the custom (long-pressable) title looks
-  // identical to a default one.
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: "600",
-    maxWidth: 220,
-    textAlign: "center",
+  // Offline banner overlay, pinned just below the floating header so it never
+  // adds layout height to the full-height editor beneath it.
+  bannerOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    zIndex: 1,
   },
 });

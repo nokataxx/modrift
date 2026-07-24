@@ -959,6 +959,27 @@ const highlightField = StateField.define({
       }
     });
 
+    // FR-38: report page scroll for the hide-on-scroll header. We use a passive
+    // JS scroll listener on the page's own scroll rather than react-native-
+    // webview's onScroll (which re-applies native scroll props each event). rAF-
+    // throttled to at most one post per frame.
+    let scrollTick = false;
+    window.addEventListener(
+      "scroll",
+      function () {
+        if (scrollTick) return;
+        scrollTick = true;
+        requestAnimationFrame(function () {
+          scrollTick = false;
+          const y =
+            window.scrollY ||
+            (document.scrollingElement ? document.scrollingElement.scrollTop : 0);
+          post({ type: "scroll", y: y });
+        });
+      },
+      { passive: true },
+    );
+
     post({ type: "ready", ms: Math.round(performance.now() - t0) });
   } catch (e) {
     post({ type: "error", message: String((e && e.stack) || e) });
