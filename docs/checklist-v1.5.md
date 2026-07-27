@@ -248,8 +248,8 @@ v1.5 (FR-37 編集ツールバー / FR-38 hide-on-scroll ヘッダー / FR-39 �
 
 ## 横断・提出前最終パス
 
-- [ ] **`app.json` の version を 1.4.0 → 1.5.0 に更新** (現在 1.4.0 のまま)
-- [ ] ネイティブ変更なしを最終確認 (`git diff --name-only main..v1.5` に app.json / package.json / plugins / modules が出ないこと) → **出るなら `prebuild --clean` を実施**
+- [x] **`app.json` の version を 1.4.0 → 1.5.0 に更新** (完了)
+- [x] ネイティブ差分を最終確認: `git diff --name-only main..v1.5` は **`modules/file-bookmark/` のみ** (app.json / app.config / package.json / plugins は不変)。既存ローカルモジュールへの関数追加なので **`prebuild --clean` は不要**、ただし**ネイティブ再ビルドは必須** (段2以降の run:ios / EAS でソース再コンパイルされる。OTA 不可)
 - [ ] 段3 (ローカル Release・production variant) で scheme 依存項目を一巡
 - [ ] 段4 (EAS production → TestFlight) で上記の未チェック項目を一巡
 - [x] ダーク・ライト両方で新規UI (ツールバー / 自前ヘッダー / 選択モードの下部バー) が読める
