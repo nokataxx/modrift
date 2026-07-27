@@ -107,6 +107,38 @@ The name combines Mo (Mobile / Motion) + drift — the idea of thoughts and file
 
 App Store Connect のバージョンごとの「このバージョンの新機能」欄。**掲載文の Description とは別枠**なので、バージョンを作るたびにここから貼る。
 
+### 1.5.0 — 編集ツールバーと読みやすさの改善
+
+> ネイティブ変更あり（File Provider の未ダウンロードファイルを協調読み込みで開けるようにした、FR-40）。権限・データの扱いに変更はなく、審査メモは v1.4 を踏襲。
+
+**日本語 (ja)**
+
+```
+編集と表示を快適にする改善を加えました。
+
+・編集モードでキーボードの上に書式ツールバーを追加。見出し・箇条書き・番号付き・チェックボックス・太字・斜体・取り消し線・コード・引用・リンク・水平線をワンタップで。undo / redo も手元から
+・スクロールするとヘッダーが隠れ、本文の表示領域が広がります（上にスクロールで再表示）
+・ホームでファイルをまとめて選択して削除できるようになりました
+・「見出し 下線（--- / ===）」の記法を正しく見出しとして表示するようにしました
+・クラウド（Google Drive など）のまだ端末にダウンロードされていないファイルを、開くときに確実に取り込んで表示するよう改善しました。読み込みに失敗したときは分かりやすいメッセージと「再試行」を表示します
+・横向き・オフライン表示まわりの細かなレイアウトを調整しました
+```
+
+**English (en)**
+
+```
+Improvements that make editing and reading more comfortable.
+
+- A new formatting toolbar above the keyboard in edit mode: headings, bullet/numbered/checkbox lists, bold, italic, strikethrough, code, quote, link and horizontal rule — one tap each, with undo / redo at your thumb
+- The header now hides as you scroll, giving the text more room (scroll up to bring it back)
+- You can now select and delete multiple files at once in your home
+- Setext headings (underlined with --- / ===) now render correctly as headings
+- Files in the cloud (e.g. Google Drive) that aren't downloaded yet are now fetched reliably when you open them. If a read fails, you get a clear message and a Retry button
+- Small layout fixes around landscape and the offline state
+```
+
+---
+
 ### 1.4.0 — ホームフォルダ中心のリデザイン
 
 > **重要な変更点**: 編集できる範囲がホームフォルダ内に変わった。v1.3 までは Modrift フォルダ外の iCloud Drive ファイルもその場で編集できたため、既存ユーザーが気付く変更。リリースノートで明示し、代替手段 (ホームにコピー) を必ず併記する。
@@ -151,12 +183,12 @@ Editing now applies to files in your home folder. Files outside it (Dropbox / Go
 
 現行: 6.9" iPhone (1320×2868) 3枚 ＋ 13" iPad 3枚 → `store-assets/screenshots/`（01 ビューア / 02 設定 / 03 ホーム）
 
-**v1.4 での差し替え要否:**
+**v1.5 での差し替え要否:**
 
 | ファイル | 要否 | 理由 |
 |---|---|---|
-| `*-03-home.png` | **必須** | ホームが2ビュー（マイファイル/最近見た）に全面刷新。旧スクショは現行 UI と別物 |
-| `*-02-settings.png` | **必須** | 「編集」トグルが消え「ホームの保存先」が増えた |
-| `*-01-viewer.png` | 任意 | ビューア本体の見た目は不変。差し替えなくても齟齬は出ない |
+| `*-03-home.png` | **必須** | タブ名が「マイファイル/最近見た」→「ホーム/履歴」に変わった。旧スクショはラベルが古い |
+| `*-01-viewer.png` | 推奨 | v1.5 の目玉である編集ツールバー（キーボード上の書式バー）を写した編集モードの1枚に差し替えると訴求できる |
+| `*-02-settings.png` | 任意 | 設定は v1.4 から実質変化なし（「この iPhone」→「Local」の表記のみ）。差し替えは任意 |
 
-> 撮影は iPhone 実機 or シミュレータ。iPad は 13" シミュレータ（[[project_ipad_native_support]] の手順）。ホームは実ファイルが数件入った状態で撮ると内容が伝わりやすい。
+> 撮影は iPhone 実機 or シミュレータ。iPad は 13" シミュレータ（[[project_ipad_native_support]] の手順）。ホームは実ファイルが数件入った状態で撮ると内容が伝わりやすい。編集ツールバーは編集可能なホーム内ファイルを開き、編集モードに入るとキーボード上に出る。
