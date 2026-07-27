@@ -20,6 +20,13 @@ export interface FileBookmarkModuleType {
   // the app's lifetime — iOS reclaims it at termination.
   resolveBookmark(base64: string): Promise<ResolvedBookmark | null>;
 
+  // Reads a file's UTF-8 text via an NSFileCoordinator coordinated read, which
+  // makes the provider materialize (download) a not-yet-downloaded File Provider
+  // placeholder (e.g. Google Drive) before reading. expo-file-system's
+  // File.text() does an uncoordinated read that throws "no such file" or hangs
+  // on such placeholders. Rejects when the file can't be read.
+  readFileCoordinated(uri: string): Promise<string>;
+
   // Returns the human-readable display name of the File Provider that hosts
   // this file (e.g. "Google Drive", "Dropbox") via iOS's NSFileProviderManager.
   // Returns null when the URI is not hosted by a third-party File Provider —

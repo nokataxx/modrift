@@ -53,6 +53,7 @@ import {
 import { FONT_SIZE_BASE } from "@/lib/settings";
 import { normalizeMarkdown } from "@/lib/text";
 import { Spacing } from "@/theme";
+import FileBookmarkModule from "@modules/file-bookmark";
 
 type Mode = "preview" | "edit";
 
@@ -270,12 +271,14 @@ export default function ViewerScreen() {
     (async () => {
       try {
         const file = new File(uri);
-        // Reading a File Provider file (Google Drive, iCloud) that isn't
-        // materialized on the device can hang indefinitely — File.text() then
-        // neither resolves nor throws, leaving "Loading…" forever. Cap the wait
-        // so it falls through to the (actionable) read-error message instead.
+        // Read through a coordinated read (native module) so a not-yet-
+        // downloaded File Provider placeholder (Google Drive, iCloud) is
+        // materialized before reading — a plain File.text() throws "no such
+        // file" or hangs on such files. Still capped by a timeout: if the
+        // provider can't deliver, fall through to the actionable error message
+        // instead of "Loading…" forever.
         const text = await Promise.race([
-          file.text(),
+          FileBookmarkModule.readFileCoordinated(uri),
           new Promise<string>((_, reject) =>
             setTimeout(() => reject(new Error("read-timeout")), READ_TIMEOUT_MS),
           ),

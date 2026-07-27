@@ -38,7 +38,8 @@ This file is the persistent context for Claude Code working on the Modrift proje
 - **expo-document-picker** (iOS Document Picker でファイル選択)
 - **expo-file-system** (ファイル読み書き)
 - **expo-linking** (Open In 起動時のURI処理)
-- **重要**: `copyToCacheDirectory: false` 必須 — File Provider 経由の直接編集を維持。なお `true`(実体コピー)を試したが、プロバイダが実体を出さない未実体化ファイル(例: Google Drive のプレースホルダ)ではコピー自体が「no such file」で失敗し、ビューアの graceful なエラー表示にも到達しないため不採用 (2026-07-27 実機検証)。未実体化のサードパーティ・プロバイダを確実に読むにはネイティブ協調読み込み(NSFileCoordinator + security scope)が必要 = 将来課題
+- **重要**: `copyToCacheDirectory: false` 必須 — File Provider 経由の直接編集を維持。なお `true`(実体コピー)は、プロバイダが実体を出さない未実体化ファイルでコピー自体が「no such file」で失敗するため不採用 (2026-07-27 実機検証)。
+- **重要 (ファイル読み込みは協調読み込みで)**: ビューアの初回読み込みは `expo-file-system` の `File.text()` ではなく **自前ネイティブモジュール `FileBookmarkModule.readFileCoordinated(uri)`** を通す ([viewer.tsx](src/app/viewer.tsx))。素の `File.text()` は協調アクセスをしないため、**未ダウンロードの File Provider プレースホルダ (Google Drive 等) で「no such file」やハング**になる。`readFileCoordinated` は `NSFileCoordinator` の協調読み込み＋security scope で**プロバイダに実体化 (ダウンロード) を促してから読む** (2026-07-27 実機で Google Drive 解決)。expo-file-system 側を patch しない理由: **Expo モジュールはプリコンパイル (`EXPO_USE_PRECOMPILED_MODULES`) 配布で patch が無効化される**ため。自前モジュールは常にソースコンパイルなので確実に効く
 
 ### Markdown Rendering + Editing (v1.2 で CodeMirror に一本化 — FR-20)
 - **CodeMirror 6** (`@codemirror/*`) を **react-native-webview** 上でホストし、**閲覧・編集の両方を単一エディタ**で賄う (`src/lib/cm/`)。バンドルは `editor-entry.mjs` を esbuild で `bundle.ts` に固めて WebView へ注入

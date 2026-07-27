@@ -63,6 +63,45 @@ public class FileBookmarkModule: Module {
       }
     }
 
+    // Read a file's UTF-8 text through an NSFileCoordinator coordinated read.
+    // This is what makes not-yet-downloaded third-party File Provider files
+    // (e.g. Google Drive placeholders) readable: the coordinated read tells the
+    // provider to materialize (download) the file before the accessor runs.
+    // expo-file-system's File.text() does a plain contentsOf with no
+    // coordination, which throws "no such file" (or hangs) on a placeholder —
+    // and we can't fix it there because expo modules ship precompiled, so the
+    // coordinated read lives in this (always-from-source) module instead.
+    AsyncFunction("readFileCoordinated") { (uri: String) throws -> String in
+      guard let url = URL(string: uri) else {
+        throw NSError(domain: NSCocoaErrorDomain, code: NSFileReadInvalidFileNameError)
+      }
+      // Picker/Open-In URLs are security-scoped; iCloud / third-party providers
+      // need an explicit start. (The picker also holds a session-wide scope, but
+      // starting again here is safe and covers history/bookmark-resolved URLs.)
+      let didStart = url.startAccessingSecurityScopedResource()
+      defer {
+        if didStart { url.stopAccessingSecurityScopedResource() }
+      }
+
+      let coordinator = NSFileCoordinator()
+      var coordinationError: NSError?
+      var text: String?
+      var readError: Error?
+      coordinator.coordinate(readingItemAt: url, options: [], error: &coordinationError) { coordinatedUrl in
+        do {
+          text = try String(contentsOf: coordinatedUrl, encoding: .utf8)
+        } catch {
+          readError = error
+        }
+      }
+      if let coordinationError { throw coordinationError }
+      if let readError { throw readError }
+      guard let text else {
+        throw NSError(domain: NSCocoaErrorDomain, code: NSFileReadUnknownError)
+      }
+      return text
+    }
+
     AsyncFunction("resolveBookmark") { (base64: String) -> [String: Any]? in
       guard let data = Data(base64Encoded: base64) else { return nil }
 
