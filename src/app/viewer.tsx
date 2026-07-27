@@ -64,6 +64,10 @@ type Mode = "preview" | "edit";
 const HEADER_SCROLL_THRESHOLD = 64;
 const HEADER_HIDE_MIN_OFFSET = 96;
 const HEADER_BAR_HEIGHT = 44;
+// Upper bound on reading a file before we give up and show the read-error
+// message. A materialized file reads in well under a second; a not-yet-
+// downloaded File Provider placeholder can otherwise hang forever.
+const READ_TIMEOUT_MS = 15000;
 
 export default function ViewerScreen() {
   const { t } = useTranslation();
@@ -266,7 +270,16 @@ export default function ViewerScreen() {
     (async () => {
       try {
         const file = new File(uri);
-        const text = await file.text();
+        // Reading a File Provider file (Google Drive, iCloud) that isn't
+        // materialized on the device can hang indefinitely — File.text() then
+        // neither resolves nor throws, leaving "Loading…" forever. Cap the wait
+        // so it falls through to the (actionable) read-error message instead.
+        const text = await Promise.race([
+          file.text(),
+          new Promise<string>((_, reject) =>
+            setTimeout(() => reject(new Error("read-timeout")), READ_TIMEOUT_MS),
+          ),
+        ]);
         const normalized = normalizeMarkdown(text);
         if (cancelled) return;
         setContent(normalized);
@@ -287,8 +300,7 @@ export default function ViewerScreen() {
             // Non-fatal: history is for display only.
           });
         }
-      } catch (err) {
-        console.warn("[viewer] read failed", String(err));
+      } catch {
         if (!cancelled) setError(t("picker.errorReadFailed"));
       }
     })();
@@ -824,10 +836,7 @@ export default function ViewerScreen() {
               onHistoryChange={handleHistoryChange}
               onReady={handleReady}
               onScroll={handleScroll}
-              onError={(m) => {
-                console.warn("[viewer] editor error", m);
-                setError(t("picker.errorReadFailed"));
-              }}
+              onError={() => setError(t("picker.errorReadFailed"))}
               onLinkPress={(url) => {
                 Linking.openURL(url).catch(() => {
                   // Malformed or unsupported scheme — nothing actionable.

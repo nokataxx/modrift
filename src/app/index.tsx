@@ -326,7 +326,14 @@ export default function HomeScreen() {
     let result: DocumentPicker.DocumentPickerResult;
     try {
       result = await DocumentPicker.getDocumentAsync({
-        type: ['text/markdown', 'text/plain'],
+        // Keep the original file URL (don't copy into the app cache). Tested
+        // copyToCacheDirectory:true to force download of a not-yet-materialized
+        // File Provider file, but the copy itself throws "no such file" when the
+        // provider won't serve the bytes (e.g. a Google Drive placeholder that
+        // Drive can't materialize) — worse UX than false, which at least reaches
+        // the viewer's graceful read-error path. Reading un-materialized
+        // third-party-provider files reliably needs a native coordinated read
+        // (NSFileCoordinator + security scope) — tracked as future work.
         copyToCacheDirectory: false,
         multiple: false,
       });
