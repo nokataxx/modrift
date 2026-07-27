@@ -61,7 +61,9 @@ export function buildEditorHtml(opts: {
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <style>
-  :root { color-scheme: light dark; }
+  /* Top padding lives in a CSS var so the RN side can grow it at runtime when
+     the offline banner appears (FR-38 / FR-12) without remounting the editor. */
+  :root { color-scheme: light dark; --cm-top: ${padTop}px; }
   /* No fixed heights: the editor grows to its content and the PAGE scrolls,
      via WKWebView's native UIScrollView. An inner .cm-scroller overflow div
      kills fling momentum on iOS whenever CodeMirror redraws or corrects the
@@ -90,7 +92,7 @@ export function buildEditorHtml(opts: {
   .cm-tsp { font-size: 0.34em; }
   .cm-content {
     font-size: var(--base);
-    padding: ${padTop}px 10px ${padBottom}px 10px !important;
+    padding: var(--cm-top) 10px ${padBottom}px 10px !important;
     caret-color: var(--tint) !important;
     /* FR-16 (iPad / large screens): cap the text measure and centre it so lines
        stay readable instead of running edge-to-edge. em-based so the column

@@ -129,6 +129,15 @@ export const MarkdownWebView = forwardRef<MarkdownWebViewHandle, Props>(
       );
     }, [taskInteractive, inject]);
 
+    // The top inset can grow at runtime (offline banner appears below the
+    // floating header, FR-12/FR-38). Update the CSS var instead of remounting so
+    // the content shifts down to clear the banner without losing editor state.
+    useEffect(() => {
+      inject(
+        `document.documentElement.style.setProperty('--cm-top', '${10 + (topInset ?? 0)}px')`,
+      );
+    }, [topInset, inject]);
+
     useImperativeHandle(
       ref,
       () => ({

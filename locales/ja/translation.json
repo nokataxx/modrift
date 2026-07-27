@@ -10,7 +10,8 @@
     "edit": "編集",
     "preview": "プレビュー",
     "delete": "削除",
-    "back": "戻る"
+    "back": "戻る",
+    "retry": "再試行"
   },
   "screens": {
     "recentFiles": {

@@ -33,6 +33,7 @@ import {
 import { NetworkBanner } from "@/components/network-banner";
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
+import { useNetwork } from "@/hooks/use-network";
 import { useSettings } from "@/hooks/use-settings";
 import { useTheme } from "@/hooks/use-theme";
 import { type CmTheme } from "@/lib/cm/html";
@@ -65,6 +66,10 @@ type Mode = "preview" | "edit";
 const HEADER_SCROLL_THRESHOLD = 64;
 const HEADER_HIDE_MIN_OFFSET = 96;
 const HEADER_BAR_HEIGHT = 44;
+// Approx height the offline banner adds below the header (padding + label +
+// its bottom margin). While it's shown, the editor's top inset grows by this so
+// the first line clears the banner instead of being hidden behind it (C1).
+const OFFLINE_BANNER_HEIGHT = 50;
 // Upper bound on reading a file before we give up and show the read-error
 // message. A materialized file reads in well under a second; a not-yet-
 // downloaded File Provider placeholder can otherwise hang forever.
@@ -81,6 +86,11 @@ export default function ViewerScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const headerHeight = insets.top + HEADER_BAR_HEIGHT;
+  // The offline banner floats below the header; while it (or the brief
+  // back-online toast) shows, grow the editor's top inset so the first line
+  // isn't hidden behind it (C1). The banner overlay itself stays at headerHeight.
+  const { offline, reconnected } = useNetwork();
+  const contentTopInset = headerHeight + (offline || reconnected ? OFFLINE_BANNER_HEIGHT : 0);
   const {
     fileUri,
     fileName,
@@ -271,18 +281,26 @@ export default function ViewerScreen() {
     (async () => {
       try {
         const file = new File(uri);
-        // Read through a coordinated read (native module) so a not-yet-
-        // downloaded File Provider placeholder (Google Drive, iCloud) is
-        // materialized before reading — a plain File.text() throws "no such
-        // file" or hangs on such files. Still capped by a timeout: if the
-        // provider can't deliver, fall through to the actionable error message
-        // instead of "Loading…" forever.
-        const text = await Promise.race([
-          FileBookmarkModule.readFileCoordinated(uri),
-          new Promise<string>((_, reject) =>
-            setTimeout(() => reject(new Error("read-timeout")), READ_TIMEOUT_MS),
-          ),
-        ]);
+        const withTimeout = (p: Promise<string>) =>
+          Promise.race([
+            p,
+            new Promise<string>((_, reject) =>
+              setTimeout(() => reject(new Error("read-timeout")), READ_TIMEOUT_MS),
+            ),
+          ]);
+        // Prefer a coordinated read (native module) so a not-yet-downloaded File
+        // Provider placeholder (Google Drive, iCloud) is materialized before
+        // reading — a plain File.text() throws "no such file" or hangs on such
+        // files. Fall back to a plain read if the coordinated read fails: it
+        // still works for already-materialized / local / home files, and it
+        // keeps the app usable on a build whose native module predates
+        // readFileCoordinated. Both are capped by the timeout.
+        let text: string;
+        try {
+          text = await withTimeout(FileBookmarkModule.readFileCoordinated(uri));
+        } catch {
+          text = await withTimeout(file.text());
+        }
         const normalized = normalizeMarkdown(text);
         if (cancelled) return;
         setContent(normalized);
@@ -310,7 +328,18 @@ export default function ViewerScreen() {
     return () => {
       cancelled = true;
     };
-  }, [fileUri, fileName, t, source, isNewNotePending]);
+    // reloadNonce lets "retry" (and load-latest) re-run the read — useful when a
+    // File Provider was transiently unavailable (e.g. right after an iCloud
+    // sync toggle) and has since settled.
+  }, [fileUri, fileName, t, source, isNewNotePending, reloadNonce]);
+
+  // FR-40: retry a failed read in place (no re-navigation). Clears the error and
+  // bumps reloadNonce so the read effect runs again.
+  const handleRetry = useCallback(() => {
+    setError(null);
+    setContent(null);
+    setReloadNonce((n) => n + 1);
+  }, []);
 
   const writeFile = useCallback((text: string) => {
     // No file yet (a new note before its first keystroke created it) — nothing
@@ -798,12 +827,25 @@ export default function ViewerScreen() {
           <NetworkBanner />
         </View>
         {error ? (
-          <ThemedText
-            themeColor="textSecondary"
-            style={[styles.message, { paddingTop: headerHeight + Spacing.three }]}
-          >
-            {error}
-          </ThemedText>
+          <View style={{ paddingTop: headerHeight + Spacing.three }}>
+            <ThemedText themeColor="textSecondary" style={styles.message}>
+              {error}
+            </ThemedText>
+            {/* FR-40: in-place retry — a File Provider that was transiently
+                unavailable (e.g. just after an iCloud sync toggle) usually
+                recovers, so let the user try again without going back. */}
+            <Pressable
+              onPress={handleRetry}
+              accessibilityRole="button"
+              style={({ pressed }) => [
+                styles.retryButton,
+                { backgroundColor: theme.backgroundElement },
+                pressed && { opacity: 0.6 },
+              ]}
+            >
+              <ThemedText themeColor="tint">{t("common.retry")}</ThemedText>
+            </Pressable>
+          </View>
         ) : content === null ? (
           <ThemedText
             themeColor="textSecondary"
@@ -832,9 +874,9 @@ export default function ViewerScreen() {
                 filename: "__F__",
               })}
               taskInteractive={editable}
-              // Clear the floating header so the first lines aren't hidden behind
-              // it; scrolls away with the content past the top.
-              topInset={headerHeight}
+              // Clear the floating header (and the offline banner when shown) so
+              // the first lines aren't hidden behind them; scrolls away past the top.
+              topInset={contentTopInset}
               onChange={handleChange}
               onHistoryChange={handleHistoryChange}
               onReady={handleReady}
@@ -864,6 +906,8 @@ export default function ViewerScreen() {
       <ViewerHeader
         progress={headerProgress}
         insetTop={insets.top}
+        insetLeft={insets.left}
+        insetRight={insets.right}
         barHeight={HEADER_BAR_HEIGHT}
         title={displayName}
         renameable={renameable}
@@ -888,6 +932,15 @@ const styles = StyleSheet.create({
   message: {
     paddingHorizontal: Spacing.four,
     paddingTop: Spacing.three,
+  },
+  // FR-40 retry button under the read-error message.
+  retryButton: {
+    alignSelf: "flex-start",
+    marginTop: Spacing.three,
+    marginHorizontal: Spacing.four,
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.four,
+    borderRadius: Spacing.two,
   },
   // Offline banner overlay, pinned just below the floating header so it never
   // adds layout height to the full-height editor beneath it.

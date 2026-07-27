@@ -18,6 +18,8 @@ import { useTheme } from "@/hooks/use-theme";
 export function ViewerHeader({
   progress,
   insetTop,
+  insetLeft = 0,
+  insetRight = 0,
   barHeight,
   title,
   renameable,
@@ -28,6 +30,10 @@ export function ViewerHeader({
   // 0 = fully shown, 1 = fully hidden (slid up out of view).
   progress: SharedValue<number>;
   insetTop: number;
+  // Landscape safe-area insets (notch side): keep the back chevron and the
+  // right actions clear of the sensor housing / rounded corners (FR-36).
+  insetLeft?: number;
+  insetRight?: number;
   barHeight: number;
   title: string;
   renameable: boolean;
@@ -48,6 +54,8 @@ export function ViewerHeader({
         {
           height,
           paddingTop: insetTop,
+          paddingLeft: insetLeft,
+          paddingRight: insetRight,
           backgroundColor: theme.background,
           borderBottomColor: theme.backgroundElement,
         },
