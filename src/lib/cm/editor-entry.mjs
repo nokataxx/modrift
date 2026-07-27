@@ -307,7 +307,12 @@ const livePreview = ViewPlugin.fromClass(
                     Decoration.line({ class: "cm-h" + sh[1] }).range(state.doc.line(n).from),
                   );
                 }
-                if (!editing || !selTouches(state, lastLine.from, lastLine.to)) {
+                // Reveal the underline whenever the cursor is anywhere in the
+                // heading (text line OR the underline). A fully-replaced line is
+                // atomic — you can't tap into it — so keying off the underline
+                // line alone left "---" impossible to bring back; keying off the
+                // whole node means tapping the visible heading text reveals it.
+                if (!editing || !selTouches(state, node.from, node.to)) {
                   widgets.push(
                     Decoration.line({ class: "cm-setext-underline" }).range(lastLine.from),
                   );
@@ -791,25 +796,28 @@ const highlightField = StateField.define({
       if ((m = /^\d+\. /.exec(text))) return { type: "numbered", len: m[0].length };
       return null;
     }
-    const LIST_PREFIX = { bullet: "- ", numbered: "1. ", task: "- [ ] " };
+    const LIST_PREFIX = { bullet: "- ", task: "- [ ] " };
     // Set every selected line to `target`: same type → remove (toggle off),
     // a different list type → convert (replace its marker, no stacking), none →
-    // add. Fixes "tap bullet then number leaves both".
+    // add. Fixes "tap bullet then number leaves both". Numbered target counts up
+    // (1. 2. 3.) across the lines it applies to, rather than repeating "1. ".
     function toggleListType(target) {
       const { state } = view;
       const r = state.selection.main;
       const first = state.doc.lineAt(r.from);
       const last = state.doc.lineAt(r.to);
       const changes = [];
+      let ordinal = 0;
       for (let n = first.number; n <= last.number; n++) {
         const line = state.doc.line(n);
         const cur = listMarker(line.text);
         if (cur && cur.type === target) {
           changes.push({ from: line.from, to: line.from + cur.len, insert: "" });
-        } else if (cur) {
-          changes.push({ from: line.from, to: line.from + cur.len, insert: LIST_PREFIX[target] });
         } else {
-          changes.push({ from: line.from, insert: LIST_PREFIX[target] });
+          ordinal += 1;
+          const prefix = target === "numbered" ? ordinal + ". " : LIST_PREFIX[target];
+          const to = cur ? line.from + cur.len : line.from;
+          changes.push({ from: line.from, to, insert: prefix });
         }
       }
       const changeSet = state.changes(changes);
@@ -820,63 +828,69 @@ const highlightField = StateField.define({
       });
       view.focus();
     }
-    // Count the run of `ch` immediately before / after `pos`.
-    function runBefore(doc, pos, ch) {
-      let n = 0;
-      while (pos - n - 1 >= 0 && doc.sliceString(pos - n - 1, pos - n) === ch) n++;
-      return n;
-    }
+    // Count the run of `ch` starting at `pos` (used for inline-code fences,
+    // which can be one or more backticks).
     function runAfter(doc, pos, ch) {
       const len = doc.length;
       let n = 0;
       while (pos + n + 1 <= len && doc.sliceString(pos + n, pos + n + 1) === ch) n++;
       return n;
     }
-    // Toggle an inline emphasis made of `k` copies of `ch` around the selection.
-    // These are independent toggles that can stack: bold (**), italic (*),
-    // strikethrough (~~), inline code (`). Nothing selected → insert an empty
-    // pair with the caret between it.
-    //
-    // The tricky pair is * / ** — they share the "*" char, so a fixed-length
-    // string peek let italic eat a bold asterisk (**x** → *x*). We instead read
-    // the run of `ch` already surrounding the selection:
-    //   italic present ⇔ that "*" run is ODD (1 or 3);  bold present ⇔ run ≥ 2.
-    // So italic-on-bold ADDS a level (**x** → ***x***) instead of converting,
-    // and pressing the same button again removes exactly its own level.
-    function toggleEmphasis(ch, k) {
+    // Innermost syntax node named `name` that contains the current selection, or
+    // null. Resolving from both sides catches a caret sitting just inside the
+    // opening/closing marker. Detecting the ENCLOSING node (not just markers
+    // adjacent to the selection) is what lets a caret inside `code` or **bold**
+    // toggle it off, and lets bold be removed even when wrapped by ~~…~~.
+    function enclosingNode(state, name) {
+      const r = state.selection.main;
+      ensureSyntaxTree(state, Math.min(state.doc.length, r.to + 1), 50);
+      const tree = syntaxTree(state);
+      for (const side of [1, -1]) {
+        let node = tree.resolveInner(r.from, side);
+        while (node) {
+          if (node.name === name) return node;
+          node = node.parent;
+        }
+      }
+      return null;
+    }
+    // Toggle an inline wrap: bold (** / StrongEmphasis), italic (* / Emphasis),
+    // strikethrough (~~ / Strikethrough), inline code (` / InlineCode). These are
+    // independent toggles that can stack (***x***, ~~**x**~~ are all valid). If
+    // the caret/selection is inside an existing node of this kind, strip that
+    // node's markers; otherwise wrap the selection (or insert an empty pair with
+    // the caret between it). `fixedLen` is the marker length for the * / ~ kinds;
+    // pass null for inline code, whose fence length is read from the source.
+    function toggleInline(ch, fixedLen, nodeName) {
       const { state } = view;
       const r = state.selection.main;
-      const pair = ch.repeat(k);
-      if (r.empty) {
+      const node = enclosingNode(state, nodeName);
+      if (node) {
+        const k = fixedLen || runAfter(state.doc, node.from, ch) || 1;
+        const changeSet = state.changes([
+          { from: node.from, to: node.from + k, insert: "" },
+          { from: node.to - k, to: node.to, insert: "" },
+        ]);
         view.dispatch({
-          changes: { from: r.from, insert: pair + pair },
-          selection: { anchor: r.from + k },
+          changes: changeSet,
+          selection: state.selection.map(changeSet),
           scrollIntoView: true,
         });
         view.focus();
         return;
       }
-      const pre = Math.min(
-        runBefore(state.doc, r.from, ch),
-        runAfter(state.doc, r.to, ch),
-      );
-      const present = ch === "*" && k === 1 ? (pre & 1) === 1 : pre >= k;
-      if (present) {
+      const pair = ch.repeat(fixedLen || 1);
+      if (r.empty) {
         view.dispatch({
-          changes: [
-            { from: r.from - k, to: r.from, insert: "" },
-            { from: r.to, to: r.to + k, insert: "" },
-          ],
-          selection: { anchor: r.from - k, head: r.to - k },
+          changes: { from: r.from, insert: pair + pair },
+          selection: { anchor: r.from + pair.length },
           scrollIntoView: true,
         });
       } else {
+        const inner = state.doc.sliceString(r.from, r.to);
         view.dispatch({
-          changes: [
-            { from: r.from, insert: pair },
-            { from: r.to, insert: pair },
-          ],
-          selection: { anchor: r.from + k, head: r.to + k },
+          changes: { from: r.from, to: r.to, insert: pair + inner + pair },
+          selection: { anchor: r.from + pair.length, head: r.to + pair.length },
           scrollIntoView: true,
         });
       }
@@ -918,16 +932,16 @@ const highlightField = StateField.define({
       }, "> ");
     };
     window.__cmBold = function () {
-      toggleEmphasis("*", 2);
+      toggleInline("*", 2, "StrongEmphasis");
     };
     window.__cmItalic = function () {
-      toggleEmphasis("*", 1);
+      toggleInline("*", 1, "Emphasis");
     };
     window.__cmStrikethrough = function () {
-      toggleEmphasis("~", 2);
+      toggleInline("~", 2, "Strikethrough");
     };
     window.__cmCode = function () {
-      toggleEmphasis("`", 1);
+      toggleInline("`", null, "InlineCode");
     };
     window.__cmLink = function () {
       const { state } = view;
@@ -950,6 +964,35 @@ const highlightField = StateField.define({
     };
     window.__cmCodeBlock = function () {
       const { state } = view;
+      // Inside a fenced block already → unwrap: drop the opening and closing
+      // fence lines (their whole line, incl. the line break) and keep the code.
+      // Without this, pressing the button again just nested another ``` pair.
+      const node = enclosingNode(state, "FencedCode");
+      if (node) {
+        let firstMark = null;
+        let lastMark = null;
+        for (let c = node.firstChild; c; c = c.nextSibling) {
+          if (c.name === "CodeMark") {
+            if (!firstMark) firstMark = c;
+            lastMark = c;
+          }
+        }
+        if (firstMark && lastMark && lastMark !== firstMark) {
+          const openLine = state.doc.lineAt(firstMark.from);
+          const closeLine = state.doc.lineAt(lastMark.from);
+          const changeSet = state.changes([
+            { from: openLine.from, to: Math.min(openLine.to + 1, state.doc.length), insert: "" },
+            { from: Math.max(0, closeLine.from - 1), to: closeLine.to, insert: "" },
+          ]);
+          view.dispatch({
+            changes: changeSet,
+            selection: state.selection.map(changeSet),
+            scrollIntoView: true,
+          });
+          view.focus();
+          return;
+        }
+      }
       const r = state.selection.main;
       const inner = state.doc.sliceString(r.from, r.to);
       view.dispatch({
