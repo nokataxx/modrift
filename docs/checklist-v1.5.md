@@ -159,9 +159,10 @@ v1.5 (FR-37 編集ツールバー / FR-38 hide-on-scroll ヘッダー / FR-39 �
 
 ## iCloudが利用できない時(オフ設定)の挙動について
 
-- iCloud オフの状態 (設定 > iCloud Drive > Sync this iPad OFF) だと何も表示されずハングアップしたような状態になる (真っ黒)。アプリを完全終了して再起動してもこの状態が続き対処の方法がない。Sync ONにしたら戻る。
-- Google Drive上のファイルを開こうとするうと Couldnt read the contentと表示される。しかしファイルのよっては表示されるものもある
-- iCloud のファイルを開こうとした場合、 Loading... のまま何も表示されない
+- [x] iCloud オフの状態 (設定 > iCloud Drive > Sync this iPad OFF) だと何も表示されずハングアップしたような状態になる (真っ黒)。アプリを完全終了して再起動してもこの状態が続き対処の方法がない。Sync ONにしたら戻る。
+
+* Google Drive上のファイルを開こうとするうと Couldnt read the contentと表示される。しかしファイルのよっては表示されるものもある
+* iCloud のファイルを開こうとした場合、 Loading... のまま何も表示されない
 
 ---
 

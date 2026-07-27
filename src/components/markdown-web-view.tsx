@@ -60,6 +60,9 @@ type Props = {
    *  header. Sourced from an injected JS scroll listener (posted over the
    *  message bridge), not react-native-webview's onScroll. */
   onScroll?: (offsetY: number) => void;
+  /** The editor failed to set up (bundle threw, content process gone, or the
+   *  HTML failed to load) — the surface would otherwise be a silent black void. */
+  onError?: (message: string) => void;
   style?: StyleProp<ViewStyle>;
 };
 
@@ -84,6 +87,7 @@ export const MarkdownWebView = forwardRef<MarkdownWebViewHandle, Props>(
       onLinkPress,
       onReady,
       onScroll,
+      onError,
       style,
     },
     ref,
@@ -178,10 +182,26 @@ export const MarkdownWebView = forwardRef<MarkdownWebViewHandle, Props>(
                   `window.__cmSetTaskInteractive && window.__cmSetTaskInteractive(${!!taskInteractiveRef.current})`,
               );
               onReady?.();
+            } else if (msg.type === "error") {
+              // The CodeMirror bundle threw while setting up. Previously this was
+              // swallowed, leaving a blank (dark = black) WebView with no signal.
+              console.warn("[MarkdownWebView] editor error:", msg.message);
+              onError?.(String(msg.message ?? "editor error"));
             }
           } catch {
             // Ignore non-JSON messages.
           }
+        }}
+        // A blank/black WebView with no JS error usually means the web content
+        // process was terminated (memory) or the HTML failed to load — surface
+        // both instead of leaving a silent black void.
+        onContentProcessDidTerminate={() => {
+          console.warn("[MarkdownWebView] content process terminated");
+          onError?.("content-process-terminated");
+        }}
+        onError={(e) => {
+          console.warn("[MarkdownWebView] load error:", e.nativeEvent);
+          onError?.(String(e.nativeEvent?.description ?? "load error"));
         }}
       />
     );

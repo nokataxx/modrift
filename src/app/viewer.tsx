@@ -287,7 +287,8 @@ export default function ViewerScreen() {
             // Non-fatal: history is for display only.
           });
         }
-      } catch {
+      } catch (err) {
+        console.warn("[viewer] read failed", String(err));
         if (!cancelled) setError(t("picker.errorReadFailed"));
       }
     })();
@@ -782,11 +783,17 @@ export default function ViewerScreen() {
           <NetworkBanner />
         </View>
         {error ? (
-          <ThemedText themeColor="textSecondary" style={styles.message}>
+          <ThemedText
+            themeColor="textSecondary"
+            style={[styles.message, { paddingTop: headerHeight + Spacing.three }]}
+          >
             {error}
           </ThemedText>
         ) : content === null ? (
-          <ThemedText themeColor="textSecondary" style={styles.message}>
+          <ThemedText
+            themeColor="textSecondary"
+            style={[styles.message, { paddingTop: headerHeight + Spacing.three }]}
+          >
             {t("screens.viewer.loading")}
           </ThemedText>
         ) : (
@@ -817,6 +824,10 @@ export default function ViewerScreen() {
               onHistoryChange={handleHistoryChange}
               onReady={handleReady}
               onScroll={handleScroll}
+              onError={(m) => {
+                console.warn("[viewer] editor error", m);
+                setError(t("picker.errorReadFailed"));
+              }}
               onLinkPress={(url) => {
                 Linking.openURL(url).catch(() => {
                   // Malformed or unsupported scheme — nothing actionable.

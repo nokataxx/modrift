@@ -151,7 +151,7 @@
     "open": "Open File",
     "errorTitle": "Couldn't open file",
     "errorOpenFailed": "Couldn't open the file picker.",
-    "errorReadFailed": "Couldn't read the file content.",
+    "errorReadFailed": "Couldn't open the file. It may not be downloaded to this device yet — open it once in its app (Google Drive, Files, etc.) or check your connection, then try again.",
     "unsupportedType": "This file type isn't supported. Open a .md, .markdown, .txt, or .text file."
   }
 }
