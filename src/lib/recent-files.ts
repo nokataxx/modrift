@@ -135,3 +135,16 @@ export async function removeRecentFile(uri: string): Promise<void> {
 export async function clearRecentFiles(): Promise<void> {
   await AsyncStorage.removeItem(STORAGE_KEY);
 }
+
+// Drop every history entry whose URI matches `predicate`. Used when switching
+// the home location (FR-31): the previous home's files are no longer reachable
+// as home files, so their history rows would be stale — external-cloud entries
+// are left untouched. Non-destructive to the files themselves.
+export async function removeRecentFilesWhere(
+  predicate: (uri: string) => boolean,
+): Promise<void> {
+  const existing = await loadRecentFiles();
+  const next = existing.filter((item) => !predicate(item.uri));
+  if (next.length === existing.length) return;
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+}

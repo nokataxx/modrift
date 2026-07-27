@@ -22,7 +22,7 @@ import {
   externalContainerKey,
   shortContainerTag,
 } from '@/lib/file-location';
-import { loadRecentFiles } from '@/lib/recent-files';
+import { loadRecentFiles, removeRecentFilesWhere } from '@/lib/recent-files';
 import {
   FONT_SIZE_BASE,
   type AppearanceMode,
@@ -182,7 +182,18 @@ export default function SettingsScreen() {
         { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('screens.settings.homeLocationSwitchConfirm'),
-          onPress: () => setHomeLocation(loc),
+          onPress: () => {
+            // The previous home's files are no longer reachable as home files
+            // after the switch, so drop their (now stale) history rows. Only the
+            // OLD home's own files are pruned — external-cloud entries stay.
+            const prevHomeKind = settings.homeLocation === 'local' ? 'localHome' : 'icloudCopy';
+            removeRecentFilesWhere(
+              (uri) => classifyFileLocation(uri).kind === prevHomeKind,
+            ).catch(() => {
+              // Non-fatal: history is display-only.
+            });
+            setHomeLocation(loc);
+          },
         },
       ],
     );
