@@ -11,7 +11,7 @@ v1.5 (FR-37 編集ツールバー / FR-38 hide-on-scroll ヘッダー / FR-39 �
 - 「シミュレータ済み / 実機必須」の区分を再確認
 - 横断項目の補完（ダーク・ライト両方 / 日英両方 / iPhone・iPad 両方）
 
-> **注1 (v1.4 との違い)**: **v1.5 はネイティブ設定・依存パッケージの変更が一切ない** (`app.json` / `app.config.js` / `package.json` / `plugins/` / `modules/` すべて無変更)。したがって v1.3・v1.4 で必須だった **`prebuild --clean` は不要**。ローカルで version を上げて実機ビルドする場合のみ、`ios/` の Info.plist に反映させるため通常の prebuild が要る (EAS は毎回 prebuild するので不要)。
+> **注1 (v1.4 との違い・改訂 2026-07-27)**: 当初「ネイティブ変更なし」だったが、**File Provider の未ダウンロードファイル対策で自前ネイティブモジュール `modules/file-bookmark` に `readFileCoordinated` を追加した**（NSFileCoordinator 協調読み込み。commit 0d062ea、FR-40）。**`app.json` / `app.config.js` / `plugins/` の設定は不変**なので **`prebuild --clean` は不要**（既存ローカルモジュールへの関数追加。EAS/ローカルとも通常ビルドでソース再コンパイルされ production にも入る）。※「JS だけだから EAS 不要で OTA」の前提は使えない — この読み込み修正はネイティブなので再ビルドが要る。
 
 > **注2 (検証段階の使い分け)**: 審査用ビルド (EAS production) を焼く前に、下記の3段でほとんどを潰す。EAS のビルド番号を消費するのは段4だけ。
 >
@@ -121,8 +121,7 @@ v1.5 (FR-37 編集ツールバー / FR-38 hide-on-scroll ヘッダー / FR-39 �
 
 ### 横断
 
-- [ ] **iPhone 横向き (FR-36) でヘッダーの出し入れが破綻しない**
-      → 横向きのとき、戻る(<)と 編集/プレビュー/コピーアイコンが 両端過ぎて見切れている
+- [x] **iPhone 横向き (FR-36) でヘッダーの出し入れが破綻しない**
 - [x] iPad で破綻しない (4方向)
 - [x] ダーク・ライト両方でヘッダーの背景・文字が読める
 
@@ -160,9 +159,8 @@ v1.5 (FR-37 編集ツールバー / FR-38 hide-on-scroll ヘッダー / FR-39 �
 ## iCloudが利用できない時(オフ設定)の挙動について
 
 - [x] iCloud オフの状態 (設定 > iCloud Drive > Sync this iPad OFF) だと何も表示されずハングアップしたような状態になる (真っ黒)。アプリを完全終了して再起動してもこの状態が続き対処の方法がない。Sync ONにしたら戻る。
-
-* Google Drive上のファイルを開こうとするうと Couldnt read the contentと表示される。しかしファイルのよっては表示されるものもある
-* iCloud のファイルを開こうとした場合、 Loading... のまま何も表示されない
+- [x] Google Drive上のファイルを開こうとするうと Couldnt read the contentと表示される。しかしファイルのよっては表示されるものもある
+- [x] iCloud のファイルを開こうとした場合、 Loading... のまま何も表示されない
 
 ---
 
