@@ -41,8 +41,9 @@ Modrift は、クラウド上の Markdown ファイルを iPhone でサッと開
 ・Markdown ファイル（.md / .txt / .markdown）を開いて整形表示
 ・Files アプリや他アプリの「Modriftで開く」からそのまま起動
 ・自分の作業ホーム（iCloud › Modrift）でファイルを一覧・新規作成・整理
-・「マイファイル」（場所）と「最近見た」（時間）の2つの見方を切り替え
+・「ホーム」（場所）と「履歴」（時間）の2つの見方を切り替え
 ・編集モード ⇄ プレビューモードをワンタップで切り替え
+・編集モードではキーボード上の書式ツールバーで、見出し・箇条書き・チェックボックス・太字などをワンタップ
 ・自動保存（手動セーブ不要）
 ・本文の検索、更新日 / 名前での並び替え
 ・横向きにすると行が長くなり、長文や表が読みやすい
@@ -83,8 +84,9 @@ Key features
 - Open Markdown files (.md / .txt / .markdown) with clean formatted rendering
 - Launch straight from Files or any app via "Open in Modrift"
 - Keep your own working home (iCloud › Modrift): list, create and organise files there
-- Switch between My Files (by place) and Recent (by time)
+- Switch between Home (by place) and Recent (by time)
 - Toggle between edit and preview with one tap
+- A formatting toolbar above the keyboard in edit mode — headings, lists, checkboxes, bold and more, one tap each
 - Automatic saving (no manual save button)
 - Full-text search, and sorting by date modified or name
 - Turn to landscape for longer lines — easier on long paragraphs and tables
@@ -135,6 +137,59 @@ Improvements that make editing and reading more comfortable.
 - Setext headings (underlined with --- / ===) now render correctly as headings
 - Files in the cloud (e.g. Google Drive) that aren't downloaded yet are now fetched reliably when you open them. If a read fails, you get a clear message and a Retry button
 - Small layout fixes around landscape and the offline state
+```
+
+**審査メモ (App Review Notes) — 1.5.0**
+
+App Store Connect の「App 審査に関する情報 › 備考 (Notes)」に貼る。Apple のレビュアー向けなので **英語を主**にする（下に日本語控え）。サインインが無いので**デモアカウントは不要**。
+
+```
+No account or sign-in is required, so no demo account is needed.
+
+Modrift opens Markdown files (.md / .txt / .markdown) and renders them
+formatted. It has no server backend and collects no data — files stay on
+the device and in the user's own iCloud.
+
+FASTEST WAY TO TEST (no attachment needed):
+1. Launch the app. Tap "+" (top left) to create a new note. It is created
+   in the app's home folder and is immediately editable.
+2. Type anything — it auto-saves (there is no Save button, by design).
+3. Tap the pencil / eye icon (top right) to switch between edit and
+   preview. In edit mode a formatting toolbar appears above the keyboard
+   (headings, lists, checkboxes, bold/italic, and more).
+
+The note from step 1 is saved to iCloud > Modrift and also appears in the
+Files app, so you can use it to test the "Open in Modrift" flow (in Files:
+tap the .md file, then share / "Open in Modrift"). A sample Markdown file
+is also attached to this submission for convenience.
+
+HOW EDITING IS SCOPED (please read before testing):
+Editing applies only to files in the app's own home folder (iCloud >
+Modrift). Files from other locations (Google Drive, Dropbox, or iCloud
+Drive outside the Modrift folder) open as view-only, because iOS does not
+allow this app to write back to them reliably. To edit such a file, tap
+"Copy to Home" (folder icon, top right): the copy lands in the home folder
+and becomes editable, and the original is never modified.
+
+If the test device has no iCloud account: open Settings (the "..." menu,
+top right) and set "Home location" to "Local" — the app then works fully
+on-device.
+
+New in this version: a formatting toolbar above the keyboard in edit mode,
+a header that hides on scroll for more reading room, multi-select delete in
+the home list, and more reliable opening of cloud files that are not yet
+downloaded (with a clear error and Retry if a read fails). No changes to
+permissions or data handling.
+```
+
+日本語控え（必要なら併記）:
+
+```
+本アプリはサインイン不要のため、デモアカウントは不要です。
+Modrift は軽量な Markdown ビューア＆クイックエディタで、サーバもデータ収集もありません。ファイルは端末 / iCloud に留まります。
+ホーム（作業場）はアプリ専用の iCloud Drive コンテナ（iCloud.com.modrift.app › Documents、iCloud Drive 上「Modrift」）。編集はこのホーム内のファイルのみ。外部のファイル（Files / Google Drive / Dropbox / Modrift フォルダ外の iCloud Drive）は閲覧のみで、「ホームにコピー」で取り込んでから編集します。ホームは設定で端末内ローカルにも切替可。
+本提出には確認用のサンプル Markdown を添付しています。端末（Files / iCloud Drive）に保存し、Files の共有シート「Modrift で開く」またはアプリ ⋯ メニューの「Open File」で開くと、見出し・箇条書き・チェックボックス・コード・表が整形表示されます。
+1.5.0 の変更: 編集ツールバー / スクロールでヘッダー格納 / ホームのまとめて削除 / 未ダウンロードのクラウドファイルを確実に開く協調読み込み（失敗時はエラー＋再試行）。権限・データの扱いは 1.4 から変更なし。
 ```
 
 ---
