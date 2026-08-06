@@ -27,6 +27,23 @@ export interface FileBookmarkModuleType {
   // on such placeholders. Rejects when the file can't be read.
   readFileCoordinated(uri: string): Promise<string>;
 
+  // Copies a file into the app's cache under an NSFileCoordinator coordinated
+  // read and resolves with a local file:// URI for the copy. This is the binary
+  // counterpart of readFileCoordinated, which can only return UTF-8 text and so
+  // cannot serve PDF / docx / xlsx (v2). Handing back a path rather than bytes
+  // keeps large files off the bridge: PDFKit takes the path directly, and
+  // expo-file-system's arrayBuffer() reads the copy for mammoth / SheetJS.
+  //
+  // Once materialized the copy is an ordinary local file, so uncoordinated APIs
+  // work on it again. Files already inside the sandbox (the on-device home, or
+  // an earlier copy) are returned unchanged rather than duplicated — but NOT
+  // iCloud home files, which live outside the sandbox and can be evicted.
+  //
+  // The copy lives in Caches, so iOS may reclaim it; that is the intended
+  // lifetime, since materializing again reproduces it. Rejects when the file
+  // can't be read or copied.
+  materializeFileCoordinated(uri: string): Promise<string>;
+
   // Returns the human-readable display name of the File Provider that hosts
   // this file (e.g. "Google Drive", "Dropbox") via iOS's NSFileProviderManager.
   // Returns null when the URI is not hosted by a third-party File Provider —

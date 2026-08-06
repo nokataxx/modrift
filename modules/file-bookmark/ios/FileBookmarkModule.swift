@@ -102,6 +102,86 @@ public class FileBookmarkModule: Module {
       return text
     }
 
+    // Materialize a file into our own sandbox and return a local file:// URI.
+    //
+    // This is readFileCoordinated's counterpart for binary formats (PDF / docx /
+    // xlsx, v2). That one ends in String(contentsOf:encoding:.utf8), so it can
+    // only serve text — the bytes of a PDF are not valid UTF-8. Rather than hand
+    // bytes across the bridge (a 30MB PDF becomes a ~40MB base64 string, and
+    // PDFKit would only write them back to disk anyway), copy the file under
+    // coordination and hand back a path.
+    //
+    // Once the bytes are inside our sandbox the File Provider problem is gone:
+    // the copy is a real local file, so ordinary uncoordinated APIs work again —
+    // PDFKit takes the path directly, and expo-file-system's arrayBuffer() can
+    // read it for mammoth / SheetJS. One function covers all three formats.
+    //
+    // The copy must happen INSIDE the coordination block. A plain copy of a
+    // not-yet-downloaded placeholder fails with "no such file" — that is the
+    // same failure that ruled out the picker's copyToCacheDirectory:true (FR-40).
+    AsyncFunction("materializeFileCoordinated") { (uri: String) throws -> String in
+      guard let url = URL(string: uri) else {
+        throw NSError(domain: NSCocoaErrorDomain, code: NSFileReadInvalidFileNameError)
+      }
+
+      let fileManager = FileManager.default
+
+      // Files already inside our own sandbox (the on-device home under Documents,
+      // or a previous materialization in Caches) are real local bytes — copying
+      // them would just duplicate a large file for nothing. Note this must NOT
+      // skip the iCloud home: the ubiquity container lives outside the sandbox,
+      // under Mobile Documents, and its files can be evicted, so those still need
+      // coordinating. Symlinks are resolved on both sides because iOS reports the
+      // same path as both /var/... and /private/var/... (mirrors normalizePrivate
+      // in src/lib/file-location.ts).
+      let sourcePath = url.resolvingSymlinksInPath().path
+      let sandboxRoots = [
+        fileManager.urls(for: .documentDirectory, in: .userDomainMask).first,
+        fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first,
+      ].compactMap { $0?.resolvingSymlinksInPath().path }
+      if sandboxRoots.contains(where: { sourcePath.hasPrefix($0) }) {
+        return uri
+      }
+
+      let didStart = url.startAccessingSecurityScopedResource()
+      defer {
+        if didStart { url.stopAccessingSecurityScopedResource() }
+      }
+
+      guard let cachesUrl = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+        throw NSError(domain: NSCocoaErrorDomain, code: NSFileNoSuchFileError)
+      }
+      // A dedicated subfolder so these copies are identifiable and can be cleared
+      // wholesale. iOS reclaims Caches under storage pressure, which is the right
+      // lifetime for them: each is reproducible by materializing again.
+      let destinationDirectory = cachesUrl.appendingPathComponent("MaterializedFiles", isDirectory: true)
+      try fileManager.createDirectory(at: destinationDirectory, withIntermediateDirectories: true)
+      // Keyed by file name, so re-opening the same document reuses the same path
+      // instead of growing the cache. Two same-named files from different sources
+      // therefore overwrite each other — harmless, because the copy is only ever
+      // read straight after being written, for the document just opened.
+      let destination = destinationDirectory.appendingPathComponent(url.lastPathComponent)
+
+      let coordinator = NSFileCoordinator()
+      var coordinationError: NSError?
+      var copyError: Error?
+      coordinator.coordinate(readingItemAt: url, options: [], error: &coordinationError) { coordinatedUrl in
+        do {
+          // Replace any previous copy: the source may have changed since, and
+          // copyItem refuses to overwrite.
+          if fileManager.fileExists(atPath: destination.path) {
+            try fileManager.removeItem(at: destination)
+          }
+          try fileManager.copyItem(at: coordinatedUrl, to: destination)
+        } catch {
+          copyError = error
+        }
+      }
+      if let coordinationError { throw coordinationError }
+      if let copyError { throw copyError }
+      return destination.absoluteString
+    }
+
     AsyncFunction("resolveBookmark") { (base64: String) -> [String: Any]? in
       guard let data = Data(base64Encoded: base64) else { return nil }
 
