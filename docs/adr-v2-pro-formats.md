@@ -1,6 +1,6 @@
 # ADR: v2 有償 Pro 他形式閲覧 (PDF / Word / xlsx) の技術選定
 
-- **ステータス**: 提案 (Proposed) — 2026-07-17 調査完了、PoC 未着手
+- **ステータス**: 一部承認 — **PDF は採用確定 (Accepted, 2026-08-06・下記「検証結果」)**。docx / xlsx / 課金は提案 (Proposed) のまま、PoC 未着手
 - **経緯**: 当初 `v2-spike` ブランチ (v1.3 時点) にのみ存在。2026-07-30 に v1.5 リリース後の `main` へ移設し、統合ポイントを現行コードに突き合わせて更新した (下記「前提の更新」)。技術選定そのものは 2026-07-17 の調査結果のまま
 - **対象**: [Requirements.md](Requirements.md) FR-21〜 (v2 / Pro)。「具体ライブラリは v2 着手時に ADR で確定」(改訂12) を受けた文書
 - **前提環境**: Expo SDK 56 / React Native 0.85.3 / New Architecture (Fabric) / Expo Dev Client / react-native-webview 13.16.1 / iOS 16+
@@ -79,7 +79,7 @@
 
 ローカル (ホーム / 端末内) のファイルだけを扱えばプロバイダの都合が絡まないので、協調読み込みが無くても PDF の品質判断はできる。シミュレータで完結する。
 
-1. **PDF・ローカルのみ** (`v2-spike`): react-native-pdf-renderer を入れ、拡張子ゲートを仮に広げて1画面出す。**ここが唯一の重い判断**
+1. ~~**PDF・ローカルのみ** (`v2-spike`)~~ → **完了・合格 (2026-08-06)**。下記「検証結果」参照
 2. **バイナリ協調読み込み** (本流 `feat/binary-coordinated-read`): 1 を通過してから。これで初めてクラウド上の PDF が開く。捨てコードではなく製品コードなのでスパイクに置かない
 3. **docx** (`v2-spike`): mammoth.js を第二の WebView バンドルとして追加 (または editor-entry.mjs に条件分岐で同居)、表・画像・日本語文書で表示品質を確認
 4. **xlsx** (`v2-spike`): `@e965/xlsx` 導入、`sheet_to_html` + ページング。和暦・日付書式・結合セルを実データで確認
@@ -104,9 +104,30 @@
 
 **スパイクのコードの扱い**: ブランチは消さない。捨てるのは足場 (ベタ書きの拡張子ゲート、Pro ゲートの抜け道、ハードコードしたパス) であって、中身 (ネイティブ関数、mammoth 出力の CSS、SheetJS のテーブル整形) は残す価値がある。通ったコードが既に薄ければ儀式的に書き直さず昇格させる。守るのは1つだけ — **着手のたびに main から再ベースラインする** (旧 `v2-spike` が v1.3 で古びて v1.4/v1.5 を巻き戻しかけた前例がある)。
 
+## 検証結果
+
+### #1 PDF (react-native-pdf-renderer 2.3.0) — **合格・採用確定 (2026-08-06)**
+
+環境: シミュレータ iPhone 17 Pro / iOS 26.5、dev variant の Debug ビルド。テストファイルは自前生成 (40ページの日英混在・ヒラギノ埋め込み / 600ページ)。
+
+- **ビルドが通る**。`npx expo run:ios` で `Build Succeeded`。**config plugin 不要**で autolinking のみ、`Podfile.lock` に `ReactNativePdfRenderer (2.3.0)`。`npm view` の `dependencies` は空 = 依存ゼロ。ADR の想定どおり
+- **実装は PDFKit の `PDFView` の直サブクラス** (`@interface RNPDFView: PDFView` — [RNPDFView.h](../node_modules/react-native-pdf-renderer/ios/ReactNativePdfRendererLibrary/RNPDFView.h))。`autoScales = YES` / `displayMode = kPDFDisplaySinglePageContinuous`。独自のビットマップ描画ではないので、**タイルレンダリングも選択もリンクも OS 実装がそのまま効く**
+- **ピンチズームで深く拡大しても文字が鮮明** (実測)。ADR が採用根拠にしていた「ページレンダリングだけネイティブに薄く借りる」が事実として裏付けられた
+- **テキスト選択が既定で動く** — 長押しで Copy / Select All / Look Up。props に無いのはラッパーが公開していないだけで、`PDFView` の標準機能。これで **[Requirements 5.6](Requirements.md#56-v2-他形式の単一ファイル閲覧-phase-7) の PDF 3要件 (ページめくり・ピンチズーム・テキスト選択) が追加のネイティブ実装なしに満たせる**
+- `onPageChange` は発火する (スパイク画面のページ番号表示で確認)
+
+**撤退経路 (自作 Expo Module + PDFKit) は使わない。** ラッパーが `PDFView` そのものである以上、自作しても同じ実装に行き着くため。
+
+**残る未確認 (PoC 2 の実機確認とまとめて潰す)**:
+
+- [ ] **実機での性能**。シミュレータは Mac の CPU/メモリで動くため甘く出る
+- [ ] **数十MBの画像主体 PDF** (スキャン・図版)。今回はテキスト主体・最大1MB。メモリ挙動が効いてくるのはこちら
+- [ ] しおり (outline) の扱い。`PDFView` はサイドバー UI を持たない (`PDFDocument.outlineRoot` は取れる)。ただし **Requirements 5.6 はしおりを要件にしていない**ので、無くても要件は満たす
+
+> **スパイクの検証手順メモ**: シミュレータのピンチは **⌥ + ドラッグ** (⌥+Shift で中心移動)。トラックパッドのピンチは渡らない。なお `xcrun simctl openurl` による画面遷移は、Debug + Metro のビルドだと iOS の「Open in …?」確認ダイアログが出て自動化では抜けられない (タップ自動化ツールは本環境に無い)。埋め込みバンドルを持つビルドなら抜けられる — [screenshot-recipe.md](screenshot-recipe.md) 参照。
+
 ## 未確定事項 (実機検証待ち)
 
-- [ ] react-native-pdf-renderer の実機品質 (大容量 PDF、日本語しおり/リンク)
 - [ ] バイナリ協調読み込みの返し方: base64 (JS ブリッジのコスト・数十MB PDF で現実的か) vs キャッシュへ協調コピーしてローカル URI を渡す (PDFKit にファイルパスを渡せるので PDF はこちらが素直か)
 - [ ] mammoth の日本語 docx 出力品質 (表・画像・縦書きは非対応でよいか)
 - [ ] SheetJS SSF の和暦・ロケール書式の再現範囲
