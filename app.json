@@ -53,6 +53,14 @@
             "LSItemContentTypes": [
               "com.adobe.pdf"
             ]
+          },
+          {
+            "CFBundleTypeName": "Word Document",
+            "LSHandlerRank": "Alternate",
+            "CFBundleTypeRole": "Viewer",
+            "LSItemContentTypes": [
+              "org.openxmlformats.wordprocessingml.document"
+            ]
           }
         ],
         "NSUbiquitousContainers": {
