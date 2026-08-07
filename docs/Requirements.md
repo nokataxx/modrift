@@ -606,13 +606,16 @@ PDF / Word (.docx) / xlsx の**単一ファイル閲覧**。ここからが買�
 **対応形式と拡張子ゲート**
 
 - 追加するのは `.pdf` / `.docx` / `.xlsx` の3つ。**旧バイナリ形式 `.doc` / `.xls` は対象外** (mammoth は `.doc` を扱えず、`.xls` だけ開けても中途半端になるため揃えて非対応にする)。
-- ゲートは**2箇所にある**ので両方を更新する — ピッカー選択後の判定 ([index.tsx](../src/app/index.tsx)) と、ホーム一覧の列挙 ([home-files.ts](../src/lib/home-files.ts))。片方だけだと「ピッカーからは開けるがホームに置くと一覧に出ない」ねじれになる。
+- **拡張子とルーティングは [file-types.ts](../src/lib/file-types.ts) の単一定義**に集約する (改訂49)。`SUPPORTED_EXTENSIONS` / `isSupportedFile()` / `routeForFile()` の3つで、形式を増やすときに触るのはここだけ。
+  - 当初は「ゲートは2箇所 (ピッカーの判定とホーム一覧) なので両方更新する」と書いていたが、**実際には4箇所**あった (PDF 実装時に判明) — ピッカー選択後の判定 ([index.tsx](../src/app/index.tsx))、ホーム一覧の列挙 ([home-files.ts](../src/lib/home-files.ts))、**Open In** ([+native-intent.tsx](../src/app/+native-intent.tsx))、**共有シート** ([share-intent-handler.tsx](../src/components/share-intent-handler.tsx))。数え漏らしやすいので定義を1つにした。
+  - **とくに Open In が危ない**: iOS 側が UTI で絞るためこの経路は拡張子ゲートを一切通らず、`file://` を**無条件に Md ビューアへ送っていた**。放置すると PDF/docx/xlsx が Md ビューアに入り、**原因を示さない読み込みエラー**になる (種別未対応とは分からない)。
+- **開くときは必ず `routeForFile()` を通す**。`router.push` で `/viewer` を直書きしない — ピッカー・ホーム・履歴 (bookmark 解決後の名前を使う)・Open In・共有シートの**すべて**が対象。
 - ホームに置いた他形式ファイルも一覧に出す (ホームは Md 専用フォルダではなく作業場のため)。種別アイコンは [index.tsx](../src/app/index.tsx) の `FileKind` に PDF / word / sheet が既に用意済み。
 - 履歴 ([FR-06](#fr-06-最近開いたファイルリスト-mvp)) にも他形式を記録する。
 
 **2つの起動経路 (コア設計・両方から到達すること)**
 
-- **経路A (アプリ内ピッカー)**: ピッカーは `type` 未指定で全形式を出し、**選択後に拡張子で弾く**実装になっている。したがって上の拡張子ゲートを広げるだけで通り、**UTI の追加作業は不要**。
+- **経路A (アプリ内ピッカー)**: ピッカーは `type` 未指定で全形式を出し、**選択後に拡張子で弾く**実装になっている。したがって上の拡張子ゲートを広げるだけで通り、**UTI の追加作業は不要**。非対応形式のときの文言 (`picker.unsupportedType`) は形式名を列挙しているので、拡張子を増やしたら**日英とも更新する**。
 - **経路B (Open In)**: `app.json` の `CFBundleDocumentTypes` に `com.adobe.pdf` / `org.openxmlformats.wordprocessingml.document` / `org.openxmlformats.spreadsheetml.sheet` を追加する。**ネイティブ設定の変更なので `prebuild --clean` + Dev Client 再ビルドが必須**。追加により共有シートや「このアプリで開く」の候補が変わるため、**Md の Open In が退行しないことを実機で確認**する ([10.4](#104-iosapp-store関連))。
 
 **読み込み: バイナリの協調読み込み (他形式の前提基盤)**
@@ -1048,6 +1051,13 @@ Modrift 内から新規の空 `.md` を作成し、そのまま書き始めら�
 - **実機確認済み** (iPhone / iOS 26.5.2): **39MB・画像主体の PDF** と **600ページの PDF** のいずれもクラッシュせず、ズーム・ページ送りとも実用速度。日本語 PDF の文字化けなし。
 - **撤退経路 (自作 Expo Module + PDFKit) は使わない**。ラッパーが `PDFView` そのものである以上、自作しても同じ実装に行き着くため。★295 の小規模ライブラリだがラッパーが薄く、万一メンテが止まっても置き換えは Swift 100〜200行相当で済む — この撤退可能性が採用の前提。
 - **非目標**: しおり (outline)、PDF 内検索、ページ番号ジャンプ、注釈 ([5.7](#57-v3以降-検討) 送り)。
+
+**実装済み (2026-08-07・`v2` ブランチ、[pdf-viewer.tsx](../src/app/pdf-viewer.tsx))**
+
+- 画面は **OS 標準のネイティブヘッダー**を使う (Md ビューアの自前ヘッダーではない)。Pro ゲート ([FR-44](#fr-44-pro-課金とエンタイトルメント-v2--pro))・再試行・履歴記録・i18n・オフラインバナーを備える。**履歴は読み込みに成功したときだけ記録**する (失敗した open が、開くたび失敗する履歴行を残さないように)。
+- **読み込み状態は URI ごと持つ** (`{ status, uri }`)。**同じルートに別ファイルで入ると画面が再利用される**ため、URI に紐付かない state は前のファイルのものが残る (実装時、2つ目の PDF を開いたら前のファイルのエラーが新しいタイトルの下に出た)。「URI が違えば loading」と**描画時に導出**することで、エフェクト内で state をリセットせずに解決している (エフェクト内の同期 setState は cascading render になり lint も弾く)。
+- シミュレータ確認済み: 40ページの日英混在 PDF の描画、履歴記録 (成功時のみ)、読み込み失敗時のエラー＋再試行 (黒画面にならない)、ダーク/ライト、`Info.plist` に Md と PDF の両 UTI。
+- **未確認**: 実際の Open In と **Md の Open In の非退行** (Files アプリでの手動操作が要る・[10.4](#104-iosapp-store関連))、実機での大容量 PDF、iPad レイアウト。
 
 ### FR-42: Word (.docx) 閲覧 [v2 / Pro]
 
@@ -1540,3 +1550,4 @@ Modrift 内から新規の空 `.md` を作成し、そのまま書き始めら�
 - **2026-07-27 (改訂46)**: **[FR-38](#fr-38-ヘッダーのスクロール連動表示-hide-on-scroll-v15) の実機不具合2点を修正**。C1: オフラインバナーが本文1行目に重なる→バナー表示中はエディタ上余白を CSS 変数 `--cm-top` で動的に拡張しバナー下から本文開始 (remount なし)。C2: iPhone 横向きでヘッダーの戻る/右アクションが見切れる→自前ヘッダー ([viewer-header.tsx](../src/components/viewer-header.tsx)) に横向き左右セーフエリア (`insets.left/right`) を反映。
 - **2026-08-07 (改訂47)**: **v2 (他形式閲覧 = 有償 Pro) の FR を概略から実仕様へ書き起こし**。[ADR](adr-v2-pro-formats.md) の PoC (2026-08-06〜07) でライブラリが確定したのに FR が5行の概略のまま**内容も食い違っていた** (「`react-native-pdf` で表示」「xlsx のセル選択」) ため、CLAUDE.md のルール「機能追加の前に該当 FR を確認する」が機能しない状態だった。旧「FR-21〜: 関連ファイル対応 (概略のみ)」を **[FR-21](#fr-21-他形式ファイルの閲覧-共通仕様-v2--pro) (共通仕様)** に作り替え、**[FR-41](#fr-41-pdf-閲覧-v2--pro) PDF / [FR-42](#fr-42-word-docx-閲覧-v2--pro) docx / [FR-43](#fr-43-xlsx-閲覧-v2--pro) xlsx / [FR-44](#fr-44-pro-課金とエンタイトルメント-v2--pro) 課金**を新設 (FR-22〜40 が埋まっているため「FR-21〜」の連番は使えず、FR-21 を傘・詳細を末尾に追加する形にした)。**訂正2点**: PDF は `react-native-pdf` ではなく **`react-native-pdf-renderer`** (PDFKit `PDFView` の直サブクラス。テキスト選択も OS 標準で効く)、xlsx の「**セル選択**」は `sheet_to_html` の静的テーブルでは成立しないため**非対応に訂正** (テキスト選択は可)。**確定した仕様**: 3形式とも**常に閲覧のみ** (ホーム内でも編集不可＝Policy A は Md/txt に限る)、`.doc`/`.xls` は非対応、拡張子ゲートは [index.tsx](../src/app/index.tsx) と [home-files.ts](../src/lib/home-files.ts) の**2箇所**、経路A は UTI 追加不要・経路B は `CFBundleDocumentTypes` 追加で `prebuild --clean` 必須、**バイナリ協調読み込み `materializeFileCoordinated`** (協調ブロック内でキャッシュへコピーしパスを返す。base64 案は不採用、iCloud ホームは素通ししない) を前提基盤とし失敗時は [FR-40](#fr-40-file-provider-ファイルの協調読み込みと読み込み失敗のハンドリング-v15) と同じ再試行導線、**形式別バンドル** (Md 利用者の実行時負担ゼロ・アプリサイズ +28%)、PDF は hide-on-scroll を繋げないので固定ヘッダーで開始。**xlsx の和暦**: SheetJS CE は元号未実装 (`ggg2026年4月1日` / 例外→生シリアル) のため `Intl` の japanese calendar で `w` だけ差し替えるシムを仕様化、**normaliser であって忠実な formatter ではない**限界と、`/g/i` 判定が `General` に当たって全数値を壊す落とし穴も明記。**課金 (FR-44)** はスタブ付き `useProEntitlement()` を**ゲート後付けにしないため先に置く**方針と、復元ボタン必須・初回 IAP の同時審査等の審査要点を仕様化。あわせて §5.6・§5.9・§9 技術スタック・§10.4・§13 (R-08 追加)・§12 Phase 7・§15 の ADR ステータスを更新。**実装はまだ着手していない** (スパイクは `v2-spike` に別置き)
 - **2026-08-07 (改訂48)**: **Pro ゲートのスタブを実装し、課金 SDK の選定を保留に戻した**。(1) **[`useProEntitlement()`](../src/hooks/use-pro-entitlement.ts) を新設** ([FR-44](#fr-44-pro-課金とエンタイトルメント-v2--pro))。`{ isPro: boolean }` を返すだけのスタブ (現状 `true` 固定) で、**ビューアは最初からこれを経由**させる。ゲートを後付けにすると3ビューアを2度触ることになるため、課金 SDK が未定でも先に置いた。戻り値をオブジェクトにしたのは `isLoading`/`error` を後から足しても呼び出し側を触らずに済ませるため。**`isPro: true` のままの出荷は v2 のリリースブロッカー**。(2) **課金 SDK を「RevenueCat 採用」から「未定」へ差し戻し**。理由は **Android 版を出す意思**が示されたこと — 判断の分かれ目は SDK の優劣ではなく「**iPhone で買った人を Android でも Pro にするか**」で、引き継がないなら StoreKit 直 + Play Billing 直 (課金コード2系統)、引き継ぐならアカウント無しで束ねられる RevenueCat が現実的な唯一手になる。**StoreKit 2 単体でもサブスクは扱える** (`Transaction.currentEntitlements` が期限切れを除外) ので「サブスク化＝RevenueCat 必須」ではない点、**どちらを選んでも既存購入者は失われない** (購入記録を持つのは Apple/Google なので後から遡って `pro` を付与できる) 点を明記し、保留が袋小路でないことを記録した。`react-native-purchases@10.7.0` は**ビルドと New Arch 実行時疎通を検証済み**なので依存は入れたまま保留する。(3) **[5.7](#57-v3以降-検討) に Android 版を追加**し、iOS 前提のまま残っている領域 (ホーム/File Provider/bookmark/Open In の UTI/Share Extension/アイコン切替/画面向き) を列挙。[NFR-05](#nfr-05-互換性) にも「現状スコープ外・UI 層は移植できるがファイル取得まわりは書き直し」を追記。**課金への影響だけは先に効く**ため [5.9](#59-収益化--価格モデル) に「プラットフォーム跨ぎの扱い」節を切り出した。あわせて §5.6・§9 技術スタック・§10.4・§12 Phase 7 の RevenueCat 断定表現を修正
+- **2026-08-07 (改訂49)**: **[FR-41](#fr-41-pdf-閲覧-v2--pro) PDF ビューアを製品コードとして実装** (`v2` ブランチ・スパイクからの昇格)。あわせて **[FR-21](#fr-21-他形式ファイルの閲覧-共通仕様-v2--pro) の「拡張子ゲートは2箇所」という記述を訂正** — 実際は**4箇所**あった (ピッカー判定 / ホーム一覧 / **Open In** ([+native-intent.tsx](../src/app/+native-intent.tsx)) / **共有シート**)。とくに **Open In は拡張子ゲートを一切通らず `file://` を無条件に Md ビューアへ送っていた**ため、UTI を宣言した瞬間に PDF が Md ビューアへ流れ込み「原因を示さない読み込みエラー」になる筋だった。対策として**拡張子とルーティングを [file-types.ts](../src/lib/file-types.ts) の単一定義に集約**し (`SUPPORTED_EXTENSIONS` / `isSupportedFile()` / `routeForFile()`)、全経路をそこに通した。実装で判明した仕様も FR-41 に追記 — **読み込み状態は URI ごと持つ** (同ルートに別ファイルで入ると画面が再利用され、前のファイルのエラーが残るため。描画時に導出して解決し、エフェクト内の同期 setState を避ける)、**履歴は成功時のみ記録**、ヘッダーは OS 標準 (hide-on-scroll は CM 依存で PDF に繋がらないため)。`app.json` に `com.adobe.pdf` を追加 (`prebuild --clean` 実施)、`picker.unsupportedType` の文言を日英とも更新。commit 4c040f2
