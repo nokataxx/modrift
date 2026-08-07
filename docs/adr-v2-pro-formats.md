@@ -1,6 +1,6 @@
 # ADR: v2 有償 Pro 他形式閲覧 (PDF / Word / xlsx) の技術選定
 
-- **ステータス**: 一部承認 — **PDF・読み込み基盤 (実機検証済み) と docx (シミュレータ確認済み) は採用確定 (Accepted, 2026-08-06)**。**xlsx は条件付き合格 (2026-08-07・実データ未検証)**。課金のみ提案 (Proposed) で PoC 未着手
+- **ステータス**: 一部承認 — **PDF・読み込み基盤 (実機検証済み) と docx (シミュレータ確認済み) は採用確定 (Accepted, 2026-08-06)**。**xlsx は条件付き合格 (2026-08-07・実データ未検証)**。課金は提案 (Proposed) のままだが、**SDK のビルドと New Arch 実行時疎通は確認済み (2026-08-07)**
 - **経緯**: 当初 `v2-spike` ブランチ (v1.3 時点) にのみ存在。2026-07-30 に v1.5 リリース後の `main` へ移設し、統合ポイントを現行コードに突き合わせて更新した (下記「前提の更新」)。技術選定そのものは 2026-07-17 の調査結果のまま
 - **対象**: [Requirements.md](Requirements.md) FR-21〜 (v2 / Pro)。「具体ライブラリは v2 着手時に ADR で確定」(改訂12) を受けた文書
 - **前提環境**: Expo SDK 56 / React Native 0.85.3 / New Architecture (Fabric) / Expo Dev Client / react-native-webview 13.16.1 / iOS 16+
@@ -250,8 +250,10 @@ CodeMirror と同一の方式: mammoth は **devDependency** (RN が import す�
 
 **着手順序**:
 
-1. **[FR-21〜](Requirements.md#fr-21-関連ファイル対応-v2--pro-概略のみ) を書き起こす** ← 最初にやる。現状は5行の概略で、しかも**内容が本 ADR と食い違っている** (「`react-native-pdf` で表示」と書いてあるが採用したのは `react-native-pdf-renderer`、「セル選択」は未対応)。CLAUDE.md のルール「機能追加の前に該当 FR を確認する」が今の FR では機能しない。PoC で確定した事実 (採用ライブラリ / 和暦シム / 落ちる書式の範囲 / Policy A との関係 / 履歴の扱い) を仕様に落とす作業でもある
-2. **`react-native-purchases` がビルドできるか確認**。PDF レンダラで「まずビルドが通るか」が関門だった経験がここでも効く。RevenueCat は広く使われており危険度は低いが、Expo 56 / New Architecture で通ることは確かめるまで分からない。倒れたら `expo-iap` へ切り替えで v2 の形が変わるので、実装の初日に置く
+1. ~~**FR-21〜 を書き起こす**~~ → **完了 (2026-08-07、Requirements 改訂47)**。旧「FR-21〜 (概略のみ)」を [FR-21 共通仕様](Requirements.md#fr-21-他形式ファイルの閲覧-共通仕様-v2--pro) に作り替え、[FR-41 PDF](Requirements.md#fr-41-pdf-閲覧-v2--pro) / [FR-42 docx](Requirements.md#fr-42-word-docx-閲覧-v2--pro) / [FR-43 xlsx](Requirements.md#fr-43-xlsx-閲覧-v2--pro) / [FR-44 課金](Requirements.md#fr-44-pro-課金とエンタイトルメント-v2--pro) を新設 (FR-22〜40 が埋まっているため連番「FR-21〜」は使えず、FR-21 を傘にして詳細を末尾に追加した)。本 ADR との食い違い2点 (`react-native-pdf` → **`react-native-pdf-renderer`**、xlsx の「セル選択」→ **非対応に訂正**) も解消済み
+2. ~~**`react-native-purchases` がビルドできるか確認**~~ → **完了・合格 (2026-08-07)**。`react-native-purchases@10.7.0` を `npx expo install` で導入 → **config plugin 不要・autolinking のみ**で `Podfile.lock` に `RNPurchases (10.7.0)` + `PurchasesHybridCommon (18.29.0)`、`prebuild --clean` 後の Debug / iphonesimulator ビルドが `** BUILD SUCCEEDED **`。
+   **ただしビルド成功だけでは足りなかった**: `RNPurchases` は `RCTEventEmitter <RCTBridgeModule>` の**レガシーブリッジモジュール**で `codegenConfig` を持たない (= TurboModule ではない) ため、New Architecture では bridgeless の interop 越しに動く形になる。コンパイルが通ることは「New Arch で動く」の証明にならないので、**シミュレータ (iPhone 17 Pro / iOS 26.5) で実行時プローブ**を追加した — 結果は `module: present (4 keys)` / `isConfigured(): false` / **`canMakePayments(): true`**。3つ目が JS → ネイティブ → StoreKit → 戻り値の往復を示すので**合格**。`expo-iap` への切り替えは不要。
+   > 注意: `Purchases.isConfigured()` は**ネイティブモジュールが見つからない場合も警告を出して `false` を返す**実装なので、単体では判定に使えない。`NativeModules.RNPurchases` の存在確認と、値を返すネイティブ呼び出し (`canMakePayments()`) の2点で見ること。
 3. **Pro ゲートを「スタブ付きの単一フック」として先に置く**。`useProEntitlement()` の中身を当面 `true` を返すスタブにし、ビューアは最初からそれを経由させ、RevenueCat は後からフックの中身だけ差し替える。**ゲートを後付けにすると3つのビューアを2度触ることになる**。ADR のエンタイトルメント方式 (`entitlements.active['pro']` だけ見る) とも噛み合う
 4. **ビューアをスパイクから製品コードへ昇格** (`v2` ブランチ)。足場 (ベタ書きの拡張子ゲート・`scrollBottom` / `sheetIndex` パラメータ・計測表示) を外し、再試行ボタン・履歴・i18n・ダーク/iPad を入れる
 5. **課金の実装とアカウント側の設定**
