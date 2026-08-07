@@ -50,6 +50,8 @@
 
 ### 課金: RevenueCat + 非消耗型 + Entitlement
 
+> **⚠️ 保留に差し戻し (2026-08-07)**: 本節は **iOS 単独を前提**に書かれている。その後 **Android 版を出す意思**が示され、判断の分かれ目が「RevenueCat か StoreKit 直か」ではなく「**購入をプラットフォーム間で引き継ぐか**」に移った。引き継がないなら StoreKit 直 + Play Billing 直で足りる (課金コードは2系統)、引き継ぐならアカウント無しで束ねられる RevenueCat が現実的な唯一手。**StoreKit 2 単体でもサブスクは扱える** (`Transaction.currentEntitlements` が期限切れを除外) ので「サブスク後付け＝RevenueCat 必須」という本節の前提も、iOS 単独なら成り立たない。**どちらを選んでも既存購入者は失われない** — 購入記録を持つのは Apple / Google であり、後から RevenueCat を入れても遡って `pro` を付与できるため、この保留は袋小路ではない。詳細は [Requirements 5.9](Requirements.md#59-収益化--価格モデル) / [FR-44](Requirements.md#fr-44-pro-課金とエンタイトルメント-v2--pro)。以下は **RevenueCat に倒れた場合の構成**として読むこと。
+
 - `react-native-purchases` v10 (2026-07 時点 v10.4.3): RN 0.73+ / New Arch 対応済み。**config plugin 不要**、`npx expo install` + prebuild の autolinking で完結。実購入テストは Dev Client 必須 (現行運用どおり)
 - 構成: 非消耗型 1 SKU `com.modrift.app.pro_lifetime` → RevenueCat Entitlement **`pro`** に紐付け → コードは `customerInfo.entitlements.active['pro']` の有無だけ見る。**将来サブスクを足しても解錠ロジック不変** ([5.9](Requirements.md#59-収益化--価格モデル) のエンタイトルメント方式そのもの)
 - 費用: 月間トラッキング収益 $2,500 まで完全無料 → 当面ゼロ
@@ -254,7 +256,8 @@ CodeMirror と同一の方式: mammoth は **devDependency** (RN が import す�
 2. ~~**`react-native-purchases` がビルドできるか確認**~~ → **完了・合格 (2026-08-07)**。`react-native-purchases@10.7.0` を `npx expo install` で導入 → **config plugin 不要・autolinking のみ**で `Podfile.lock` に `RNPurchases (10.7.0)` + `PurchasesHybridCommon (18.29.0)`、`prebuild --clean` 後の Debug / iphonesimulator ビルドが `** BUILD SUCCEEDED **`。
    **ただしビルド成功だけでは足りなかった**: `RNPurchases` は `RCTEventEmitter <RCTBridgeModule>` の**レガシーブリッジモジュール**で `codegenConfig` を持たない (= TurboModule ではない) ため、New Architecture では bridgeless の interop 越しに動く形になる。コンパイルが通ることは「New Arch で動く」の証明にならないので、**シミュレータ (iPhone 17 Pro / iOS 26.5) で実行時プローブ**を追加した — 結果は `module: present (4 keys)` / `isConfigured(): false` / **`canMakePayments(): true`**。3つ目が JS → ネイティブ → StoreKit → 戻り値の往復を示すので**合格**。`expo-iap` への切り替えは不要。
    > 注意: `Purchases.isConfigured()` は**ネイティブモジュールが見つからない場合も警告を出して `false` を返す**実装なので、単体では判定に使えない。`NativeModules.RNPurchases` の存在確認と、値を返すネイティブ呼び出し (`canMakePayments()`) の2点で見ること。
-3. **Pro ゲートを「スタブ付きの単一フック」として先に置く**。`useProEntitlement()` の中身を当面 `true` を返すスタブにし、ビューアは最初からそれを経由させ、RevenueCat は後からフックの中身だけ差し替える。**ゲートを後付けにすると3つのビューアを2度触ることになる**。ADR のエンタイトルメント方式 (`entitlements.active['pro']` だけ見る) とも噛み合う
+3. ~~**Pro ゲートを「スタブ付きの単一フック」として先に置く**~~ → **完了 (2026-08-07)**。[`src/hooks/use-pro-entitlement.ts`](../src/hooks/use-pro-entitlement.ts) が `{ isPro: boolean }` を返す (現状 `true` 固定)。ビューアは最初からこれを経由させ、課金の中身は後からフックの中だけ差し替える。**ゲートを後付けにすると3つのビューアを2度触ることになる**ため先に置いた。
+   結果として、この判断は**課金 SDK が未定のまま先へ進める**ことも意味している (上の保留を参照) — フックの内側が `Transaction.currentEntitlements` でも `entitlements.active['pro']` でも、呼び出し側は無改修。**`isPro: true` のまま出荷しないこと**が v2 のリリースブロッカー
 4. **ビューアをスパイクから製品コードへ昇格** (`v2` ブランチ)。足場 (ベタ書きの拡張子ゲート・`scrollBottom` / `sheetIndex` パラメータ・計測表示) を外し、再試行ボタン・履歴・i18n・ダーク/iPad を入れる
 5. **課金の実装とアカウント側の設定**
 
