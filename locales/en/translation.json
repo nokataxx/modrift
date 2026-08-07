@@ -142,6 +142,9 @@
       "placeholder": "Search Home and Recent",
       "noResults": "No results found",
       "truncated": "Showing partial results (too many matches)"
+    },
+    "pro": {
+      "locked": "Viewing this format is available with Pro."
     }
   },
   "network": {
@@ -153,6 +156,6 @@
     "errorTitle": "Couldn't open file",
     "errorOpenFailed": "Couldn't open the file picker.",
     "errorReadFailed": "Couldn't open the file. It may not be downloaded to this device yet — open it once in its app (Google Drive, Files, etc.) or check your connection, then try again.",
-    "unsupportedType": "This file type isn't supported. Open a .md, .markdown, .txt, or .text file."
+    "unsupportedType": "This file type isn't supported. Open a .md, .markdown, .txt, .text, or .pdf file."
   }
 }

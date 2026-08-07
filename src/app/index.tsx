@@ -21,6 +21,7 @@ import {
   shortContainerTag,
   type FileLocationKind,
 } from '@/lib/file-location';
+import { isSupportedFile, routeForFile } from '@/lib/file-types';
 import { type HomeFile, listHomeFiles } from '@/lib/home-files';
 import {
   deleteIcloudCopy,
@@ -95,11 +96,6 @@ function recentSubtitle(
   return [date, place].filter(Boolean).join(' · ');
 }
 
-// Mirrors the public.plain-text UTI we declare in CFBundleDocumentTypes so the
-// in-app picker accepts the same file shapes the Files App "Modrift で開く"
-// path already does — notably .text, which iCloud sometimes assigns to plain
-// text files instead of .txt.
-const SUPPORTED_EXTENSIONS = ['.md', '.markdown', '.txt', '.text'] as const;
 
 // A file-type icon shown at the left of each list row. Distinction is carried by
 // the glyph SHAPE (not colour) — every icon uses the same neutral tint. There
@@ -343,15 +339,16 @@ export default function HomeScreen() {
     if (result.canceled) return;
 
     const asset = result.assets[0];
-    const lowerName = asset.name.toLowerCase();
-    const isSupported = SUPPORTED_EXTENSIONS.some((ext) => lowerName.endsWith(ext));
-    if (!isSupported) {
+    // The picker itself is unfiltered (no `type`), so the extension check is
+    // what actually gates which formats Modrift opens — widening it is all
+    // FR-21 needs on this path; no UTI work is involved.
+    if (!isSupportedFile(asset.name)) {
       Alert.alert(t('picker.errorTitle'), t('picker.unsupportedType'));
       return;
     }
 
     router.push({
-      pathname: '/viewer',
+      pathname: routeForFile(asset.name),
       params: { fileUri: asset.uri, fileName: asset.name, source: 'picker' },
     });
   };
@@ -399,7 +396,7 @@ export default function HomeScreen() {
         return;
       }
       router.push({
-        pathname: '/viewer',
+        pathname: routeForFile(file.name),
         params: { fileUri: file.uri, fileName: file.name, source: 'history' },
       });
     },
@@ -637,7 +634,7 @@ export default function HomeScreen() {
           await removeRecentFile(item.uri);
         }
         router.push({
-          pathname: '/viewer',
+          pathname: routeForFile(currentName),
           params: { fileUri: resolved.uri, fileName: currentName, source: 'history' },
         });
         return;
@@ -648,7 +645,7 @@ export default function HomeScreen() {
     // avoids dropping a perfectly valid entry that simply has no bookmark.
     if (new File(item.uri).exists) {
       router.push({
-        pathname: '/viewer',
+        pathname: routeForFile(item.name),
         params: { fileUri: item.uri, fileName: item.name, source: 'history' },
       });
       return;

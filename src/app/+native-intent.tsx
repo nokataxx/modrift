@@ -11,6 +11,8 @@
 // opens them in preview like any other file, keeps them out of history, and
 // deletes them on leave — or, if the user edits, turns them into a durable
 // iCloud copy and removes the Inbox source.
+import { routeForFile } from '@/lib/file-types';
+
 export function redirectSystemPath({ path }: { path: string; initial: boolean }): string {
   try {
     // A file shared through the iOS Share Sheet (FR-08) reaches us as a custom-
@@ -23,7 +25,11 @@ export function redirectSystemPath({ path }: { path: string; initial: boolean })
     if (!path.startsWith('file://')) return path;
     const fileName = decodeURIComponent(path.split('/').pop() ?? 'file');
     const isInbox = path.includes('/Documents/Inbox/');
-    const base = `/viewer?fileUri=${encodeURIComponent(path)}&fileName=${encodeURIComponent(fileName)}`;
+    // FR-21: the v2 formats have their own screens, so route by type here too.
+    // Easy to miss — this path never consults the picker's extension gate, and a
+    // PDF landing in the Markdown viewer would fail with a read error rather
+    // than anything that points at the cause.
+    const base = `${routeForFile(fileName)}?fileUri=${encodeURIComponent(path)}&fileName=${encodeURIComponent(fileName)}`;
     return isInbox ? `${base}&openInPending=true` : base;
   } catch {
     return '/';

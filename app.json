@@ -45,6 +45,14 @@
               "net.daringfireball.markdown",
               "public.plain-text"
             ]
+          },
+          {
+            "CFBundleTypeName": "PDF Document",
+            "LSHandlerRank": "Alternate",
+            "CFBundleTypeRole": "Viewer",
+            "LSItemContentTypes": [
+              "com.adobe.pdf"
+            ]
           }
         ],
         "NSUbiquitousContainers": {

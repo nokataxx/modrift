@@ -2,6 +2,8 @@ import { useRouter } from 'expo-router';
 import { useShareIntentContext } from 'expo-share-intent';
 import { useEffect } from 'react';
 
+import { routeForFile } from '@/lib/file-types';
+
 // Routes a file arriving through the iOS Share Sheet (FR-08) into the viewer.
 //
 // A shared file is delivered as a throwaway copy in the app-group container —
@@ -27,7 +29,8 @@ export function ShareIntentHandler() {
     const fileUri = file.path.startsWith('file://') ? file.path : `file://${file.path}`;
     const fileName = file.fileName || decodeURIComponent(fileUri.split('/').pop() ?? 'file');
     router.push({
-      pathname: '/viewer',
+      // FR-21: route by type, same as every other entry point.
+      pathname: routeForFile(fileName),
       params: { fileUri, fileName, openInPending: 'true' },
     });
     // Clear so re-foregrounding or a second share doesn't re-trigger the push.

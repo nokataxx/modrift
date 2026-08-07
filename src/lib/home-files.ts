@@ -1,13 +1,13 @@
 import { Directory, File } from 'expo-file-system';
 
 import { localHomeDirectoryUri } from '@/lib/file-location';
+import { isSupportedFile } from '@/lib/file-types';
 import { type HomeLocation } from '@/lib/settings';
 import IcloudContainerModule from '@modules/icloud-container';
 
-// v1.4 home = a flat folder of Markdown/text files. Mirrors the picker's
-// SUPPORTED_EXTENSIONS (index.tsx) so what the home lists is exactly what
-// Modrift can open.
-const SUPPORTED_EXTENSIONS = ['.md', '.markdown', '.txt', '.text'];
+// v1.4 home = a flat folder of files Modrift can open. Shares one definition
+// with the picker (file-types.ts) so the home lists exactly what Modrift can
+// open — including the v2 formats, which are listed but view-only (FR-21).
 
 export type HomeFile = {
   uri: string;
@@ -16,11 +16,6 @@ export type HomeFile = {
   // one. Used only for newest-first sorting, so null sinks to the bottom.
   modifiedAt: number | null;
 };
-
-function isSupported(name: string): boolean {
-  const lower = name.toLowerCase();
-  return SUPPORTED_EXTENSIONS.some((ext) => lower.endsWith(ext));
-}
 
 // The home folder's directory URI for the given location. FR-31:
 // - 'icloud': the app's iCloud ubiquity container (iCloud › Modrift). Returns
@@ -50,7 +45,7 @@ export async function listHomeFiles(location: HomeLocation): Promise<HomeFile[]>
     if (!dir.exists) return [];
     const files: HomeFile[] = [];
     for (const entry of dir.list()) {
-      if (entry instanceof File && isSupported(entry.name)) {
+      if (entry instanceof File && isSupportedFile(entry.name)) {
         files.push({
           uri: entry.uri,
           name: entry.name,
