@@ -234,9 +234,11 @@ v1.4 リリース後の改良候補と追加の使用感修正について、v1.
 
 **有償 (買い切り Pro)。** この層が課金境界 ([5.9](#59-収益化--価格モデル))。無料コア (Md 閲覧・編集) は据え置き。Vault ではなく、**Md と同じく「単一ファイルをどこからでも開いて閲覧」**のマルチフォーマット拡張。
 
-- **PDF閲覧**: ページめくり、ピンチズーム、テキスト選択 (react-native-pdf 等)
-- **Word (.docx) 閲覧**: 本文・見出し・箇条書き・表を整形表示 (docx→HTML 変換の mammoth.js 等。レイアウト完全再現は狙わず「読める整形」に留める。具体ライブラリは v2 着手時に ADR で確定)
-- **xlsx閲覧**: シート切り替え、セル選択、テーブル整形表示 (SheetJS、AnyFolio資産の移植)
+- **共通 ([FR-21](#fr-21-他形式ファイルの閲覧-共通仕様-v2--pro))**: 3形式とも**常に閲覧のみ** (ホーム内にあっても編集不可)。File Provider の未実体化ファイルを扱うため**バイナリの協調読み込み**が前提基盤。形式ごとに別ルート・別バンドルで、**Md を開くだけの利用者の実行時負担は増やさない**
+- **PDF閲覧 ([FR-41](#fr-41-pdf-閲覧-v2--pro))**: ページめくり、ピンチズーム、テキスト選択 (`react-native-pdf-renderer` = Apple PDFKit。3点とも OS 実装がそのまま効く)
+- **Word (.docx) 閲覧 ([FR-42](#fr-42-word-docx-閲覧-v2--pro))**: 本文・見出し・箇条書き・表を整形表示 (mammoth.js で docx→HTML。レイアウト完全再現は狙わず「読める整形」に留め、体裁は自前 CSS で作る)
+- **xlsx閲覧 ([FR-43](#fr-43-xlsx-閲覧-v2--pro))**: シート切り替え、テーブル整形表示、結合セル、**和暦シム** (SheetJS CE。**セル単位の選択 UI は非対応** — 改訂47 で訂正)
+- **課金 ([FR-44](#fr-44-pro-課金とエンタイトルメント-v2--pro))**: RevenueCat の `pro` エンタイトルメントでゲート
 - ~~Obsidian の `![[file.pdf]]` 埋め込み記法~~ → **廃止** (Vault / フォルダ参照前提のため、改訂11)
 
 ### 5.7 v3以降: 検討
@@ -270,7 +272,7 @@ Modrift は**無料コア + 有償拡張**の二層。製品の段階的ビジ�
 | 範囲 | 区分 |
 |---|---|
 | Markdown 閲覧・編集 (MVP〜v1.2) | **無料** |
-| 他形式 = PDF / Word (.docx) / xlsx 単一ファイル閲覧 (v2、[FR-21〜](#fr-21-関連ファイル対応-v2--pro-概略のみ)) | **有償 (Pro)** |
+| 他形式 = PDF / Word (.docx) / xlsx 単一ファイル閲覧 (v2、[FR-21](#fr-21-他形式ファイルの閲覧-共通仕様-v2--pro)・[FR-41](#fr-41-pdf-閲覧-v2--pro)〜[FR-44](#fr-44-pro-課金とエンタイトルメント-v2--pro)) | **有償 (Pro)** |
 
 - 画像表示までは無料。**PDF/Word/xlsx から Pro**。
 
@@ -284,6 +286,7 @@ Modrift は**無料コア + 有償拡張**の二層。製品の段階的ビジ�
 
 - **RevenueCat** + StoreKit (App Store Connect で IAP プロダクト登録)。レシート検証・エンタイトルメント管理を RevenueCat に委譲。
 - 復元購入 (Restore) 導線を用意。
+- 実装仕様・審査要点は **[FR-44](#fr-44-pro-課金とエンタイトルメント-v2--pro)** (改訂47 で書き起こし)。
 
 詳細 (最終価格、トライアル有無、ペイウォール UI) は v2 着手時に確定する。
 
@@ -584,14 +587,45 @@ Modrift はファイルを**その場で直接編集**し、独立した「ロ�
   - **非 in-place ソース (Google Drive 等) は閲覧モードで開き、iCloud コピーは作成しない**。明示的に編集モードに入った時点で初めて iCloud コピーのゲート (FR-03 のダイアログ) が働く。
   - → ライブプレビュー化しても「閲覧しただけで iCloud にコピーが溜まる」ことは起きない。
 
-### FR-21〜: 関連ファイル対応 [v2 / Pro] (概略のみ)
+### FR-21: 他形式ファイルの閲覧 (共通仕様) [v2 / Pro]
 
-- **有償 (Pro) 機能**: ここからが買い切り Pro のゲート対象。RevenueCat の `pro` エンタイトルメントで解放する ([5.9](#59-収益化--価格モデル))。無料コア (Md 閲覧・編集) には影響しない。
-- **PDF閲覧**: `react-native-pdf` で表示、ページめくり、ピンチズーム、テキスト選択 (単一ファイル)
-- **Word (.docx) 閲覧**: docx→HTML 変換 (mammoth.js 等) で本文・見出し・表を整形表示 (単一ファイル・閲覧のみ。ライブラリは ADR で確定)
-- **xlsx閲覧**: SheetJS で表示、シート切り替え、セル選択 (AnyFolio資産を移植・単一ファイル)
-- ~~**Obsidian埋め込み記法** `![[file.pdf]]`~~ → **廃止** (Vault / フォルダ参照前提のため、改訂11)
-- 詳細仕様は v2 着手時に別途 ADR で定義
+PDF / Word (.docx) / xlsx の**単一ファイル閲覧**。ここからが買い切り Pro のゲート対象で、無料コア (Md 閲覧・編集) には影響しない ([5.9](#59-収益化--価格モデル))。形式ごとの仕様は [FR-41](#fr-41-pdf-閲覧-v2--pro) (PDF) / [FR-42](#fr-42-word-docx-閲覧-v2--pro) (docx) / [FR-43](#fr-43-xlsx-閲覧-v2--pro) (xlsx)、課金は [FR-44](#fr-44-pro-課金とエンタイトルメント-v2--pro)。**技術選定の根拠と PoC の実測値は [adr-v2-pro-formats.md](adr-v2-pro-formats.md)** にあり、本 FR はそこで確定した事実を仕様として書き下したもの (2026-08-06〜07 の PoC でライブラリは確定済み)。
+
+**大原則: 常に閲覧のみ。** 編集・保存・注釈・書き出しは一切行わない。in-place 編集や「ホームにコピー」([FR-34](#fr-34-ホームにコピー-取り込み昇格-v14)) の編集用フローは発動させない。**ホーム (iCloud › Modrift) に置かれた他形式ファイルも編集不可**とし、Policy A ([FR-03](#fr-03-md編集-mvp)) の「ホーム内は編集可」は Md/txt に限る。
+
+**対応形式と拡張子ゲート**
+
+- 追加するのは `.pdf` / `.docx` / `.xlsx` の3つ。**旧バイナリ形式 `.doc` / `.xls` は対象外** (mammoth は `.doc` を扱えず、`.xls` だけ開けても中途半端になるため揃えて非対応にする)。
+- ゲートは**2箇所にある**ので両方を更新する — ピッカー選択後の判定 ([index.tsx](../src/app/index.tsx)) と、ホーム一覧の列挙 ([home-files.ts](../src/lib/home-files.ts))。片方だけだと「ピッカーからは開けるがホームに置くと一覧に出ない」ねじれになる。
+- ホームに置いた他形式ファイルも一覧に出す (ホームは Md 専用フォルダではなく作業場のため)。種別アイコンは [index.tsx](../src/app/index.tsx) の `FileKind` に PDF / word / sheet が既に用意済み。
+- 履歴 ([FR-06](#fr-06-最近開いたファイルリスト-mvp)) にも他形式を記録する。
+
+**2つの起動経路 (コア設計・両方から到達すること)**
+
+- **経路A (アプリ内ピッカー)**: ピッカーは `type` 未指定で全形式を出し、**選択後に拡張子で弾く**実装になっている。したがって上の拡張子ゲートを広げるだけで通り、**UTI の追加作業は不要**。
+- **経路B (Open In)**: `app.json` の `CFBundleDocumentTypes` に `com.adobe.pdf` / `org.openxmlformats.wordprocessingml.document` / `org.openxmlformats.spreadsheetml.sheet` を追加する。**ネイティブ設定の変更なので `prebuild --clean` + Dev Client 再ビルドが必須**。追加により共有シートや「このアプリで開く」の候補が変わるため、**Md の Open In が退行しないことを実機で確認**する ([10.4](#104-iosapp-store関連))。
+
+**読み込み: バイナリの協調読み込み (他形式の前提基盤)**
+
+未ダウンロードの File Provider プレースホルダを**実体化してから読む**必要は他形式でも同じ ([FR-40](#fr-40-file-provider-ファイルの協調読み込みと読み込み失敗のハンドリング-v15))。ただし Md 用の `readFileCoordinated` は UTF-8 テキスト専用なので使えない。
+
+- **`FileBookmarkModule.materializeFileCoordinated(uri)` → ローカル `file://` URI** を通してから各ビューアに渡す。`NSFileCoordinator` の協調ブロック**の内側で**キャッシュ (`Caches/MaterializedFiles/`) へコピーし、そのパスを返す。
+  - **base64 で返す案は不採用**: 30MB の PDF が ~40MB の文字列としてブリッジを渡り、PDFKit がそれをディスクに書き戻すだけになる。パスなら PDFKit は直接読め、docx/xlsx は `new File(uri).base64()` / `arrayBuffer()` が使える = **1本で3形式を賄える**。
+  - **コピーは必ず協調ブロックの内側**。外でコピーすると未実体化プレースホルダに対し「no such file」で失敗する (FR-40 でピッカーの `copyToCacheDirectory: true` を捨てたのと同じ失敗)。
+  - **サンドボックス内 (`Documents` / `Caches`) のファイルは素通し**し、コピーを作らない。**iCloud ホームは素通しに含めない** — ubiquity コンテナは Mobile Documents 配下でサンドボックス外にあり、かつ退避され得るため協調が要る。パス比較は `resolvingSymlinksInPath()` 経由で行う (iOS が同じファイルを `/var/...` とも `/private/var/...` とも報告するため)。
+  - 実機で確認済み: Google Drive の未ダウンロード PDF が実体化されて開き、**機内モードでは必ず失敗する** (= 実際にネットワーク越しの実体化を伴っていたことの対照実験)。iCloud ホームの退避ファイルも協調経路を通って開ける。
+- **失敗時の扱いは FR-40 と同じ**: 黒画面・無限 Loading にせず、エラー表示に落とす。**再試行ボタンを他形式ビューアにも必ず持たせる** — オフラインや provider の一時的な不調は時間で回復するため。WebView 形式 (docx/xlsx) はコンテンツプロセス終了の `onError` 捕捉も同様に行う。
+- 大きなファイルのコピーは相応の時間がかかる (39MB で体感あり)。**進捗表示の要否は実装時に判断**する。キャッシュの掃除方針 (OS 任せで足りるか) も同様。
+
+**画面構成**
+
+- Md ビューア ([viewer.tsx](../src/app/viewer.tsx)) は Markdown 専用のまま触らず、**形式ごとに別ルート**を新設して拡張子で振り分ける。
+- ヘッダーは v1.5 の自前ヘッダー ([viewer-header.tsx](../src/components/viewer-header.tsx)) を流用できる。ただし **hide-on-scroll ([FR-38](#fr-38-ヘッダーのスクロール連動表示-hide-on-scroll-v15)) はスクロール量を CodeMirror の注入 JS から取っている**ため、ネイティブビューの PDF には繋がらない → **PDF は固定ヘッダーで始める**。docx / xlsx は WebView なので同じ仕組みを載せられる (載せるかは実装時に判断)。
+- ダーク/ライト ([FR-09](#fr-09-ダークライトモード-v11))・フォントサイズ ([FR-10](#fr-10-フォントサイズ調整-v11))・横向き ([FR-36](#fr-36-ビューアの横向き表示-v14))・日英 ([FR-07](#fr-07-国際化-i18n-mvp)) は Md ビューアと同じ扱いにする。
+
+**バンドル構成 (確定)**: docx / xlsx の変換は WebView 内で行い、**形式ごとに別バンドル**を注入する。Md の CodeMirror バンドルに同居させてはならない — 同居させると Md を開くだけの利用者まで約3倍のページを読むことになり、「軽量 Md ビューア」の看板に直接触れる。別バンドルなら **Md 側の実行時負担はゼロ**で、コストはアプリサイズのみ (実測: docx +536KB / xlsx +386KB、ベースライン 3.2MB に対し **合わせて +28%**)。有償 Pro の対価として妥当と判断した。
+
+**非目標**: 編集・注釈・書き出し・印刷 ([5.8](#58-意図的に実装しないもの))、複数ファイルの同時表示、PDF のしおり (outline) 表示 — `PDFView` はサイドバー UI を持たず、[5.6](#56-v2-他形式の単一ファイル閲覧-phase-7) も要件にしていない。~~**Obsidian埋め込み記法** `![[file.pdf]]`~~ も**廃止済み** (Vault / フォルダ参照前提のため、改訂11)。
 
 ### FR-22: Modrift 生成 iCloud コピーの整理 (リネーム・削除) [v1.1]
 
@@ -991,6 +1025,68 @@ Modrift 内から新規の空 `.md` を作成し、そのまま書き始めら�
 
 **限界 (仕様)**: iCloud Drive sync を OFF→ON トグルした直後などは iOS の File Provider デーモン (`fileproviderd`, 全プロバイダ共通) が再同期中で一時的に読めないことがあるが、時間で自己回復する (Modrift 側では制御不能・他アプリでも同様)。プロバイダが実体を出さないケースは救えないが、その場合も黒画面でなく明確なエラー＋再試行で返す。
 
+### FR-41: PDF 閲覧 [v2 / Pro]
+
+**採用: `react-native-pdf-renderer` 2.3.0** (iOS 実装は Apple PDFKit)。PoC 1 で検証済み・**採用確定**。共通仕様は [FR-21](#fr-21-他形式ファイルの閲覧-共通仕様-v2--pro)。
+
+- **依存ゼロ・config plugin 不要** (autolinking のみで `prebuild` を通る)、Fabric codegen 同梱で New Architecture 対応、MIT。
+- 実装が **PDFKit `PDFView` の直サブクラス**である (独自のビットマップ描画ではない) ため、**タイルレンダリング・テキスト選択・リンクは OS 実装がそのまま効く**。[5.6](#56-v2-他形式の単一ファイル閲覧-phase-7) が要求する3点は**追加のネイティブ実装なしに満たせる**:
+  - **ページめくり**: `kPDFDisplaySinglePageContinuous` の連続スクロール
+  - **ピンチズーム**: `autoScales` + `maxZoom`。深く拡大しても文字が鮮明 (ベクタのまま再描画される)
+  - **テキスト選択**: 長押しで Copy / Select All / Look Up (`PDFView` 標準。ラッパーが props に出していないだけ)
+- 表示は `<PdfRendererView source={localUri} maxZoom onPageChange onError />`。`source` には必ず **FR-21 で実体化済みのローカル URI** を渡す — PDFKit は協調アクセスをしないので、provider の URI を直接渡すと未実体化ファイルで失敗する。
+- **実機確認済み** (iPhone / iOS 26.5.2): **39MB・画像主体の PDF** と **600ページの PDF** のいずれもクラッシュせず、ズーム・ページ送りとも実用速度。日本語 PDF の文字化けなし。
+- **撤退経路 (自作 Expo Module + PDFKit) は使わない**。ラッパーが `PDFView` そのものである以上、自作しても同じ実装に行き着くため。★295 の小規模ライブラリだがラッパーが薄く、万一メンテが止まっても置き換えは Swift 100〜200行相当で済む — この撤退可能性が採用の前提。
+- **非目標**: しおり (outline)、PDF 内検索、ページ番号ジャンプ、注釈 ([5.7](#57-v3以降-検討) 送り)。
+
+### FR-42: Word (.docx) 閲覧 [v2 / Pro]
+
+**採用: mammoth.js 1.12.0** で docx → HTML に変換し、WebView で表示。PoC 3 で検証済み。共通仕様は [FR-21](#fr-21-他形式ファイルの閲覧-共通仕様-v2--pro)。
+
+- 「docx のスタイルを意味ベースの単純な HTML に写す」(Heading 1 → `<h1>`) という設計思想が、**「本文・見出し・表が読みやすければよい / 完全再現は狙わない」**という本要件とそのまま一致する。BSD-2-Clause。
+- **組み込みは CodeMirror と同じ方式**: mammoth は **devDependency** とし (RN が import するのではなく)、esbuild で `src/lib/docx/bundle.ts` に固めて WebView へ注入する。**`platform: "browser"` の指定が必須** — mammoth は unzip とファイル読みをブラウザ実装にマップしており、node 版は `fs` を引き込む。
+- 変換速度は **57〜96ms・警告0件** (日本語の見出し/強調/箇条書き/番号付き/3列の表/画像を含む文書)。画像は **base64 data URI でインライン**されるため外部リクエストが起きず、WebView と好相性。
+- **体裁はすべてアプリ側の CSS で作る** (mammoth はフォントも罫線も出力しない)。これは制約ではなく**差別化の置き場所** — Files の QuickLook より読みやすくできる余地がここにある。CJK/Latin のサイズ調和は inline `font-size` span の既存ノウハウ ([10.3](#103-mdレンダリング関連-v12-以降-webview-上の-codemirror)) を適用する。
+- **実装上の注意 (PoC で判明)**:
+  - **`<th>` は一切出ない**。Word は `tblHeader` を明示しない限り意味的なヘッダー行を持たず、1行目も `<td><p><strong>` で来る → `th` 指定は当たらないので **`tr:first-child > td` で当てる**。
+  - **セルの中身が `<p>` で包まれる**。段落の下マージンが行間に効いて表が間延びするので **`td > p { margin: 0 }`** が要る。
+- **落ちるもの (許容)**: 段組・テキストボックス・図形・ページレイアウト・罫線等の書式。必要になったら「オリジナルレイアウトで表示」ボタンとして QuickLook (`QLPreviewController` の自作ラップ) を併載する余地を残すが、**初回スコープ外**。
+- **docx → Markdown 変換して CodeMirror で表示する案は不採用**: 二重変換による劣化、base64 画像が Md ビューアで表示できない、turndown のメンテ停止、「編集できそうに見えて書き戻せない」という UX 混乱。
+- **未確認**: **実物の .docx** (テストは自前生成物のみ)。実装着手時の最初の作業とする。
+
+### FR-43: xlsx 閲覧 [v2 / Pro]
+
+**採用: SheetJS CE 0.20.3** (`sheet_to_html`) + 自前 CSS + 行ページング + **和暦シム**。PoC 4 で検証済み・**条件付き合格 (実データ未検証)**。共通仕様は [FR-21](#fr-21-他形式ファイルの閲覧-共通仕様-v2--pro)。
+
+- **導入経路に注意 (セキュリティ・重要)**: npm の `xlsx` は **0.18.5 (2022) で凍結され、CVE-2023-30533 (Prototype Pollution) / CVE-2024-22363 (ReDoS) が未修正のまま残る**。細工されたファイルを開くビューアなので実害リスクがある。**`xlsx@0.18.5` は使用禁止**とし、公式 CDN tarball (`npm i https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz`) か非公式ミラー **`@e965/xlsx`** (0.20.3、Apache-2.0 なので再配布は合法) を使う。
+- **表示**: `XLSX.read` → `sheet_to_html` で HTML テーブルを生成し、docx と同様に**専用バンドル**を注入した WebView で表示する。**結合セル (`!merges`) は colspan/rowspan に自動変換**され、内蔵 SSF が**書式コードどおりの表示文字列 `w`** (「Excel で見えていた通りの値」) を返す。パースは 40〜56ms (2シート・3000行)。西暦日付 `2026/04/01`・通貨 `¥1,250,000`・パーセント `82.3%` は SSF が正しく処理する。
+- **シート切り替えはタブ**。**セル単位の選択 UI は非対応** — `sheet_to_html` の静的な HTML テーブルであるため。テキスト選択は WebView 標準で可能。**旧 FR-21 / [5.6](#56-v2-他形式の単一ファイル閲覧-phase-7) にあった「セル選択」はこの形に訂正する**。
+- **大きいシート**: DOM は数万行で破綻する。`content-visibility: auto` は iOS 18 (Safari 18) 以降で **iOS 16 ターゲットでは使えない**ため、**先頭 1000 行 + 「すべて表示」**のページングで開始し、需要が出てから仮想化を検討する。
+- **和暦 (日本語 xlsx 対応の中心)**: **SheetJS CE は元号を実装していない。**
+  - `[$-411]ggge"年"m"月"d"日"` → **`ggg2026年4月1日`** (元号記号がリテラルとして出力され、年は西暦)。`[$-411]ge.m.d` → **SSF が例外を投げ**、生のシリアル値 **`46113`** が出る (落ちはしない)。
+  - **対策**: 元号データは JS エンジン側にある (`Intl.DateTimeFormat("ja-JP-u-ca-japanese")`)。パース後に**元号書式セルの表示文字列 `w` だけを差し替える**シム (約20行) で解決する。**値 (`v`) は触らない**。結果は `令和8年04月01日`。
+  - **限界 (仕様として明示)**: シムは formatter ではなく **normaliser**。`ge.m.d` (Excel では `R8.4.1`) も `令和8年4月1日` になり、**「Excel で見えていた通り」ではない**。生シリアルよりはるかにマシなのでこれで出荷し、忠実化 (`g`/`gg`/`ggg`/`e`/`ee` の解釈) は必要になってから行う。
+  - **実装時の落とし穴 (PoC で踏んだ)**: 元号書式の判定を素朴な `/g/i` で書くと**既定書式 `"General"` に一致し、ワークブック中の全数値セルが日付に書き換わる** (実際に 3004 セル / 正しくは4セル)。**クォート内リテラルと `[$-411]` を剥がしてから判定し、`General` を明示除外**すること。
+- **未確認 (実装着手時に潰す)**: **実物の xlsx を1つ開くことが最初の作業**。テストは自前生成物で、sharedStrings・セルの色/罫線/配置・数式・条件付き書式・グラフ・ウィンドウ枠固定を一切含んでいない。とくに **`sheet_to_html` はセル書式を一切出力しない**ため、**色で意味を伝えている表はその情報が丸ごと落ちる** — どこまで拾うかは実物を見てから決める。数万行規模・横長シート・実機も未検証。
+- **非目標**: 数式の編集・再計算、セル書式の完全再現、簡易編集 ([5.7](#57-v3以降-検討) 送り)。
+
+### FR-44: Pro 課金とエンタイトルメント [v2 / Pro]
+
+[5.9](#59-収益化--価格モデル) の方針 (買い切り + エンタイトルメント方式) の実装仕様。
+
+- **RevenueCat** (`react-native-purchases` v10) を採用。RN 0.73+ / New Architecture 対応済みで、**config plugin 不要** — `npx expo install` + prebuild の autolinking で完結する。実購入テストは Dev Client 必須 (現行運用どおり)。費用は月間トラッキング収益 $2,500 まで無料なので当面ゼロ。
+- **構成**: 非消耗型 1 SKU `com.modrift.app.pro_lifetime` → RevenueCat Entitlement **`pro`** に紐付け → コードは **`customerInfo.entitlements.active['pro']` の有無だけを見る**。これにより**将来サブスクを足しても解錠ロジックは不変**になる (変更はペイウォールの選択肢追加のみ)。
+- **ゲートは「スタブ付きの単一フック」として先に置く**: `useProEntitlement()` を用意し、当面は `true` を返すスタブにしてビューアを最初からそれ経由にする。RevenueCat は後からフックの中身だけ差し替える。**ゲートを後付けにすると3つのビューアを2度触ることになる**ため、順序としてゲートが先。
+- 非 Pro が他形式を開いたら Paywall へ誘導する。**無料機能 (Md / txt) は一切ゲートしない** ([5.8](#58-意図的に実装しないもの)「既存の無料機能の有償化はしない」)。
+- **Paywall は自作**のシンプル画面 (価格 + 解錠内容 + 購入 + 復元)。`react-native-purchases-ui` の既製 UI は使わない。
+- **審査要点 (定番のリジェクト理由)**:
+  - **「購入を復元」ボタン必須** (Guideline 3.1.1)。**Paywall と設定画面の両方**に置く。`restorePurchases()` は Apple ID プロンプトが出るため**ユーザー操作からのみ呼ぶ**。結果は「復元しました / 対象なし」を明示する。
+  - **初回 IAP はアプリの新バージョンに添付して同時審査に出す** (添付忘れが定番の落とし穴)。
+  - 事前に**有料 App 契約 (Paid Apps Agreement) の署名**と **In-App Purchase Key の RevenueCat 登録**が必要。
+  - **アカウント作成を購入条件にしない** (匿名 App User ID + Apple ID による復元で完結させる)。
+- **スパイク (PoC) は立てない**: 課金で危ないのは技術ではなく**審査プロセスとアカウント側の設定**であり、コードを捨てても何も減らないため。代わりに**実装の初日に `react-native-purchases` のビルドが通ることだけを確認**する (PDF レンダラで「まずビルドが通るか」が関門だった経験による)。倒れた場合は `expo-iap` へ切り替え。
+- 価格 (暫定 ¥1,000)・トライアル有無は [5.9](#59-収益化--価格モデル) のとおり v2 着手時に確定する。
+
 ### NFR-01: パフォーマンス
 
 - アプリ起動から最初のファイルを開けるまで 3秒以内
@@ -1072,12 +1168,13 @@ Modrift 内から新規の空 `.md` を作成し、そのまま書き始めら�
 
 - lodash debounce または独自実装で3秒debounce
 
-### v2で追加予定 (関連ファイル対応 + 課金)
+### v2で追加予定 (他形式閲覧 + 課金) — [ADR](adr-v2-pro-formats.md) で確定・PoC 済み
 
-- react-native-pdf: PDF閲覧
-- mammoth.js 等: Word (.docx) → HTML 変換による整形表示 (候補。ADR で確定)
-- SheetJS (xlsx): xlsx閲覧、AnyFolio資産の移植
-- RevenueCat (+ StoreKit): 買い切り Pro のエンタイトルメント管理・レシート検証 (5.9)
+- **react-native-pdf-renderer** (2.3.0): PDF閲覧。iOS 実装は Apple PDFKit の `PDFView` 直サブクラス、依存ゼロ・config plugin 不要 ([FR-41](#fr-41-pdf-閲覧-v2--pro))。~~react-native-pdf~~ は依存の重さと New Arch 追従の遅さから不採用
+- **mammoth.js** (1.12.0): Word (.docx) → HTML 変換による整形表示。devDependency として esbuild で専用バンドルに固め WebView へ注入 (`platform: "browser"` 必須。[FR-42](#fr-42-word-docx-閲覧-v2--pro))
+- **SheetJS CE** (0.20.3、`@e965/xlsx` または公式 CDN tarball): xlsx閲覧 + 自前の和暦シム。**npm の `xlsx@0.18.5` は CVE 未修正のため使用禁止** ([FR-43](#fr-43-xlsx-閲覧-v2--pro))
+- **自前ネイティブ `materializeFileCoordinated`**: バイナリの協調読み込み (3形式共通の前提基盤。[FR-21](#fr-21-他形式ファイルの閲覧-共通仕様-v2--pro))
+- **RevenueCat** (`react-native-purchases` v10、+ StoreKit): 買い切り Pro のエンタイトルメント管理・レシート検証 ([5.9](#59-収益化--価格モデル) / [FR-44](#fr-44-pro-課金とエンタイトルメント-v2--pro))
 
 ### 配布
 
@@ -1175,6 +1272,12 @@ Modrift 内から新規の空 `.md` を作成し、そのまま書き始めら�
 - **Document Picker のタブ (Recents / Shared / Browse) は非表示にできない**:
   `UIDocumentPickerViewController` のタブはシステム UI で、アプリから隠す/「Browse 固定」にする公開 API はない。初期表示フォルダの指定 (`directoryURL`) のみ可能だが expo-document-picker は未公開。このため Picker の Recents とアプリ履歴の混同は Picker 側では解消できない (かつて FR-24 Vault ブラウザで Picker を日常導線から外す案があったが、改訂11 で廃止)。現状は既定の Document Picker を素直に使う方針 (タブ・初期位置はカスタム不可)
 
+- **他形式の Open In 追加は共有シートの候補を変える (v2)**:
+  `CFBundleDocumentTypes` に PDF / docx / xlsx を追加すると `prebuild --clean` + Dev Client 再ビルドが必要になり、共有シートや「このアプリで開く」の候補も変わる。**Md の Open In が退行しないことを実機で確認**する。退行するなら宣言する UTI を絞る ([FR-21](#fr-21-他形式ファイルの閲覧-共通仕様-v2--pro))
+
+- **初回 IAP はアプリの新バージョンに添付して同時審査に出す (v2)**:
+  添付忘れは定番の落とし穴。あわせて「購入を復元」ボタンの欠落は Guideline 3.1.1 の定番リジェクト理由なので、Paywall と設定画面の両方に置く。事前に有料 App 契約 (Paid Apps Agreement) の署名と In-App Purchase Key の RevenueCat 登録が要る ([FR-44](#fr-44-pro-課金とエンタイトルメント-v2--pro))
+
 - **Files Appとの統合は App Store的にウケが良い**:
   「iOSのファイルシステムを正しく使っている」のはAppleの推奨パターン。逆風はない
 
@@ -1263,10 +1366,13 @@ Modrift 内から新規の空 `.md` を作成し、そのまま書き始めら�
 
 ### Phase 7: v2 (他形式の単一ファイル閲覧 = 有償 Pro) (v1.4 リリース後)
 
-- PDF閲覧 (react-native-pdf 統合、ページめくり、ズーム・単一ファイル)
-- Word (.docx) 閲覧 (docx→HTML 変換で整形表示・単一ファイル・閲覧のみ)
-- xlsx閲覧 (SheetJS 統合、AnyFolio 資産の移植・単一ファイル)
-- 買い切り Pro 課金 (RevenueCat + StoreKit、`pro` エンタイトルメントでゲート、5.9)
+着手順序は [ADR](adr-v2-pro-formats.md) 「次の一手」に従う — ①FR の書き起こし (改訂47 で完了) → ②`react-native-purchases` のビルド確認 → ③Pro ゲートをスタブ付きフックで先に置く → ④スパイクから製品コードへ昇格 → ⑤課金の実装とアカウント側の設定。
+
+- バイナリ協調読み込み `materializeFileCoordinated` の製品化 (再試行ボタン・進捗表示の要否・キャッシュ掃除。[FR-21](#fr-21-他形式ファイルの閲覧-共通仕様-v2--pro))
+- PDF閲覧 (react-native-pdf-renderer = PDFKit、ページめくり・ズーム・テキスト選択・単一ファイル。[FR-41](#fr-41-pdf-閲覧-v2--pro))
+- Word (.docx) 閲覧 (mammoth で docx→HTML 変換して整形表示・単一ファイル・閲覧のみ。[FR-42](#fr-42-word-docx-閲覧-v2--pro))
+- xlsx閲覧 (SheetJS CE + 和暦シム、シート切り替え・単一ファイル。[FR-43](#fr-43-xlsx-閲覧-v2--pro))
+- 買い切り Pro 課金 (RevenueCat + StoreKit、`pro` エンタイトルメントでゲート、[5.9](#59-収益化--価格モデル) / [FR-44](#fr-44-pro-課金とエンタイトルメント-v2--pro))
 - ~~Obsidian `![[file.pdf]]` 埋め込み~~ → 廃止 (改訂11)
 
 ### Phase 8 以降
@@ -1282,6 +1388,7 @@ Modrift 内から新規の空 `.md` を作成し、そのまま書き始めら�
 - **R-02: 日本語IMEと自動保存の組み合わせでの挙動崩れ** (実機検証必須)
 - **R-03: CodeMirror (WebView) のレンダリング互換性** (多様な Md ファイル・実機 WKWebView で未検証。FR-20)
 - **R-04: 競合発生時のユーザー体験** (last-write-winsの許容範囲は要検証)
+- **R-08: 実物の xlsx / docx での再現性** (v2・[FR-43](#fr-43-xlsx-閲覧-v2--pro)/[FR-42](#fr-42-word-docx-閲覧-v2--pro))。PoC のテストファイルは自前生成物で、実物の複雑さ (セルの色/罫線・数式・条件付き書式・段組・テキストボックス) を含まない。とくに `sheet_to_html` はセル書式を出力しないため**色で意味を伝えている表は情報が落ちる**。実装着手時に実データを1つ開くのが最初の作業
 
 ### 戦略リスク
 
@@ -1303,7 +1410,7 @@ Modrift 内から新規の空 `.md` を作成し、そのまま書き始めら�
 
 ### プロジェクト内ドキュメント
 
-- **[adr-v2-pro-formats.md](adr-v2-pro-formats.md)** — v2 有償 Pro (PDF / Word / xlsx 閲覧 + 課金) の技術選定 ADR。ステータス: 提案 (PoC 未着手)
+- **[adr-v2-pro-formats.md](adr-v2-pro-formats.md)** — v2 有償 Pro (PDF / Word / xlsx 閲覧 + 課金) の技術選定 ADR。ステータス: 一部承認 (PDF・協調読み込み・docx は採用確定、xlsx は条件付き合格、課金は提案のまま)。**PoC の実測値・却下した代替案・検証手順の罠はこちらにある** ([FR-21](#fr-21-他形式ファイルの閲覧-共通仕様-v2--pro) 以下はその結論を仕様化したもの)
 - [Build and Run.md](Build%20and%20Run.md) — ビルド・実機実行・配布の手順
 - [iCloud Reference.md](iCloud%20Reference.md) — iCloud コンテナまわりのリファレンス
 - [screenshot-recipe.md](screenshot-recipe.md) — ストア用スクリーンショットをシミュレータだけで撮る手順
@@ -1399,3 +1506,4 @@ Modrift 内から新規の空 `.md` を作成し、そのまま書き始めら�
 - **2026-07-27 (改訂44)**: **検索画面の未入力時ヒント撤去 / 設定ローカル表記を「Local」に**。検索窓プレースホルダと重複する下部ヒントを削除 (改訂40)。設定「ホームの保存先」のローカル側を「この iPhone」→「Local」に (iPad で「この iPhone」と出て実態と不一致・改訂41)。
 - **2026-07-27 (改訂45)**: **[FR-40](#fr-40-file-provider-ファイルの協調読み込みと読み込み失敗のハンドリング-v15) File Provider 読み込みの協調化と失敗ハンドリングを新設**。Google Drive 等の未ダウンロードファイルが開けない／iCloud OFF 時に真っ黒になる不具合を修正。自前 `FileBookmarkModule.readFileCoordinated` (NSFileCoordinator 協調読み込み) で実体化してから読む＋15秒タイムアウト＋エラーをヘッダー下に可視化＋WebView サイレント失敗の onError 捕捉＋再試行ボタン。**重要な学び: Expo モジュールはプリコンパイル配布で node_modules patch が無効化される**ため、協調読み込みは自前モジュール側に実装した。commit 1b612f1 / bca2b4a / 0d062ea 他。詳細は FR-40
 - **2026-07-27 (改訂46)**: **[FR-38](#fr-38-ヘッダーのスクロール連動表示-hide-on-scroll-v15) の実機不具合2点を修正**。C1: オフラインバナーが本文1行目に重なる→バナー表示中はエディタ上余白を CSS 変数 `--cm-top` で動的に拡張しバナー下から本文開始 (remount なし)。C2: iPhone 横向きでヘッダーの戻る/右アクションが見切れる→自前ヘッダー ([viewer-header.tsx](../src/components/viewer-header.tsx)) に横向き左右セーフエリア (`insets.left/right`) を反映。
+- **2026-08-07 (改訂47)**: **v2 (他形式閲覧 = 有償 Pro) の FR を概略から実仕様へ書き起こし**。[ADR](adr-v2-pro-formats.md) の PoC (2026-08-06〜07) でライブラリが確定したのに FR が5行の概略のまま**内容も食い違っていた** (「`react-native-pdf` で表示」「xlsx のセル選択」) ため、CLAUDE.md のルール「機能追加の前に該当 FR を確認する」が機能しない状態だった。旧「FR-21〜: 関連ファイル対応 (概略のみ)」を **[FR-21](#fr-21-他形式ファイルの閲覧-共通仕様-v2--pro) (共通仕様)** に作り替え、**[FR-41](#fr-41-pdf-閲覧-v2--pro) PDF / [FR-42](#fr-42-word-docx-閲覧-v2--pro) docx / [FR-43](#fr-43-xlsx-閲覧-v2--pro) xlsx / [FR-44](#fr-44-pro-課金とエンタイトルメント-v2--pro) 課金**を新設 (FR-22〜40 が埋まっているため「FR-21〜」の連番は使えず、FR-21 を傘・詳細を末尾に追加する形にした)。**訂正2点**: PDF は `react-native-pdf` ではなく **`react-native-pdf-renderer`** (PDFKit `PDFView` の直サブクラス。テキスト選択も OS 標準で効く)、xlsx の「**セル選択**」は `sheet_to_html` の静的テーブルでは成立しないため**非対応に訂正** (テキスト選択は可)。**確定した仕様**: 3形式とも**常に閲覧のみ** (ホーム内でも編集不可＝Policy A は Md/txt に限る)、`.doc`/`.xls` は非対応、拡張子ゲートは [index.tsx](../src/app/index.tsx) と [home-files.ts](../src/lib/home-files.ts) の**2箇所**、経路A は UTI 追加不要・経路B は `CFBundleDocumentTypes` 追加で `prebuild --clean` 必須、**バイナリ協調読み込み `materializeFileCoordinated`** (協調ブロック内でキャッシュへコピーしパスを返す。base64 案は不採用、iCloud ホームは素通ししない) を前提基盤とし失敗時は [FR-40](#fr-40-file-provider-ファイルの協調読み込みと読み込み失敗のハンドリング-v15) と同じ再試行導線、**形式別バンドル** (Md 利用者の実行時負担ゼロ・アプリサイズ +28%)、PDF は hide-on-scroll を繋げないので固定ヘッダーで開始。**xlsx の和暦**: SheetJS CE は元号未実装 (`ggg2026年4月1日` / 例外→生シリアル) のため `Intl` の japanese calendar で `w` だけ差し替えるシムを仕様化、**normaliser であって忠実な formatter ではない**限界と、`/g/i` 判定が `General` に当たって全数値を壊す落とし穴も明記。**課金 (FR-44)** はスタブ付き `useProEntitlement()` を**ゲート後付けにしないため先に置く**方針と、復元ボタン必須・初回 IAP の同時審査等の審査要点を仕様化。あわせて §5.6・§5.9・§9 技術スタック・§10.4・§13 (R-08 追加)・§12 Phase 7・§15 の ADR ステータスを更新。**実装はまだ着手していない** (スパイクは `v2-spike` に別置き)
