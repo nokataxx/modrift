@@ -61,6 +61,14 @@
             "LSItemContentTypes": [
               "org.openxmlformats.wordprocessingml.document"
             ]
+          },
+          {
+            "CFBundleTypeName": "Excel Workbook",
+            "LSHandlerRank": "Alternate",
+            "CFBundleTypeRole": "Viewer",
+            "LSItemContentTypes": [
+              "org.openxmlformats.spreadsheetml.sheet"
+            ]
           }
         ],
         "NSUbiquitousContainers": {

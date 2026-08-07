@@ -6,6 +6,6 @@ module.exports = defineConfig([
   expoConfig,
   {
     // Generated WebView bundles (each format's build-bundle.mjs).
-    ignores: ["dist/*", "src/lib/cm/bundle.ts", "src/lib/docx/bundle.ts"],
+    ignores: ["dist/*", "src/lib/cm/bundle.ts", "src/lib/docx/bundle.ts", "src/lib/xlsx/bundle.ts"],
   }
 ]);

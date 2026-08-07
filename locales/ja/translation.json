@@ -145,6 +145,11 @@
     },
     "pro": {
       "locked": "この形式の閲覧は Pro でご利用いただけます。"
+    },
+    "xlsx": {
+      "rows": "{{count}} 行",
+      "rowsTruncated": "{{total}} 行のうち先頭 {{shown}} 行を表示",
+      "showAll": "すべて表示"
     }
   },
   "network": {
@@ -156,6 +161,6 @@
     "errorTitle": "ファイルを開けませんでした",
     "errorOpenFailed": "ファイルピッカーを開けませんでした。",
     "errorReadFailed": "ファイルを開けませんでした。端末にまだダウンロードされていない可能性があります。元のアプリ (Google Drive・ファイル等) で一度開くか、通信状態を確認してからもう一度お試しください。",
-    "unsupportedType": "この形式のファイルには対応していません。.md / .markdown / .txt / .text / .pdf / .docx ファイルを開いてください。"
+    "unsupportedType": "この形式のファイルには対応していません。.md / .markdown / .txt / .text / .pdf / .docx / .xlsx ファイルを開いてください。"
   }
 }

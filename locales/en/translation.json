@@ -145,6 +145,11 @@
     },
     "pro": {
       "locked": "Viewing this format is available with Pro."
+    },
+    "xlsx": {
+      "rows": "{{count}} rows",
+      "rowsTruncated": "Showing the first {{shown}} of {{total}} rows",
+      "showAll": "Show all"
     }
   },
   "network": {
@@ -156,6 +161,6 @@
     "errorTitle": "Couldn't open file",
     "errorOpenFailed": "Couldn't open the file picker.",
     "errorReadFailed": "Couldn't open the file. It may not be downloaded to this device yet — open it once in its app (Google Drive, Files, etc.) or check your connection, then try again.",
-    "unsupportedType": "This file type isn't supported. Open a .md, .markdown, .txt, .text, .pdf, or .docx file."
+    "unsupportedType": "This file type isn't supported. Open a .md, .markdown, .txt, .text, .pdf, .docx, or .xlsx file."
   }
 }

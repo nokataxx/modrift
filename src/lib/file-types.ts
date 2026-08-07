@@ -17,7 +17,7 @@
  * Legacy binary Office formats (.doc / .xls) are deliberately absent: mammoth
  * cannot read .doc at all, so supporting only half would be arbitrary.
  */
-export const SUPPORTED_EXTENSIONS = ['.md', '.markdown', '.txt', '.text', '.pdf', '.docx'] as const;
+export const SUPPORTED_EXTENSIONS = ['.md', '.markdown', '.txt', '.text', '.pdf', '.docx', '.xlsx'] as const;
 
 export function isSupportedFile(name: string): boolean {
   const lower = name.toLowerCase();
@@ -34,9 +34,12 @@ export function isSupportedFile(name: string): boolean {
  * that cannot render it. Open In is the easiest to forget, since iOS filters by
  * UTI there and hands us a bare file:// URL.
  */
-export function routeForFile(name: string): '/viewer' | '/pdf-viewer' | '/docx-viewer' {
+export function routeForFile(
+  name: string,
+): '/viewer' | '/pdf-viewer' | '/docx-viewer' | '/xlsx-viewer' {
   const lower = name.toLowerCase();
   if (lower.endsWith('.pdf')) return '/pdf-viewer';
   if (lower.endsWith('.docx')) return '/docx-viewer';
+  if (lower.endsWith('.xlsx')) return '/xlsx-viewer';
   return '/viewer';
 }
