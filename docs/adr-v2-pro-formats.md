@@ -1,6 +1,6 @@
 # ADR: v2 有償 Pro 他形式閲覧 (PDF / Word / xlsx) の技術選定
 
-- **ステータス**: **実装フェーズ (2026-08-07)** — 表示系3形式は `v2` ブランチで製品コード化済み、実データ検証まで完了。残作業は下記「残作業」節。以下は選定時の記録: **PDF・読み込み基盤 (実機検証済み) と docx (シミュレータ確認済み) は採用確定 (Accepted, 2026-08-06)**。**xlsx も実データ検証を経て採用 (2026-08-07)**。課金は提案 (Proposed) のままだが、**SDK のビルドと New Arch 実行時疎通は確認済み (2026-08-07)**
+- **ステータス**: **実装フェーズ (2026-08-09 更新)** — 表示系3形式は `v2` ブランチで製品コード化済み、実データ検証まで完了。残作業は下記「残作業」節。以下は選定時の記録: **PDF・読み込み基盤 (実機検証済み) と docx (シミュレータ確認済み) は採用確定 (Accepted, 2026-08-06)**。**xlsx も実データ検証を経て採用 (2026-08-07)**。**課金も 2026-08-09 に確定 (Accepted): RevenueCat + アカウント無し + プラットフォーム跨ぎの引き継ぎ無し**。SDK のビルドと New Arch 実行時疎通は 2026-08-07 に確認済み。あわせて **v2 には画像閲覧 ([FR-45](Requirements.md#fr-45-画像閲覧-v2--無料)・無料) を追加**した
 - **経緯**: 当初 `v2-spike` ブランチ (v1.3 時点) にのみ存在。2026-07-30 に v1.5 リリース後の `main` へ移設し、統合ポイントを現行コードに突き合わせて更新した (下記「前提の更新」)。技術選定そのものは 2026-07-17 の調査結果のまま
 - **対象**: [Requirements.md](Requirements.md) FR-21〜 (v2 / Pro)。「具体ライブラリは v2 着手時に ADR で確定」(改訂12) を受けた文書
 - **前提環境**: Expo SDK 56 / React Native 0.85.3 / New Architecture (Fabric) / Expo Dev Client / react-native-webview 13.16.1 / iOS 16+
@@ -13,7 +13,7 @@
 | PDF | **react-native-pdf-renderer** (ネイティブ PDFKit、依存ゼロ) | S | react-native-pdf (依存重・issue 393件) / WKWebView 直 (大容量でクラッシュ) |
 | Word (.docx) | **mammoth.js** → HTML を既存 WebView 基盤で表示 | S | docx-preview (A4 再現がモバイルと相性悪) / QuickLook (Files と同一表示で課金根拠なし) |
 | xlsx | **SheetJS CE 0.20.3** (`sheet_to_html`) + 自前 CSS + 行ページング | S〜M | exceljs (本家停止・書式レンダラ自作) / Univer (import が Pro サーバー前提) |
-| 課金 | **RevenueCat** (react-native-purchases v10) + 非消耗型 1 SKU + Entitlement `pro` | S〜M | expo-iap 直 (OpenIAP 移行で体制流動的、サブス後付けが重い) |
+| 課金 | **RevenueCat** (react-native-purchases v10) + 非消耗型 1 SKU + Entitlement `pro`。**アカウント無し・跨ぎ引き継ぎ無し** (2026-08-09 確定) | S〜M | expo-iap 直 (OpenIAP 移行で体制流動的) / 自作 Expo Module + StoreKit 2 (RN からは StoreKit を直接呼べず、Android で2系統目が要る) |
 
 共通ストーリー: **docx / xlsx は「HTML に変換して既存の esbuild → WebView 注入基盤で表示」**。CJK/Latin タイポグラフィの知見・スタイルプリセット (FR-25) の CSS 資産を再利用し、「Files の QuickLook より読みやすい」を差別化に据える。PDF だけはページレンダリングが必要なのでネイティブ (PDFKit) を薄く借りる。
 
@@ -50,7 +50,17 @@
 
 ### 課金: RevenueCat + 非消耗型 + Entitlement
 
-> **⚠️ 保留に差し戻し (2026-08-07)**: 本節は **iOS 単独を前提**に書かれている。その後 **Android 版を出す意思**が示され、判断の分かれ目が「RevenueCat か StoreKit 直か」ではなく「**購入をプラットフォーム間で引き継ぐか**」に移った。引き継がないなら StoreKit 直 + Play Billing 直で足りる (課金コードは2系統)、引き継ぐならアカウント無しで束ねられる RevenueCat が現実的な唯一手。**StoreKit 2 単体でもサブスクは扱える** (`Transaction.currentEntitlements` が期限切れを除外) ので「サブスク後付け＝RevenueCat 必須」という本節の前提も、iOS 単独なら成り立たない。**どちらを選んでも既存購入者は失われない** — 購入記録を持つのは Apple / Google であり、後から RevenueCat を入れても遡って `pro` を付与できるため、この保留は袋小路ではない。詳細は [Requirements 5.9](Requirements.md#59-収益化--価格モデル) / [FR-44](Requirements.md#fr-44-pro-課金とエンタイトルメント-v2--pro)。以下は **RevenueCat に倒れた場合の構成**として読むこと。
+> **✅ 確定 (2026-08-09)**: **RevenueCat + アカウント無し + プラットフォーム跨ぎの引き継ぎ無し**。2026-08-07 に保留へ戻していたが、**Android を将来出すと決まった**ことで判断が進んだ。
+>
+> **保留時の記述に誤りがあったので訂正する** — 「引き継ぐならアカウント無しで束ねられる RevenueCat が現実的な唯一手」は**誤り**。RevenueCat が跨げるのは**同一 App User ID でログインしている場合だけ**で、匿名 App User ID は端末/インストール単位に発行される。**引き継ぐには SDK が何であれ利用者の識別 = ログインが必要**。したがって分かれ目は「RevenueCat か StoreKit 直か」ではなく **「アカウントを持つか」**だった。
+>
+> **持たないと決めた**。¥1,000 の買い切り1本のために、ログイン基盤・アカウント削除導線 (App Store の必須要件)・紛失時の問い合わせを恒久的に抱えるのは重く、「アカウントを持たず、どこのファイルでもサッと開く」という製品の芯とも逆方向のため。iOS と Android を両方使うなら両方で購入してもらう。
+>
+> **引き継がないのに RevenueCat を採るのは、この構成では「ストア直」が薄い選択肢にならないから**: **React Native からは StoreKit 2 を直接呼べない**ので、実際の選択肢は `expo-iap` (OpenIAP 移行で体制が流動的) か **Swift の自作 Expo Module を書いて保守する**かで、Android 版でさらにもう1系統増える。対して `react-native-purchases` は**すでに導入され New Arch での実行時疎通まで確認済み**で、ここから乗り換える方が手数が増える。「StoreKit 直の方が薄い」という直感は Swift から見た話で、RN から見ると成り立たなかった。
+>
+> **将来引き継ぎたくなったら、アカウントを作らずに足せる道が残る** — App User ID を UUID にして「引き継ぎコード」として別プラットフォームで入力させ `logIn()` する方式。**RevenueCat を採ったからこそ残る道**で (ストア直では Apple の購入記録を別プラットフォームへ結び付けられない)、採るなら transfer behavior の設定確認が先。弱点はコードを渡せば共有できること。
+>
+> **弱点は外部依存**: 購入判定の経路に外部サービスが入り、ダッシュボードの設定は Git に残らない。**設定内容はこの ADR に書き残して補う**。詳細は [Requirements 5.9](Requirements.md#59-収益化--価格モデル) / [FR-44](Requirements.md#fr-44-pro-課金とエンタイトルメント-v2--pro)。
 
 - `react-native-purchases` v10 (2026-07 時点 v10.4.3): RN 0.73+ / New Arch 対応済み。**config plugin 不要**、`npx expo install` + prebuild の autolinking で完結。実購入テストは Dev Client 必須 (現行運用どおり)
 - 構成: 非消耗型 1 SKU `com.modrift.app.pro_lifetime` → RevenueCat Entitlement **`pro`** に紐付け → コードは `customerInfo.entitlements.active['pro']` の有無だけ見る。**将来サブスクを足しても解錠ロジック不変** ([5.9](Requirements.md#59-収益化--価格モデル) のエンタイトルメント方式そのもの)
@@ -257,9 +267,9 @@ CodeMirror と同一の方式: mammoth は **devDependency** (RN が import す�
    **ただしビルド成功だけでは足りなかった**: `RNPurchases` は `RCTEventEmitter <RCTBridgeModule>` の**レガシーブリッジモジュール**で `codegenConfig` を持たない (= TurboModule ではない) ため、New Architecture では bridgeless の interop 越しに動く形になる。コンパイルが通ることは「New Arch で動く」の証明にならないので、**シミュレータ (iPhone 17 Pro / iOS 26.5) で実行時プローブ**を追加した — 結果は `module: present (4 keys)` / `isConfigured(): false` / **`canMakePayments(): true`**。3つ目が JS → ネイティブ → StoreKit → 戻り値の往復を示すので**合格**。`expo-iap` への切り替えは不要。
    > 注意: `Purchases.isConfigured()` は**ネイティブモジュールが見つからない場合も警告を出して `false` を返す**実装なので、単体では判定に使えない。`NativeModules.RNPurchases` の存在確認と、値を返すネイティブ呼び出し (`canMakePayments()`) の2点で見ること。
 3. ~~**Pro ゲートを「スタブ付きの単一フック」として先に置く**~~ → **完了 (2026-08-07)**。[`src/hooks/use-pro-entitlement.ts`](../src/hooks/use-pro-entitlement.ts) が `{ isPro: boolean }` を返す (現状 `true` 固定)。ビューアは最初からこれを経由させ、課金の中身は後からフックの中だけ差し替える。**ゲートを後付けにすると3つのビューアを2度触ることになる**ため先に置いた。
-   結果として、この判断は**課金 SDK が未定のまま先へ進める**ことも意味している (上の保留を参照) — フックの内側が `Transaction.currentEntitlements` でも `entitlements.active['pro']` でも、呼び出し側は無改修。**`isPro: true` のまま出荷しないこと**が v2 のリリースブロッカー
+   結果として、この判断は**課金 SDK が未定のまま先へ進める**ことを可能にした — 表示系3形式はすべて SDK 未定のまま完成した。SDK は 2026-08-09 に RevenueCat で確定したが、**差し替えるのはフックの中身だけ**という性質は変わらない。**`isPro: true` のまま出荷しないこと**が v2 のリリースブロッカー
 4. ~~**ビューアをスパイクから製品コードへ昇格**~~ → **完了 (2026-08-07)**。PDF → docx → xlsx の順に**1形式ずつ**昇格した (PDF だけネイティブ依存を伴うので混ぜない、という切り分けのため)。足場は撤去し、Pro ゲート・再試行・履歴 (成功時のみ記録)・i18n・オフラインバナーを入れた。拡張子とルーティングは [file-types.ts](../src/lib/file-types.ts) の**単一定義**に集約 (ゲートは「2箇所」ではなく **4箇所**あった — Open In と共有シートを数え落としていた)。commit `4c040f2` / `0f4ccf2` / `13c6c02`
-5. **課金の実装とアカウント側の設定** — **SDK 未定のまま保留中** (上の「保留に差し戻し」を参照)
+5. **課金の実装とアカウント側の設定** — **SDK 確定 (2026-08-09)**。着手は**コードではなくアカウント側**から: 有料 App 契約 (Paid Apps Agreement) の署名 → App Store Connect で非消耗型 IAP を登録 → RevenueCat のプロジェクト作成と In-App Purchase Key 登録 → Sandbox で購入→アンインストール→復元まで通す。**署名は銀行口座と税務情報を伴い最も時間がかかる**ので先頭に置く
 
 ## 残作業 (2026-08-07 時点)
 
@@ -271,7 +281,7 @@ CodeMirror と同一の方式: mammoth は **devDependency** (RN が import す�
 | 2 | **xlsx の列幅と空行** | 実データで**最優先と判明**した2点 | **完了 (2026-08-09)** — 空行は解決、`!cols` は誤診と判明。ウィンドウ枠固定は実装後に実機で撤去。下記「#2 の結果」 |
 | 3 | **docx のコメント欠落への方針** | 実質的な損失はこれだけ | **決定 (2026-08-09): v2 では対応しない。要望が出てから入れる** — 閲覧専用のアプリでは返信も解決もできず、コメント付き docx をモバイルで開く用途は「読む」より「レビューに参加する」寄りのため。入れるなら本文表示でなく `word/comments.xml` の有無による**存在の通知**から |
 | 4 | **xlsx の塗り色と `[Red]` マイナス値** | 実現性は検証済み (id 解決 320/320・マップ 7.3KB)。ダークモードで淡色に白文字が乗る問題への対処が要る | **色は要望が出てから (2026-08-09 決定)。ただし「負のセクションが符号を書かず色だけで負を示す」書式で符号が消える件は、値の正しさの問題なので `ensureNegativeSign()` で修正済み** |
-| 5 | **課金** | Android を出すかで SDK が決まる。先に進めてよいのは**有料 App 契約 (Paid Apps Agreement) の署名**で、税務手続きを伴い時間がかかるうえ SDK 選定と独立している | 保留 |
+| 5 | **課金** | v2 の唯一のリリースブロッカー (`isPro: true` のまま出荷しないこと) | **SDK 確定 (2026-08-09): RevenueCat + アカウント無し + 引き継ぎ無し**。次はアカウント側の設定 (有料 App 契約の署名 → App Store Connect の IAP 登録 → RevenueCat 設定 → Sandbox テスト) |
 | 6 | **push** | — | **完了 (2026-08-07)** |
 
 **1 を先に置く理由**: 2〜4 は新機能の質を上げる作業だが、1 は**すでに入れた変更が既存機能を壊していないか**の確認で、性質が違う。
