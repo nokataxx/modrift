@@ -16,6 +16,7 @@ import { NetworkBanner } from '@/components/network-banner';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useProEntitlement } from '@/hooks/use-pro-entitlement';
+import { useViewerOrientation } from '@/hooks/use-viewer-orientation';
 import { useSettings } from '@/hooks/use-settings';
 import { useTheme } from '@/hooks/use-theme';
 import { buildDocxHtml } from '@/lib/docx/html';
@@ -33,6 +34,10 @@ export default function DocxViewerScreen() {
   const theme = useTheme();
   const { settings } = useSettings();
   const { isPro } = useProEntitlement();
+
+  // FR-36: landscape widens the measure, the same reason the Markdown viewer
+  // allows it.
+  useViewerOrientation();
 
   // Keyed by URI for the same reason as the PDF viewer: opening a second file
   // reuses this screen rather than mounting a fresh one, so state that isn't

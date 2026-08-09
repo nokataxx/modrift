@@ -82,6 +82,14 @@ export function buildDocxHtml({
   #doc td > p, #doc th > p { margin: 0; }
   #doc tr:first-child > td { background: var(--codeBg); }
   #doc img { max-width: 100%; height: auto; }
+  /* FR-36: a phone held in landscape drops the cap and uses the full width —
+     widening the measure is the whole point of rotating. Keyed on viewport
+     height, not width, exactly as the Markdown page does it: a landscape phone
+     is short (<=500px tall) while a landscape iPad is not, so iPad keeps its
+     FR-16 reading column. */
+  @media (orientation: landscape) and (max-height: 500px) {
+    #doc { max-width: none; }
+  }
   #doc blockquote {
     margin: 1em 0; padding: 0.2em 0 0.2em 1em;
     border-left: 3px solid var(--muted); color: var(--muted);

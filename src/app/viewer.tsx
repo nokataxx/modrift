@@ -1,11 +1,5 @@
 import { File } from "expo-file-system";
-import {
-  Stack,
-  useFocusEffect,
-  useLocalSearchParams,
-  useNavigation,
-  useRouter,
-} from "expo-router";
+import { Stack, useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { SymbolView } from "expo-symbols";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -38,7 +32,7 @@ import { useSettings } from "@/hooks/use-settings";
 import { useTheme } from "@/hooks/use-theme";
 import { type CmTheme } from "@/lib/cm/html";
 import { classifyFileLocation, isHomeFile } from "@/lib/file-location";
-import { allowLandscapeOnPhone, lockPortraitOnPhone } from "@/lib/orientation";
+import { useViewerOrientation } from "@/hooks/use-viewer-orientation";
 import {
   createIcloudCopy,
   IcloudUnavailableError,
@@ -197,18 +191,10 @@ export default function ViewerScreen() {
     contentRef.current = content;
   }, [content]);
 
-  // FR-36: this is the one screen a phone may rotate on — landscape roughly
-  // doubles the measure so long lines wrap far less. Applies to preview and
-  // edit alike, so toggling modes never snaps the device back upright. The
-  // cleanup re-locks portrait on leaving, and no-ops on iPad (always free).
-  useFocusEffect(
-    useCallback(() => {
-      allowLandscapeOnPhone();
-      return () => {
-        lockPortraitOnPhone();
-      };
-    }, []),
-  );
+  // FR-36: landscape roughly doubles the measure so long lines wrap far less.
+  // Applies to preview and edit alike, so toggling modes never snaps the device
+  // back upright.
+  useViewerOrientation();
 
   // FR-37: track the keyboard so the formatting toolbar appears only while it's
   // up. "Will" events fire ahead of the frame so the toolbar rides in with the

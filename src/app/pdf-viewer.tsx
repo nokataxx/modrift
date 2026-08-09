@@ -15,6 +15,7 @@ import { NetworkBanner } from '@/components/network-banner';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useProEntitlement } from '@/hooks/use-pro-entitlement';
+import { useViewerOrientation } from '@/hooks/use-viewer-orientation';
 import { useTheme } from '@/hooks/use-theme';
 import { recordRecentFile } from '@/lib/recent-files';
 import { Spacing } from '@/theme';
@@ -28,6 +29,10 @@ export default function PdfViewerScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
   const { isPro } = useProEntitlement();
+
+  // FR-36: a PDF page is wider than it is tall on a phone, so landscape is
+  // where a scanned or A4 page becomes readable without zooming.
+  useViewerOrientation();
 
   // What we know about the file we were asked to show. `uri` is part of the
   // state on purpose: opening a second PDF reuses this screen (same route, new

@@ -12,8 +12,12 @@
 // be rewritten after parsing.
 import * as XLSX from '@e965/xlsx';
 
+import { classifyRows, contentBounds } from './shape.mjs';
+
 // Rendering every row of a big sheet blows up the DOM. Start capped and let the
-// reader ask for the rest (FR-43).
+// reader ask for the rest (FR-43). The cap counts rows we actually render, so a
+// sheet padded out to a thousand empty rows no longer spends the budget on
+// nothing.
 const ROW_CAP = 1000;
 
 function post(message) {
@@ -87,19 +91,17 @@ function fill(template, values) {
 
 function renderSheet(name, showAll) {
   const original = workbook.Sheets[name];
-  const range = XLSX.utils.decode_range(original['!ref'] ?? 'A1:A1');
-  const totalRows = range.e.r - range.s.r + 1;
+  // `!ref` is the sheet's stored extent, not the document: it counts rows that
+  // hold formatting and nothing else. Read from the cells instead (FR-43).
+  const bounds = contentBounds(original);
+  const totalRows = bounds.e.r - bounds.s.r + 1;
   const capped = !showAll && totalRows > ROW_CAP;
 
   // sheet_to_html has no row limit, so narrow the sheet's own range instead.
-  let sheet = original;
-  if (capped) {
-    sheet = { ...original };
-    sheet['!ref'] = XLSX.utils.encode_range({
-      s: range.s,
-      e: { c: range.e.c, r: range.s.r + ROW_CAP - 1 },
-    });
-  }
+  const range = capped
+    ? { s: bounds.s, e: { c: bounds.e.c, r: bounds.s.r + ROW_CAP - 1 } }
+    : bounds;
+  const sheet = { ...original, '!ref': XLSX.utils.encode_range(range) };
 
   // Removed inline rather than by an observer: SheetJS is synchronous, so a
   // MutationObserver armed after this call would never see the change (the
@@ -109,7 +111,16 @@ function renderSheet(name, showAll) {
   const table = XLSX.utils.sheet_to_html(sheet);
   // sheet_to_html returns a whole document; we only want the table element.
   const body = table.slice(table.indexOf('<table'), table.lastIndexOf('</table>') + 8);
-  document.getElementById('sheet').innerHTML = body;
+
+  const container = document.getElementById('sheet');
+  container.innerHTML = body;
+
+  // One <tr> per row of `range`, in order, so the classes line up by index.
+  const classes = classifyRows(original, range);
+  const rows = container.querySelectorAll('tr');
+  for (let i = 0; i < rows.length; i += 1) {
+    if (classes[i]) rows[i].className = classes[i];
+  }
 
   const note = document.getElementById('note');
   if (capped) {
@@ -120,7 +131,10 @@ function renderSheet(name, showAll) {
     button.onclick = () => renderSheet(name, true);
     note.appendChild(button);
   } else {
-    note.textContent = fill(labels.rows, { count: totalRows });
+    // The count is what is on screen, not what `!ref` claims — saying "988 rows"
+    // over a 51-row sheet was the stored extent talking.
+    const shown = classes.filter((cls) => cls !== 'hide').length;
+    note.textContent = fill(labels.rows, { count: shown });
   }
 }
 

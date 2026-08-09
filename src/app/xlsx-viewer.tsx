@@ -15,6 +15,7 @@ import { NetworkBanner } from '@/components/network-banner';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useProEntitlement } from '@/hooks/use-pro-entitlement';
+import { useViewerOrientation } from '@/hooks/use-viewer-orientation';
 import { useSettings } from '@/hooks/use-settings';
 import { useTheme } from '@/hooks/use-theme';
 import { recordRecentFile } from '@/lib/recent-files';
@@ -32,6 +33,11 @@ export default function XlsxViewerScreen() {
   const theme = useTheme();
   const { settings } = useSettings();
   const { isPro } = useProEntitlement();
+
+  // FR-36: the case that wants landscape most — a wide sheet gets roughly twice
+  // the columns on screen, which is the only mitigation this viewer offers for
+  // a table many screens wide (freeze panes are a non-goal, FR-43).
+  useViewerOrientation();
 
   // Keyed by URI, as with the other v2 viewers: opening a second file reuses
   // this screen, so untied state would show the previous file's error.

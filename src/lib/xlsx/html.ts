@@ -7,6 +7,9 @@
 // phone is below, which is the same bargain mammoth offers: we get meaning, and
 // the presentation is ours to write.
 //
+// The row classes styled below are assigned in xlsx-entry.mjs from
+// src/lib/xlsx/shape.mjs.
+//
 // Cell fills and red negatives are NOT restored yet. Verified as feasible
 // against a real workbook — every <td> carries id="sjs-<address>", so a colour
 // map keyed by address resolves 1:1 and costs a few KB — but deferred until
@@ -93,6 +96,17 @@ export function buildXlsxHtml({
     border: 1px solid var(--codeBg);
     padding: 5px 9px; white-space: nowrap;
     max-width: 20em; overflow: hidden; text-overflow: ellipsis;
+  }
+  /* Rows the sheet does not really have: runs of blank padding beyond the first,
+     and outline groups the author collapsed. Hidden rather than deleted so that
+     any rowspan crossing them stays the browser's problem, not ours. */
+  #sheet tr.hide { display: none; }
+  /* The first blank of a run survives as a gap. The gaps are what separate one
+     block of a form from the next, so collapsing them to nothing runs ■企業概要
+     straight into ■事業内容. */
+  #sheet tr.spacer td {
+    padding: 0; height: 7px; font-size: 0; line-height: 0;
+    border-left-color: transparent; border-right-color: transparent;
   }
   /* No header-row styling. SheetJS emits no <th>, and the spike filled the gap
      by treating row 1 as one — which a real workbook immediately disproved: its
