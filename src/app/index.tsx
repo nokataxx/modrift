@@ -21,7 +21,7 @@ import {
   shortContainerTag,
   type FileLocationKind,
 } from '@/lib/file-location';
-import { isSupportedFile, routeForFile } from '@/lib/file-types';
+import { IMAGE_EXTENSIONS, isSupportedFile, routeForFile } from '@/lib/file-types';
 import { type HomeFile, listHomeFiles } from '@/lib/home-files';
 import {
   deleteIcloudCopy,
@@ -102,7 +102,7 @@ function recentSubtitle(
 // are no dedicated SF Symbols for PDF/Word/Excel, so each type maps to a clearly
 // different doc-family shape (lined page / formatted page / solid page / grid).
 // Covers the v2 formats (PDF/xlsx/docx, view-only then) as well as today's md.
-type FileKind = 'markdown' | 'pdf' | 'sheet' | 'word' | 'other';
+type FileKind = 'markdown' | 'pdf' | 'sheet' | 'word' | 'image' | 'other';
 
 function fileKind(name: string): FileKind {
   const lower = name.toLowerCase();
@@ -110,6 +110,7 @@ function fileKind(name: string): FileKind {
   if (lower.endsWith('.pdf')) return 'pdf';
   if (/\.(xls|xlsx|csv)$/.test(lower)) return 'sheet';
   if (/\.(doc|docx)$/.test(lower)) return 'word';
+  if (IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext))) return 'image';
   return 'other';
 }
 
@@ -118,6 +119,7 @@ const FILE_ICON: Record<FileKind, SymbolViewProps['name']> = {
   pdf: 'doc.fill', // solid page — a rendered/final document
   sheet: 'tablecells', // grid — spreadsheet
   word: 'doc.richtext', // page with a formatted header block — rich text
+  image: 'photo', // the system's own picture glyph (FR-45)
   other: 'doc', // blank page
 };
 

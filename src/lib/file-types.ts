@@ -6,8 +6,9 @@
 // picker happily accepts.
 
 /**
- * Extensions Modrift accepts. Markdown/text are the free core; the rest are the
- * v2 paid formats (FR-41〜43), which open view-only.
+ * Extensions Modrift accepts. Markdown/text are the free core; PDF, docx and
+ * xlsx are the v2 paid formats (FR-41〜43); images are v2 too but stay free
+ * (FR-45). All of the v2 formats open view-only.
  *
  * `.text` mirrors the public.plain-text UTI we declare in
  * CFBundleDocumentTypes, so the in-app picker takes the same file shapes the
@@ -17,7 +18,26 @@
  * Legacy binary Office formats (.doc / .xls) are deliberately absent: mammoth
  * cannot read .doc at all, so supporting only half would be arbitrary.
  */
-export const SUPPORTED_EXTENSIONS = ['.md', '.markdown', '.txt', '.text', '.pdf', '.docx', '.xlsx'] as const;
+export const IMAGE_EXTENSIONS = [
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.heic',
+  '.heif',
+  '.webp',
+] as const;
+
+export const SUPPORTED_EXTENSIONS = [
+  '.md',
+  '.markdown',
+  '.txt',
+  '.text',
+  '.pdf',
+  '.docx',
+  '.xlsx',
+  ...IMAGE_EXTENSIONS,
+] as const;
 
 export function isSupportedFile(name: string): boolean {
   const lower = name.toLowerCase();
@@ -36,10 +56,11 @@ export function isSupportedFile(name: string): boolean {
  */
 export function routeForFile(
   name: string,
-): '/viewer' | '/pdf-viewer' | '/docx-viewer' | '/xlsx-viewer' {
+): '/viewer' | '/pdf-viewer' | '/docx-viewer' | '/xlsx-viewer' | '/image-viewer' {
   const lower = name.toLowerCase();
   if (lower.endsWith('.pdf')) return '/pdf-viewer';
   if (lower.endsWith('.docx')) return '/docx-viewer';
   if (lower.endsWith('.xlsx')) return '/xlsx-viewer';
+  if (IMAGE_EXTENSIONS.some((ext) => lower.endsWith(ext))) return '/image-viewer';
   return '/viewer';
 }

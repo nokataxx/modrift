@@ -69,6 +69,19 @@
             "LSItemContentTypes": [
               "org.openxmlformats.spreadsheetml.sheet"
             ]
+          },
+          {
+            "CFBundleTypeName": "Image",
+            "LSHandlerRank": "Alternate",
+            "CFBundleTypeRole": "Viewer",
+            "LSItemContentTypes": [
+              "public.png",
+              "public.jpeg",
+              "com.compuserve.gif",
+              "public.heic",
+              "public.heif",
+              "org.webmproject.webp"
+            ]
           }
         ],
         "NSUbiquitousContainers": {

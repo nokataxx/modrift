@@ -161,6 +161,6 @@
     "errorTitle": "ファイルを開けませんでした",
     "errorOpenFailed": "ファイルピッカーを開けませんでした。",
     "errorReadFailed": "ファイルを開けませんでした。端末にまだダウンロードされていない可能性があります。元のアプリ (Google Drive・ファイル等) で一度開くか、通信状態を確認してからもう一度お試しください。",
-    "unsupportedType": "この形式のファイルには対応していません。.md / .markdown / .txt / .text / .pdf / .docx / .xlsx ファイルを開いてください。"
+    "unsupportedType": "この形式のファイルには対応していません。.md / .markdown / .txt / .text / .pdf / .docx / .xlsx / 画像 (.png / .jpg / .gif / .heic / .webp) を開いてください。"
   }
 }
