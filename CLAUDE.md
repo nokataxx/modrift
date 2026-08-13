@@ -45,6 +45,7 @@ This file is the persistent context for Claude Code working on the Modrift proje
 - **CodeMirror 6** (`@codemirror/*`) を **react-native-webview** 上でホストし、**閲覧・編集の両方を単一エディタ**で賄う (`src/lib/cm/`)。バンドルは `editor-entry.mjs` を esbuild で `bundle.ts` に固めて WebView へ注入
 - 閲覧はカーソル行の記法も含めて整形表示、編集はカーソル行だけ生の記法を露出するライブプレビュー。GFM (表/タスク/取り消し線)・シンタックスハイライト・タスクタップ・リンクタップ・undo/redo (CM history) 対応
 - **重要**: WKWebView は `@font-face` の `size-adjust` を無視するため、CJK/Latin のサイズ調和は inline `font-size` span で行う。ヘッドレス Chrome は実機と乖離するので**実機検証必須**
+- **重要 (スクロール慣性)**: CM エディタに `height: 100%` を当てない (ページのネイティブスクロールが必要)、かつ WebView に `decelerationRate="normal"` を**明示**する。どちらを外しても長文フリックが途中で「カチン」と止まる。同根で、live-preview はスクロール中に装飾を再構築しない (`WHOLE_DOC_DECORATE_LIMIT` = 20000 文字以下は文書全体を装飾する。改訂35)。**回帰検体は [samples/large-scroll-test.md](samples/large-scroll-test.md)** — この上限を超える長さなので、フォールバック側の経路を踏める
 - 設定画面のライブプレビュー見本 (`settings.tsx`) も同じ `MarkdownWebView` を read-only (`editable={false}`) で描画 → ビューアと完全に同じ見た目。アプリ内の Md レンダラは **CodeMirror のみ** (`react-native-enriched-markdown` 依存は v1.2 で撤去済み)
 - 旧来の `react-native-markdown-display` も使わない
 - **重要**: New Architecture / ネイティブモジュール前提のため Expo Go では動作しない → **Expo Dev Client が必須**
@@ -161,7 +162,8 @@ Modrift は **2つの起動経路** をフラットに対応する。これは M
 - **Sandbox**: アプリは選択されたファイルにのみアクセス可能
 - **Security-Scoped Bookmark**: Document Picker の URI はセッションを跨ぐと無効化 (v1.1で対応)
 - **File Provider 同期完了は観測不可**: `writeAsStringAsync` はローカル書き込み完了までしか保証しない
-- **クラウド同期はプロバイダ依存**: 書き込みは `NSFileCoordinator` で協調済み。**in-place 編集が成立するのは iCloud Drive のみ**、さらに v1.4 Policy A では編集可はホーム (iCloud › Modrift) 限定 (`isHomeFile` のゲート)。**Dropbox / Google Drive 等・ホーム外は in-place 編集不可** (編集は「ホームにコピー」経由、原本に書き戻らない、FR-34)。閲覧は全プロバイダ可
+- **クラウド同期はプロバイダ依存**: **in-place 編集が成立するのは iCloud Drive のみ**、さらに v1.4 Policy A では編集可はホーム (iCloud › Modrift) 限定 (`isHomeFile` のゲート)。**Dropbox / Google Drive 等・ホーム外は in-place 編集不可** (編集は「ホームにコピー」経由、原本に書き戻らない、FR-34)。閲覧は全プロバイダ可
+- **書き込みは協調していない (2026-08-13 訂正)**: 保存は `expo-file-system` の素の write。かつて `NSFileCoordinator` で包む patch を当てていたが、**expo-file-system はプリコンパイル配布 (`ios/Pods/ExpoFileSystem/ExpoFileSystem.xcframework`) なので patch がコンパイルされておらず、効いていなかった**。読み込み側で同じ問題に気づいて自前モジュールへ移した (上記) のに、書き込み側は patch のまま放置されていた。**効かない patch を持ち続けるほうが有害**なので削除した。編集可なのはホーム (iCloud) だけで、iCloud は協調なしでも同期するため実害は無い。**ホーム外を編集可にするなら、まず協調書き込みを自前モジュールへ実装すること**
 - **UTI 登録が必要 (Open In対応のため)**: `CFBundleDocumentTypes` で `.md` ハンドリングを宣言
 
 ### 環境

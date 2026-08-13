@@ -94,7 +94,8 @@ Vault 廃止（改訂11）と Word 追加（改訂12）でストア文言に手�
       「軽快さ」より「何が開けるか」のほうが検索にも転換にも効くと判断した
 - [x] **説明文（Description）の訂正をストアへ反映**（2026-08-13、2.0.0 に同梱）— 編集がホーム限定である旨、
       および PDF / Word / Excel / 画像の節を追加。**ストアに残っていた旧・誤文言はこれで解消**
-- [x] **03-edit.png 撮り直し完了**（2026-06-28）— 修正済みデモ [../samples/welcome.md](../samples/welcome.md)
+- [x] **03-edit.png 撮り直し完了**（2026-06-28）— 修正済みデモ `samples/welcome.md`（2026-08-13 に削除。
+      デモ用途は `samples/screenshot-showcase.md` が引き継いだ）
       を iPhone 17 Pro Max シミュレータ（1320×2868）で編集モード表示し再撮影、
       `store-assets/screenshots/03-edit.png` を差し替え済み（「iCloud / Dropbox にそのまま同期」→
       「iCloud Drive にそのまま同期」を反映）。**ストア公開への反映は v2 提出時**（スクショもメタデータ）
