@@ -50,6 +50,25 @@ This file is the persistent context for Claude Code working on the Modrift proje
 - **重要**: New Architecture / ネイティブモジュール前提のため Expo Go では動作しない → **Expo Dev Client が必須**
 - MVP の構成 (履歴): 閲覧=enriched-markdown、編集=`TextInput multiline`。v1.2 (FR-20) で CodeMirror 一本化に置換し enriched-markdown 依存を撤去
 
+### Other Formats (v2 — 閲覧専用。PDF / Word / xlsx は有償 Pro、画像は無料)
+
+- **PDF**: `react-native-pdf-renderer` (ネイティブ。iOS は PDFView のサブクラス)
+- **Word (.docx)**: **mammoth 1.12.0** で OOXML → HTML (`src/lib/docx/`)
+- **Excel (.xlsx)**: **SheetJS CE (`@e965/xlsx` 0.20.3)** でワークブック → HTML テーブル (`src/lib/xlsx/`)
+- **画像**: `expo-image` (PNG / JPEG / GIF / HEIC / WebP)
+- **重要 (mammoth / SheetJS は devDependencies にある)**: どちらも**アプリのランタイムには載せず、esbuild で WebView 用バンドル (`bundle.ts`) に固めて注入**する — CodeMirror と同じ方式。`build-bundle.mjs` を実行して生成する。**RN のランタイムに入れると Node 前提の API で落ちる**ため、形式ごとに独立したバンドルにしている
+- **重要 (バイナリの読み込み)**: PDF / docx / xlsx は Md の `readFileCoordinated` ではなく **`FileBookmarkModule.materializeFileCoordinated(uri)`** を通す。**シミュレータではこれが解決しない** (実機では正常) ので、シミュレータで v2 ビューアを触るときは一時的に `Promise.resolve(fileUri)` に置換する
+- **意図的にやらないこと**: これらの形式の**編集**。閲覧専用と決めている (FR-21)
+
+### Billing (v2 — FR-44)
+
+- **RevenueCat (`react-native-purchases` 10.7.0)**。買い切りの非消耗型1本 (`com.modrift.app.pro`)
+- **SDK を知っているのは [`src/lib/purchases.ts`](src/lib/purchases.ts) 1枚だけ**。アプリ側は `useProEntitlement()` フック (Context) と `Paywall` コンポーネントしか見ない
+- **アカウントを持たない**方針 (5.9)。`logIn()` を呼ばないので App User ID は匿名で、復元はストアの購入履歴から。**プラットフォーム跨ぎの引き継ぎは無い** (Android で買い直し) — 買い切りなので許容する、と決めた判断
+- **鍵が無ければ fail-closed**: `app.json` の `extra.revenueCatApiKey` が空なら `isPro: false`。解錠側に倒さない
+- **`test_` で始まる鍵は RevenueCat の Test Store**。出荷すると誰も買えないのに画面上は成功するので、`isBillingConfigured()` がリリースビルドで弾く
+- ダッシュボード設定 (Git に残らない) は [`docs/adr-v2-pro-formats.md`](docs/adr-v2-pro-formats.md) に記録
+
 ### Internationalization
 - **expo-localization** (デバイス言語取得)
 - **i18next** + **react-i18next**
