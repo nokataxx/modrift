@@ -424,7 +424,7 @@ EU で配信するには DSA 上のトレーダー申告が必要で、トレー
 1. RevenueCat の設定 → **Test Store 分は完了 (2026-08-13)**。残るは **Apple アプリの登録** (Apps → Apple App Store に `com.modrift.app` と App Store Connect のキー) → App Store 版 product `com.modrift.app.pro` を Entitlement `pro` に Attach → **`appl_` キーへ差し替え** (**ユーザー作業**)
 2. ~~フックの差し替えと購入・復元の導線~~ → **完了 (2026-08-13、下記「コード側の実装」)**
 3. ~~Paywall UI~~ → **完了 (2026-08-13)**。**名称に依存しない作りにしたので、名称の決裁を待たずに書けた**
-4. 購入 → 解錠 → 復元の全経路は **Test Store で実機確認済み (2026-08-13、iPhone)**。残るは **Apple の Sandbox での本番同等テスト** (購入 → アンインストール → 復元) ← 1 の完了待ち
+4. ~~Sandbox テスト~~ → **完了 (2026-08-13、iPhone。下記「Apple Sandbox での検証」)**
 5. **初回の非消耗型 IAP は v2 のアプリバージョンと同時に審査へ出す** (App Store Connect の画面にも明記される。単独では提出できない)
 
 ### コード側の実装 (2026-08-13)
@@ -458,8 +458,12 @@ EU で配信するには DSA 上のトレーダー申告が必要で、トレー
 | Entitlement display name | `Modrift Pro` (社内表示のみ。**製品名の決裁ではない**) |
 | Offering | `default` (Current)。Package は **Lifetime (`$rc_lifetime`) 1つだけ** |
 | Test Store product | `lifetime` |
-| Test Store API キー | `test_hVXyHmFvFUqusXuHAucgcFDuwLV` |
-| App Store アプリ登録 | **未実施** — `appl_` キーと `com.modrift.app.pro` の紐付けはこれから |
+| Test Store API キー | `test_hVXyHmFvFUqusXuHAucgcFDuwLV` (開発用。**出荷不可**) |
+| **本番 API キー** | **`appl_SVWgRGbMhtbUAKmdlzXaopXtKzC`** (app.json の `extra.revenueCatApiKey`) |
+| App Store アプリ登録 | `Modrift (App Store)` / Bundle ID `com.modrift.app` / In-App Purchase Key (.p8) + Key ID + **Issuer ID** |
+| App Store product | `com.modrift.app.pro` (非消耗型)。Entitlement `pro` と Offering の Lifetime パッケージの両方に、Test Store 版と**並べて**紐付け済み — **キーの差し替えだけで開発/本番を切り替えられる** |
+
+> **Issuer ID の在り処**: 統合ページ上部に出るが、**App Store Connect API キーを1つも作っていないと表示されない**。名前も権限も何でもよいので API キーを1つ作ると現れる (In-App Purchase キーと API キーで Issuer ID は共通)。作った API キー自体は使わない。
 
 **Test Store という抜け道があった。** RevenueCat は新規プロジェクトに `test_` で始まるキーを自動発行し、これを使うと購入が **App Store ではなく RevenueCat のシミュレータ**へ流れる。Apple の購入シートの代わりに「成功 / 失敗 / キャンセル」を選ぶモーダルが出る。**App Store Connect の Sandbox 設定を待たずに、Paywall・購入・解錠・復元の全経路を実機で通せた** (2026-08-13、iPhone で確認済み)。
 
@@ -468,6 +472,29 @@ EU で配信するには DSA 上のトレーダー申告が必要で、トレー
 **ウィザードの既定は Modrift に合わない。** RevenueCat のオンボーディングは Monthly / Yearly / Lifetime の**サブスク前提**で提案してくる。Modrift は買い切り1本なので Lifetime だけにする。また Entitlement の識別子が **`Modrift Pro` (空白入り)** で作られ、**作成後は変更できなかった**ので削除して `pro` で作り直した。**顧客が1人もいない今だからできた** — 購入者が出た後に識別子を変えると既存の購入が解錠されなくなる。
 
 > Entitlement は **Project 単位**なので、`pro` という汎用名で将来の別アプリと衝突しない。ただし **1つの Project に別々の製品を入れないこと** — Project 内の Apps は「同じアプリの iOS 版と Android 版」を置く場所で、同居させると Entitlement を共有してしまう。Modrift の Android 版はこの Project に追加、別アプリは新しい Project。
+
+### Apple Sandbox での検証 (2026-08-13、iPhone / iOS 26.6) — **合格**
+
+| 経路 | 結果 |
+|---|---|
+| Paywall に **¥1,000** が表示される | ✅ App Store Connect ↔ RevenueCat ↔ アプリの3点が繋がった |
+| 購入 (Sandbox の購入シート) | ✅ 「Sandbox」「課金されません」「Account: テスター」の3点を確認 |
+| 購入直後に**背後の PDF がその場で表示** | ✅ 再マウント不要 = Context 化の効果 |
+| docx / xlsx も同時に解錠 | ✅ Entitlement 1つで3形式 |
+| Md / txt / 画像は購入と無関係に閲覧可 | ✅ |
+| **削除 → 再インストール → 設定から復元** | ✅ Guideline 3.1.1 の要求経路 |
+
+> Paywall 上の復元ボタンは未検証 (設定側で解錠された後は Paywall に到達できないため)。**同じ `restorePro()` を呼ぶ**ので実装上の差は無い。
+
+**踏んだ罠が3つあり、どれも「アプリの不具合に見える」種類のものだった:**
+
+1. **開発ビルドでは商品を取得できない。** `APP_VARIANT=development` の Bundle ID は **`com.modrift.app.dev`** で、App Store Connect に存在しないアプリ。StoreKit は起動中のアプリの Bundle ID で商品を探すので、**商品リストは必ず空**になる。Test Store で動いていたのは RevenueCat のシミュレータが Bundle ID を見ないから。**本番 Bundle ID でビルドし直す**しかない (`APP_VARIANT` を外して `prebuild --clean` → `run:ios`)。**環境変数を外すだけでは不十分** — Bundle ID は pbxproj に焼き込まれており、`prebuild --clean` が要る。同一 Bundle ID なので端末の App Store 版は上書きされる (ホームが iCloud なら影響なし。テスト後は App Store から再入手できる)。**dev 版に戻すときは `npm run prebuild:dev`**
+2. **メタデータが揃うまで商品は返ってこない。** 「None of the products registered in the RevenueCat dashboard could be fetched from App Store Connect」は設定不足のサイン。**価格とローカリゼーション (表示名・説明) の両方**が要る。ローカリゼーションには**文字数制限がある** — 表示名30文字・説明45文字。反映に時間がかかることもある
+3. **Sandbox アカウントのサインイン場所を間違えると、そのアドレスが焼ける。** 正しい場所は **設定 → デベロッパ → 一番下の Sandbox Apple Account**。設定 → App Store の通常のサインイン欄に入れると「iTunes account creation not allowed」になり、**そのメールアドレスは二度と Sandbox にも Apple ID にも使えなくなる** (テスターを削除しても復活しない)。1つ焼いたので `+sandbox1` で作り直した。**プラスエイリアスにしておいたおかげで作り直しが一瞬で済んだ**
+
+> **価格は ¥1,000 で確定** (2026-08-13)。日本の価格点は ¥900 の次が ¥1,000 で、**¥980 は選べない**。¥1,200 も検討したが、**PDF・Word・Excel は Files アプリと Quick Look が無料で開ける**ため、Pro が売っているのは「開けること」ではなく読みやすさの差分になる。価格で立ち止まらせないほうが向いていると判断した。下げるのは容易・上げるのは困難なので、この判断は後から見直せる。
+>
+> **IAP の表示名は `Modrift Pro` で登録した** (ローカリゼーション必須のため)。**表示名は後から変更できる**ので、名称の最終決裁はまだ動かせる。
 
 > **lint で1つ学んだ**: `react-hooks/set-state-in-effect` は「effect 本体で同期的に setState するな」を強制する。初期化時の `setIsLoading(false)` は `useState(isBillingConfigured)` の遅延初期化に、初回取得は `.then()` の中に移して解消した。**どちらも回避策ではなく素直な形**で、effect は「外部システムを購読して、答えが返ってきたら state を更新する」という本来の姿になった
 
