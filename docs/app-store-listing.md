@@ -126,6 +126,36 @@ The name combines Mo (Mobile / Motion) + drift — the idea of thoughts and file
 
 App Store Connect のバージョンごとの「このバージョンの新機能」欄。**掲載文の Description とは別枠**なので、バージョンを作るたびにここから貼る。
 
+### 2.0.0 — PDF・Word・Excel、そして画像
+
+> **初回の App 内課金を同時提出する**バージョン。手順と審査メモは [app-store-submission-guide.md](app-store-submission-guide.md) の「v2 固有の手順」。
+
+**日本語 (ja)**
+
+```
+Markdown だけでなく、他の形式も開けるようになりました。
+
+・画像（PNG / JPEG / GIF / HEIC / WebP）をピンチズームで表示 ― 無料
+・PDF をページ送り・ズームで表示
+・Word 文書（.docx）を見出し・箇条書き・表つきで整形表示
+・Excel ブック（.xlsx）をシート切り替えつきで表示
+
+PDF・Word・Excel の閲覧は Modrift Pro（買い切り・月額なし）に含まれます。Markdown・テキスト・画像はこれまでどおり無料です。これらの新しい形式は閲覧専用です。
+```
+
+**English (en)**
+
+```
+Modrift now opens more than Markdown.
+
+- View images (PNG / JPEG / GIF / HEIC / WebP) with pinch to zoom — free
+- View PDFs with paging and zoom
+- View Word documents (.docx) formatted, with headings, lists and tables
+- View Excel workbooks (.xlsx) with sheet switching
+
+PDF, Word and Excel viewing is part of Modrift Pro — a one-time purchase, no subscription. Markdown, text and images stay free. These new formats are view-only.
+```
+
 ### 1.5.0 — 編集ツールバーと読みやすさの改善
 
 > ネイティブ変更あり（File Provider の未ダウンロードファイルを協調読み込みで開けるようにした、FR-40）。権限・データの扱いに変更はなく、審査メモは v1.4 を踏襲。
