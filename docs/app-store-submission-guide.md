@@ -64,7 +64,7 @@ v1.x との決定的な違いは **初回の非消耗型 IAP をアプリのバ�
 >
 > **To restore a purchase**
 > - On the paywall: **Restore Purchase**.
-> - Or the gear icon → **Purchase** → **Restore Purchase**.
+> - Or the ⋯ menu → **Settings** → **Purchase** → **Restore Purchase**.
 >
 > **Notes**
 > - No account is required. The purchase is tied to the App Store account and restored from its purchase history.
