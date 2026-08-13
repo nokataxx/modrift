@@ -23,19 +23,19 @@ App Store Connect に入力する掲載テキストの下書き。日英2ロケ�
 
 ### サブタイトル（30字以内）
 
-Markdownをサッと開いて軽く編集
+Markdown・PDF・Wordをサッと開く
 
 ### キーワード（100字以内・カンマ区切り）
 
-markdown,md,obsidian,エディタ,メモ,テキスト,ノート,icloud,ビューア,書類,プレビュー
+markdown,md,pdf,word,excel,docx,xlsx,ビューア,エディタ,メモ,テキスト,icloud,書類,プレビュー
 
 ### プロモーションテキスト（170字以内・審査不要で随時更新可）
 
-iPhoneでクラウドやメール添付のMarkdownをどこからでもサッと開いて、整形表示で読んで、その場で軽く直せる。軽快さに特化したミニマルなMarkdownクライアントです。
+Markdownをサッと開いて読んで、その場で軽く直せる。v2からはPDF・Word・Excelの閲覧も追加（買い切り）。画像とテキストは無料のまま。軽快さに特化したファイルクライアントです。
 
 ### 説明文（Description）
 
-Modrift は、クラウド上の Markdown ファイルを iPhone でサッと開いて読み、その場で軽く直せる軽量クライアントです。重厚なノートアプリではなく、「開いて・読んで・少し直す」を最速で。
+Modrift は、クラウド上のファイルを iPhone でサッと開いて読み、その場で軽く直せる軽量クライアントです。重厚なノートアプリではなく、「開いて・読んで・少し直す」を最速で。
 
 ■ 主な機能
 ・Markdown ファイル（.md / .txt / .markdown）を開いて整形表示
@@ -48,6 +48,14 @@ Modrift は、クラウド上の Markdown ファイルを iPhone でサッと開
 ・本文の検索、更新日 / 名前での並び替え
 ・横向きにすると行が長くなり、長文や表が読みやすい
 ・日本語 / 英語の UI 切り替え
+
+■ Markdown 以外のファイルも開けます
+・画像（PNG / JPEG / GIF / HEIC / WebP）をピンチズームで表示 ― 無料
+・PDF をページ送り・ズームで表示 ― Modrift Pro（買い切り）
+・Word 文書（.docx）を見出し・箇条書き・表つきで整形表示 ― Modrift Pro
+・Excel ブック（.xlsx）をシート切り替えつきで表形式に表示 ― Modrift Pro
+※ Markdown / テキスト / 画像は無料のままです。PDF・Word・Excel の閲覧だけが Modrift Pro（一度きりの買い切り。月額はありません）に含まれます
+※ これらの形式は閲覧専用です（編集はできません）
 
 ■ ホームと編集について
 ・ホーム（iCloud › Modrift）のファイルは、そのまま編集できます。編集は iCloud に同期されます
@@ -65,19 +73,19 @@ Modrift は Files アプリの代わりではなく、補完するアプリで�
 
 ### Subtitle (≤30 chars)
 
-Open & edit Markdown, fast
+Markdown, PDF, Word and Excel
 
 ### Keywords (≤100 chars, comma-separated)
 
-markdown,md,obsidian,editor,notes,text,icloud,viewer,document,preview,plain text
+markdown,md,pdf,word,excel,docx,xlsx,viewer,editor,notes,text,icloud,document,preview
 
 ### Promotional Text (≤170 chars)
 
-Open Markdown from any cloud or email attachment on iPhone, read it beautifully formatted, and make quick edits in place. A minimal, fast Markdown client.
+Open Markdown from any cloud or attachment, read it formatted, and edit in place. Now with PDF, Word and Excel viewing as a one-time purchase. Images stay free.
 
 ### Description
 
-Modrift is a lightweight client for quickly opening, reading, and lightly editing Markdown files stored in the cloud — right from your iPhone. Not a heavy notes app: just open, read, and tweak, as fast as possible.
+Modrift is a lightweight client for quickly opening, reading, and lightly editing files stored in the cloud — right from your iPhone. Not a heavy notes app: just open, read, and tweak, as fast as possible.
 
 Key features
 
@@ -91,6 +99,15 @@ Key features
 - Full-text search, and sorting by date modified or name
 - Turn to landscape for longer lines — easier on long paragraphs and tables
 - Japanese / English interface
+
+Beyond Markdown
+
+- View images (PNG / JPEG / GIF / HEIC / WebP) with pinch to zoom — free
+- View PDFs with paging and zoom — Modrift Pro (one-time purchase)
+- View Word documents (.docx) formatted, with headings, lists and tables — Modrift Pro
+- View Excel workbooks (.xlsx) as tables, with sheet switching — Modrift Pro
+Markdown, text and images stay free. Only PDF, Word and Excel viewing is part of Modrift Pro — a single one-time purchase, no subscription.
+These formats are view-only; they cannot be edited.
 
 About your home and editing
 

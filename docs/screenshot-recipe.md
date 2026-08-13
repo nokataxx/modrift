@@ -3,7 +3,46 @@
 毎リリースで App Store 用スクショ（iPhone 6.9" / iPad 13"）を**シミュレータだけで**撮るための手順。実機は不要。
 出力は `store-assets/screenshots/`（`iphone-69-0N-*.png` 1320×2868 / `ipad-13-0N-*.png` 2064×2752）。
 
-## 何がキモか（ハマりどころ）
+> **⚠️ 2026-08-13 改訂**: **openurl 方式は使えなくなった。** iOS 26.4 では `simctl openurl` に対して **必ず「Open in "Modrift Dev"?」の確認ダイアログ**が出る（アプリの起動中・終了中を問わず、`modrift-dev://` でも出る）。タップ自動化が無いので、この経路は詰む。代わりに **アプリへ一時フックを仕込んで、コンテナ内のファイルから遷移先を読ませる**。詳細は下の「遷移方式（現行）」。以降の openurl の記述は経緯として残す。
+
+## 遷移方式（現行・2026-08-13〜）
+
+`src/app/index.tsx` の `HomeScreen` に**撮影用の一時フック**を足し、撮影後に戻す。
+
+```tsx
+// TEMP: store screenshots only — REVERT
+useEffect(() => {
+  try {
+    const f = new File(Paths.document, '.shot.json');
+    if (!f.exists) return;
+    const { pathname, params } = JSON.parse(f.textSync());
+    const id = setTimeout(() => router.push({ pathname, params }), 900);
+    return () => clearTimeout(id);
+  } catch {}
+}, [router]);
+```
+
+撮影ハーネスは `Documents/.shot.json` を書いてからアプリを再起動するだけ。**URL 層を通らないので確認ダイアログが出ない。**
+
+```sh
+printf '%s' '{"pathname":"/pdf-viewer","params":{"fileUri":"file://...","fileName":"Field Note.pdf"}}' > "$DOC/.shot.json"
+xcrun simctl terminate $U com.modrift.app.dev; xcrun simctl launch $U com.modrift.app.dev; sleep 15
+xcrun simctl io $U screenshot 04-pdf.png
+```
+
+### 有料形式（PDF / docx / xlsx）を撮るときの追加パッチ
+
+`.dev` の Bundle ID では App Store の商品を取得できないため、そのままでは Paywall が出る。撮影用に [`use-pro-entitlement.tsx`](../src/hooks/use-pro-entitlement.tsx) を2箇所いじる。**片方だけでは足りない**:
+
+- `useState(false)` → `useState(true)`（`isPro`）
+- `useState(isBillingConfigured)` → `useState(false)`（**`isLoading`**。effect を早期 return させると `isLoading` が永遠に true のままになり、ビューアが「Loading...」で止まる ← 実際に踏んだ）
+- provider の effect 先頭に `return;`
+
+さらに **シミュレータでは `materializeFileCoordinated` が解決しない**（Markdown の `readFileCoordinated` は動く）。PDF / docx / xlsx の3ビューアで、この呼び出しを `Promise.resolve(fileUri)` に一時置換する。**実機では正常なので、シミュレータ固有の問題**。
+
+**撮影後は必ず全パッチを戻し、`grep -rn "TEMP: store screenshots" src/` が空になることを確認する。**
+
+## 何がキモか（ハマりどころ・openurl 時代の記録）
 
 - アプリは **dev-client ビルド**。dev-client は起動時に **expo-dev-launcher** が動き、Metro に繋ぐか埋め込みバンドルをロードする。
 - **Metro に繋いだ状態だと `modrift-dev://` の openurl を dev-launcher が横取り**してアプリ内ルーティングに渡らない → 画面遷移できない。
@@ -85,7 +124,30 @@ defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool true
 # 開発を続けるなら Metro を再開: npm run start:dev
 ```
 
-## 参考: 使った UDID（2026-07 時点・環境依存なので都度確認）
+## 検体ファイル（v2 以降）
 
-- iPhone 6.9": iPhone 17 Pro Max (iOS 26.2) — 1320×2868
+有料形式のスクショには PDF / docx / xlsx が要る。**利用者の実データは使わない**ので生成する:
+
+- **xlsx** — `@e965/xlsx` で書き出す（`XLSX.write(wb, {type:'buffer'})` + `fs.writeFileSync`。**`writeFile` は ESM だと `fs` が繋がっておらず "cannot save file" になる**）。スクリプトはプロジェクト直下に置いて実行しないと依存を解決できない
+- **docx** — 最小構成の OOXML を手で組んで zip する（`[Content_Types].xml` / `_rels/.rels` / `word/document.xml` / `word/styles.xml` / `word/_rels/document.xml.rels` の5ファイル）。mammoth は読み専用なので書けない
+- **PDF** — Swift + AppKit の `CGContext` PDF コンシューマ（`cupsfilter` に HTML→PDF フィルタが無いため）
+
+## 参考: 使った UDID（環境依存なので都度確認）
+
+- iPhone 6.9": iPhone 17 Pro Max — 1320×2868（2026-08 時点 `3D903E0F-…`）
 - iPad 13": iPad Pro 13-inch (M5) **iOS 26.4** — 2064×2752（iOS 26.2 の個体はネットワーク不良で真っ白 → 26.4 で解決）
+
+## v2 の構成（2026-08-13）
+
+編集を残しつつ新形式に枠を割いた6枚。旧 `04-settings` は落とした。
+
+| # | 画面 |
+|---|---|
+| 01 | ホーム |
+| 02 | Markdown ビューア |
+| 03 | Markdown 編集（ツールバー＋キーボード） |
+| 04 | PDF |
+| 05 | Excel（シートタブ・表） |
+| 06 | Word（見出し・箇条書き・表） |
+
+> **キーボードが日本語で写る**ことがある。`AppleKeyboards` を en_US だけにして **respring してから撮り直す**（`AppleLocale` も en_US にすると確実）。撮影の途中で sim を再起動すると設定が戻ることがあるので、**編集画面は最後に確認する**。
