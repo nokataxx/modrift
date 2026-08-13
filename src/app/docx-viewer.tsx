@@ -15,6 +15,7 @@ import { WebView } from 'react-native-webview';
 import { NetworkBanner } from '@/components/network-banner';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Paywall } from '@/components/paywall';
 import { useProEntitlement } from '@/hooks/use-pro-entitlement';
 import { useViewerOrientation } from '@/hooks/use-viewer-orientation';
 import { useSettings } from '@/hooks/use-settings';
@@ -33,7 +34,7 @@ export default function DocxViewerScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
   const { settings } = useSettings();
-  const { isPro } = useProEntitlement();
+  const { isPro, isLoading: isProLoading } = useProEntitlement();
 
   // FR-36: landscape widens the measure, the same reason the Markdown viewer
   // allows it.
@@ -90,10 +91,14 @@ export default function DocxViewerScreen() {
     };
   }, [fileUri, fileName, isPro, reloadNonce, theme, base, t]);
 
-  const body = !isPro ? (
+  const body = isProLoading ? (
+    // Entitlement is not known synchronously. Showing the paywall here would
+    // flash it at someone who has already paid, so wait it out (FR-44).
     <ThemedText themeColor="textSecondary" style={styles.message}>
-      {t('screens.pro.locked')}
+      {t('screens.viewer.loading')}
     </ThemedText>
+  ) : !isPro ? (
+    <Paywall />
   ) : current.status === 'error' ? (
     <View>
       <ThemedText themeColor="textSecondary" style={styles.message}>

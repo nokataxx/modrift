@@ -135,7 +135,10 @@
         "dark": "Dark",
         "light": "Light",
         "navy": "Navy"
-      }
+      },
+      "purchase": "Purchase",
+      "restorePurchase": "Restore Purchase",
+      "restorePurchaseHint": "Brings back a purchase after reinstalling or switching devices."
     },
     "search": {
       "title": "Search",
@@ -143,13 +146,31 @@
       "noResults": "No results found",
       "truncated": "Showing partial results (too many matches)"
     },
-    "pro": {
-      "locked": "Viewing this format is available with Pro."
-    },
     "xlsx": {
       "rows": "{{count}} rows",
       "rowsTruncated": "Showing the first {{shown}} of {{total}} rows",
       "showAll": "Show all"
+    },
+    "paywall": {
+      "title": "Open PDF, Word and Excel",
+      "features": {
+        "pdf": "Open PDF files",
+        "docx": "Open Word documents (.docx)",
+        "xlsx": "Open Excel workbooks (.xlsx)"
+      },
+      "freeNote": "Markdown, text and images stay free.",
+      "buy": "Buy for {{price}}",
+      "oneTimeNote": "A one-time purchase. No subscription.",
+      "restore": "Restore Purchase",
+      "unavailable": "Purchasing isn't available right now. Check your connection and try again shortly.",
+      "notConfigured": "This format isn't available yet.",
+      "purchaseFailedTitle": "Purchase failed",
+      "restoreFailedTitle": "Restore failed",
+      "tryAgain": "Please try again in a moment.",
+      "restoredTitle": "Purchase restored",
+      "restoredBody": "You can now open PDF, Word and Excel files.",
+      "nothingToRestoreTitle": "Nothing to restore",
+      "nothingToRestoreBody": "No purchase was found for this Apple ID."
     }
   },
   "network": {

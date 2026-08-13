@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import '@/i18n';
 import { ShareIntentHandler } from '@/components/share-intent-handler';
 import { NetworkProvider } from '@/hooks/use-network';
+import { ProEntitlementProvider } from '@/hooks/use-pro-entitlement';
 import { SettingsProvider } from '@/hooks/use-settings';
 import { useResolvedColorScheme } from '@/hooks/use-theme';
 import { lockPortraitOnPhone } from '@/lib/orientation';
@@ -56,8 +57,12 @@ export default function RootLayout() {
       <GestureHandlerRootView style={styles.root}>
         <SettingsProvider>
           <NetworkProvider>
-            <ThemedStack />
-            <ShareIntentHandler />
+            {/* FR-44: one RevenueCat listener for the whole app, so a purchase
+                on the paywall unlocks the screen behind it without a remount. */}
+            <ProEntitlementProvider>
+              <ThemedStack />
+              <ShareIntentHandler />
+            </ProEntitlementProvider>
           </NetworkProvider>
         </SettingsProvider>
       </GestureHandlerRootView>

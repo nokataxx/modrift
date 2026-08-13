@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MarkdownWebView } from '@/components/markdown-web-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useProEntitlement } from '@/hooks/use-pro-entitlement';
 import { useSettings } from '@/hooks/use-settings';
 import { useResolvedColorScheme, useTheme } from '@/hooks/use-theme';
 import { type CloudNames, loadCloudNames, setCloudName } from '@/lib/cloud-names';
@@ -22,6 +23,7 @@ import {
   externalContainerKey,
   shortContainerTag,
 } from '@/lib/file-location';
+import { restorePro } from '@/lib/purchases';
 import { loadRecentFiles, removeRecentFilesWhere } from '@/lib/recent-files';
 import {
   FONT_SIZE_BASE,
@@ -167,6 +169,29 @@ export default function SettingsScreen() {
   const theme = useTheme();
   const scheme = useResolvedColorScheme();
   const { settings, setAppearance, setFontSize, setStyleTheme, setHomeLocation } = useSettings();
+  const { refresh: refreshPro } = useProEntitlement();
+  const [restoring, setRestoring] = useState(false);
+
+  // FR-44 / Guideline 3.1.1: restore has to be reachable without hitting a
+  // locked file first — a reinstalling customer should not have to hunt for a
+  // PDF to find the button. The paywall carries the same action.
+  const restorePurchase = async () => {
+    if (restoring) return;
+    setRestoring(true);
+    try {
+      const info = await restorePro();
+      await refreshPro();
+      const restored = info?.entitlements.active['pro'] !== undefined;
+      Alert.alert(
+        restored ? t('screens.paywall.restoredTitle') : t('screens.paywall.nothingToRestoreTitle'),
+        restored ? t('screens.paywall.restoredBody') : t('screens.paywall.nothingToRestoreBody'),
+      );
+    } catch {
+      Alert.alert(t('screens.paywall.restoreFailedTitle'), t('screens.paywall.tryAgain'));
+    } finally {
+      setRestoring(false);
+    }
+  };
 
   // FR-31: switching home is destructive-ish (the other folder's files vanish
   // from view, and local isn't backed up), so confirm with a warning first. No
@@ -493,6 +518,26 @@ export default function SettingsScreen() {
               </ThemedText>
             </>
           )}
+
+          <ThemedText themeColor="textSecondary" style={styles.sectionLabel}>
+            {t('screens.settings.purchase')}
+          </ThemedText>
+          <View style={[styles.cloudGroup, { backgroundColor: theme.backgroundElement }]}>
+            <Pressable
+              onPress={restorePurchase}
+              disabled={restoring}
+              style={({ pressed }) => [styles.cloudRow, (pressed || restoring) && styles.pressed]}
+              accessibilityRole="button">
+              <View style={styles.cloudRowText}>
+                <ThemedText themeColor="tint">
+                  {t('screens.settings.restorePurchase')}
+                </ThemedText>
+              </View>
+            </Pressable>
+          </View>
+          <ThemedText themeColor="textSecondary" style={styles.cloudHint}>
+            {t('screens.settings.restorePurchaseHint')}
+          </ThemedText>
           </View>
         </ScrollView>
       </SafeAreaView>

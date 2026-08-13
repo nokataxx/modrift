@@ -135,7 +135,10 @@
         "dark": "ダーク",
         "light": "ライト",
         "navy": "ネイビー"
-      }
+      },
+      "purchase": "購入",
+      "restorePurchase": "購入を復元",
+      "restorePurchaseHint": "機種変更や再インストールの後に、購入済みの機能を戻します。"
     },
     "search": {
       "title": "検索",
@@ -143,13 +146,31 @@
       "noResults": "見つかりませんでした",
       "truncated": "結果が多いため一部のみ表示しています"
     },
-    "pro": {
-      "locked": "この形式の閲覧は Pro でご利用いただけます。"
-    },
     "xlsx": {
       "rows": "{{count}} 行",
       "rowsTruncated": "{{total}} 行のうち先頭 {{shown}} 行を表示",
       "showAll": "すべて表示"
+    },
+    "paywall": {
+      "title": "PDF・Word・Excel を開く",
+      "features": {
+        "pdf": "PDF を開く",
+        "docx": "Word 文書 (.docx) を開く",
+        "xlsx": "Excel ブック (.xlsx) を開く"
+      },
+      "freeNote": "Markdown・テキスト・画像は無料のままです。",
+      "buy": "{{price}} で購入",
+      "oneTimeNote": "買い切りです。月額料金はかかりません。",
+      "restore": "購入を復元",
+      "unavailable": "現在購入できません。通信状況をご確認のうえ、しばらくしてからお試しください。",
+      "notConfigured": "この形式の閲覧は現在ご利用いただけません。",
+      "purchaseFailedTitle": "購入できませんでした",
+      "restoreFailedTitle": "復元できませんでした",
+      "tryAgain": "しばらくしてからもう一度お試しください。",
+      "restoredTitle": "復元しました",
+      "restoredBody": "PDF・Word・Excel を開けるようになりました。",
+      "nothingToRestoreTitle": "対象がありません",
+      "nothingToRestoreBody": "この Apple ID での購入は見つかりませんでした。"
     }
   },
   "network": {

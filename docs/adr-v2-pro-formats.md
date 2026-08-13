@@ -281,7 +281,7 @@ CodeMirror と同一の方式: mammoth は **devDependency** (RN が import す�
 | 2 | **xlsx の列幅と空行** | 実データで**最優先と判明**した2点 | **完了 (2026-08-09)** — 空行は解決、`!cols` は誤診と判明。ウィンドウ枠固定は実装後に実機で撤去。下記「#2 の結果」 |
 | 3 | **docx のコメント欠落への方針** | 実質的な損失はこれだけ | **決定 (2026-08-09): v2 では対応しない。要望が出てから入れる** — 閲覧専用のアプリでは返信も解決もできず、コメント付き docx をモバイルで開く用途は「読む」より「レビューに参加する」寄りのため。入れるなら本文表示でなく `word/comments.xml` の有無による**存在の通知**から |
 | 4 | **xlsx の塗り色と `[Red]` マイナス値** | 実現性は検証済み (id 解決 320/320・マップ 7.3KB)。ダークモードで淡色に白文字が乗る問題への対処が要る | **色は要望が出てから (2026-08-09 決定)。ただし「負のセクションが符号を書かず色だけで負を示す」書式で符号が消える件は、値の正しさの問題なので `ensureNegativeSign()` で修正済み** |
-| 5 | **課金** | v2 の唯一のリリースブロッカー (`isPro: true` のまま出荷しないこと) | **SDK 確定 (2026-08-09): RevenueCat + アカウント無し + 引き継ぎ無し**。**Apple 側の設定は完了 (2026-08-09、下記「アカウント側の設定」)**。残りは RevenueCat 設定 → フックの差し替え → Paywall → Sandbox テスト |
+| 5 | **課金** | v2 の唯一のリリースブロッカー (`isPro: true` のまま出荷しないこと) | **スタブ撤去済み (2026-08-13)**。SDK 確定 (08-09) → Apple 側の設定完了 (08-09) → **コード側完了 (08-13)**。残るは **RevenueCat ダッシュボードの設定 (ユーザー作業) と Sandbox テスト**のみ |
 | 6 | **push** | — | **完了 (2026-08-07)** |
 
 **1 を先に置く理由**: 2〜4 は新機能の質を上げる作業だが、1 は**すでに入れた変更が既存機能を壊していないか**の確認で、性質が違う。
@@ -421,11 +421,55 @@ EU で配信するには DSA 上のトレーダー申告が必要で、トレー
 
 ### 次の作業
 
-1. RevenueCat プロジェクト作成 → In-App Purchase Key 登録 → `com.modrift.app.pro` を Entitlement `pro` に紐付け (**ユーザー作業**)
-2. [`use-pro-entitlement.ts`](../src/hooks/use-pro-entitlement.ts) の中身を RevenueCat に差し替え、購入・復元の導線
-3. Paywall UI (**名称・価格の決定が要る**)
-4. Sandbox で 購入 → アンインストール → 復元
+1. RevenueCat の設定 → **Test Store 分は完了 (2026-08-13)**。残るは **Apple アプリの登録** (Apps → Apple App Store に `com.modrift.app` と App Store Connect のキー) → App Store 版 product `com.modrift.app.pro` を Entitlement `pro` に Attach → **`appl_` キーへ差し替え** (**ユーザー作業**)
+2. ~~フックの差し替えと購入・復元の導線~~ → **完了 (2026-08-13、下記「コード側の実装」)**
+3. ~~Paywall UI~~ → **完了 (2026-08-13)**。**名称に依存しない作りにしたので、名称の決裁を待たずに書けた**
+4. 購入 → 解錠 → 復元の全経路は **Test Store で実機確認済み (2026-08-13、iPhone)**。残るは **Apple の Sandbox での本番同等テスト** (購入 → アンインストール → 復元) ← 1 の完了待ち
 5. **初回の非消耗型 IAP は v2 のアプリバージョンと同時に審査へ出す** (App Store Connect の画面にも明記される。単独では提出できない)
+
+### コード側の実装 (2026-08-13)
+
+**スタブを撤去した。** `isPro: true` 固定という v2 のリリースブロッカーは解消。
+
+| ファイル | 役割 |
+|---|---|
+| [`src/lib/purchases.ts`](../src/lib/purchases.ts) | RevenueCat を知っている唯一の場所。設定・オファリング取得・購入・復元・エンタイトルメント判定 |
+| [`src/hooks/use-pro-entitlement.tsx`](../src/hooks/use-pro-entitlement.tsx) | Context 化。リスナー1本を3ビューアで共有する |
+| [`src/components/paywall.tsx`](../src/components/paywall.tsx) | 自作 Paywall (`react-native-purchases-ui` は使わない) |
+| [`src/app/settings.tsx`](../src/app/settings.tsx) | 「購入を復元」を追加 |
+
+**判断したこと**:
+
+- **`isLoading` を足した。** エンタイトルメントは起動時に同期的に分からず、判明前に既定を「未購入」にすると**課金済みの人に一瞬 Paywall が見える**。有料アプリで最も嫌われる挙動なので、判明するまでビューアはローディング表示にする。フックの戻り値をはじめから object にしておいたのがそのまま効いた (呼び出し側の変更は分割代入1行)
+- **Context にしたのは、購入がその場で反映される必要があるから。** ビューアごとにフックが独立して問い合わせると、Paywall で買っても背後の画面が解錠されず再マウントが要る。RevenueCat のリスナー1本を Provider が持ち、購入・復元・バックグラウンド更新のすべてで gate が開く
+- **鍵が無いときは fail-closed。** `extra.revenueCatApiKey` が空なら `isPro: false` で、Paywall は購入ボタンを出さずに理由を表示する。**解錠側に倒すとスタブと同じバグに戻る**ため、ここは安全側に倒す。ダッシュボードがまだ無い状態でも実機で動作確認できることは確認済み (2026-08-13、iPhone / iPad)
+- **Paywall は製品名を出さない。** 見出しは「PDF・Word・Excel を開く」で**機能で売る**。名称が未決裁でも書けたのはこのため。価格も `offerings.current` から取るので、**ダッシュボードで変えればリリース不要**
+- **復元は Paywall と設定の2箇所** (Guideline 3.1.1)。設定にも置いたのは、再インストールした利用者が**まずロックされたファイルを探さないと復元できない**のを避けるため
+- **API キーは app.json に置く。** RevenueCat の SDK キーは公開前提 (アプリを識別するだけで何も認可しない) なので秘匿ストアに入れず、bundle identifier と同じくビルド設定として持つ
+
+### RevenueCat ダッシュボードの設定 (2026-08-13)
+
+**ダッシュボードの値は Git に残らない**ので、ここが唯一の記録。
+
+| 項目 | 値 |
+|---|---|
+| Project | `Modrift` |
+| **Entitlement identifier** | **`pro`** ← コードの `PRO_ENTITLEMENT` と一致必須 |
+| Entitlement display name | `Modrift Pro` (社内表示のみ。**製品名の決裁ではない**) |
+| Offering | `default` (Current)。Package は **Lifetime (`$rc_lifetime`) 1つだけ** |
+| Test Store product | `lifetime` |
+| Test Store API キー | `test_hVXyHmFvFUqusXuHAucgcFDuwLV` |
+| App Store アプリ登録 | **未実施** — `appl_` キーと `com.modrift.app.pro` の紐付けはこれから |
+
+**Test Store という抜け道があった。** RevenueCat は新規プロジェクトに `test_` で始まるキーを自動発行し、これを使うと購入が **App Store ではなく RevenueCat のシミュレータ**へ流れる。Apple の購入シートの代わりに「成功 / 失敗 / キャンセル」を選ぶモーダルが出る。**App Store Connect の Sandbox 設定を待たずに、Paywall・購入・解錠・復元の全経路を実機で通せた** (2026-08-13、iPhone で確認済み)。
+
+> **`test_` キーの出荷は事故になる。** そのまま出すと購入が全部シミュレータへ行き、**誰も本当に買えないのに画面上は成功する**。気づきにくいので `isBillingConfigured()` にガードを入れた — リリースビルドで `test_` を見つけたら**未設定扱い**にする。`__DEV__` はリリースビルドで消えるので、**設定フラグと違って切り忘れが起きない**。差し替えを忘れても「購入できません」と表示されるだけで、無言で壊れることはない。
+
+**ウィザードの既定は Modrift に合わない。** RevenueCat のオンボーディングは Monthly / Yearly / Lifetime の**サブスク前提**で提案してくる。Modrift は買い切り1本なので Lifetime だけにする。また Entitlement の識別子が **`Modrift Pro` (空白入り)** で作られ、**作成後は変更できなかった**ので削除して `pro` で作り直した。**顧客が1人もいない今だからできた** — 購入者が出た後に識別子を変えると既存の購入が解錠されなくなる。
+
+> Entitlement は **Project 単位**なので、`pro` という汎用名で将来の別アプリと衝突しない。ただし **1つの Project に別々の製品を入れないこと** — Project 内の Apps は「同じアプリの iOS 版と Android 版」を置く場所で、同居させると Entitlement を共有してしまう。Modrift の Android 版はこの Project に追加、別アプリは新しい Project。
+
+> **lint で1つ学んだ**: `react-hooks/set-state-in-effect` は「effect 本体で同期的に setState するな」を強制する。初期化時の `setIsLoading(false)` は `useState(isBillingConfigured)` の遅延初期化に、初回取得は `.then()` の中に移して解消した。**どちらも回避策ではなく素直な形**で、effect は「外部システムを購読して、答えが返ってきたら state を更新する」という本来の姿になった
 
 ## 未確定事項 (実装着手時)
 

@@ -154,7 +154,8 @@
       "router": {},
       "eas": {
         "projectId": "52d700ed-7785-4afd-b930-528d7997c0ae"
-      }
+      },
+      "revenueCatApiKey": "test_hVXyHmFvFUqusXuHAucgcFDuwLV"
     },
     "owner": "nokata"
   }
