@@ -52,7 +52,7 @@ Bundle ID を変えると Container ID（`iCloud.<Bundle ID>`）も変わる。*
 手順:
 1. 上記3箇所を新しい Container ID に更新（Swift はドット、file-location.ts はチルダ区切りに注意）
 2. `npx expo prebuild --platform ios --clean`
-3. 新 Bundle ID は初回プロビジョニングが必要（→ [Build and Run.md](Build%20and%20Run.md) の「No profiles found」対処）
+3. 新 Bundle ID は初回プロビジョニングが必要（→ [build-and-run.md](build-and-run.md) の「No profiles found」対処）
 4. **実機で iCloud コピー／同期が動くか確認**（コンテナ変更の影響が一番出る箇所）
 
 > 検索の落とし穴: `grep "com.nokata.modrift"` ではコード側のチルダ表記（`com~nokata~modrift`）がヒットしない。両表記で検索すること。

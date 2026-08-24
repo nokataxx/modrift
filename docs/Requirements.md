@@ -1570,8 +1570,8 @@ ADR が「実装着手時の最初の作業」としていた実物確認を実�
 ### プロジェクト内ドキュメント
 
 - **[adr-v2-pro-formats.md](adr-v2-pro-formats.md)** — v2 有償 Pro (PDF / Word / xlsx 閲覧 + 課金) の技術選定 ADR。ステータス: 一部承認 (PDF・協調読み込み・docx は採用確定、xlsx は条件付き合格、課金は提案のまま)。**PoC の実測値・却下した代替案・検証手順の罠はこちらにある** ([FR-21](#fr-21-他形式ファイルの閲覧-共通仕様-v2--pro) 以下はその結論を仕様化したもの)
-- [Build and Run.md](Build%20and%20Run.md) — ビルド・実機実行・配布の手順
-- [iCloud Reference.md](iCloud%20Reference.md) — iCloud コンテナまわりのリファレンス
+- [build-and-run.md](build-and-run.md) — 開発の再開手順・ビルド・実機実行・配布
+- [icloud-reference.md](icloud-reference.md) — iCloud コンテナまわりのリファレンス
 - [screenshot-recipe.md](screenshot-recipe.md) — ストア用スクリーンショットをシミュレータだけで撮る手順
 - [app-store-listing.md](app-store-listing.md) — ストア掲載文・リリースノート・審査メモ (バージョンごと)
 - [app-store-marketing.md](app-store-marketing.md) / [app-store-submission-guide.md](app-store-submission-guide.md) / [app-store-site-maintenance.md](app-store-site-maintenance.md)

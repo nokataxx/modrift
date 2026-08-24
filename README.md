@@ -22,6 +22,8 @@ npx eas build --profile development --platform ios
 
 ビルドプロファイルは [`eas.json`](./eas.json) を参照 (development / preview / production)。
 
+> **しばらく触っていない場合は [build-and-run.md の「開発を再開するとき」](./docs/build-and-run.md#開発を再開するときしばらく触っていない場合)から。** 現在地の確認・止め忘れた Metro の扱い・`prebuild --clean` の要否まで手順化してある。
+
 **dev バリアントは別アプリ** (`com.modrift.app.dev` / スキーム `modrift-dev`) として本番と共存する。Bundle ID は pbxproj に焼き込まれるので、**切り替えには `npm run prebuild:dev` (= `prebuild --clean`) が必要**。素の `npm start` で起動するとスキームが合わず、共有拡張や Open In がホーム画面で止まる。
 
 ## ディレクトリ構成

@@ -8,6 +8,42 @@ Modrift をビルドして実機・テスターに届けるまでの方法と使
 
 ---
 
+## 開発を再開するとき（しばらく触っていない場合）
+
+リリース後は**すべて止まった状態**で置いてある（Metro 停止・ブランチは `main` のみ）。そこから戻る手順。
+
+### 1. 現在地を確かめる
+
+```sh
+git status -sb                                              # クリーンか / main か
+grep -h PRODUCT_BUNDLE_IDENTIFIER ios/*.xcodeproj/project.pbxproj | sort -u
+lsof -nP -iTCP:8081 -sTCP:LISTEN                            # Metro の残骸（空なら停止中）
+```
+
+見るのは **Bundle ID が `com.modrift.app.dev` か**の1点。`com.modrift.app`（本番）になっていたら、ローカルで本番ビルドを作った名残なので `npm run prebuild:dev` で戻す。**なっていなければ prebuild は不要**（EAS のビルドはクラウド側で走るのでローカルは書き換わらない）。
+
+> Metro が何日も動きっぱなしのことがある。**起動しっぱなしの `expo start` は `npm run start:dev` と競合する**ので、先に落とす（`lsof -ti:8081 | xargs kill`）。
+
+### 2. ブランチを切る
+
+`main` に直接積まない。**ブランチ運用のルールは [CLAUDE.md](../CLAUDE.md) にある**（リリース単位の長命ブランチ → 出荷後に `main` へ fast-forward）。
+
+### 3. Metro を起動
+
+```sh
+npm run start:dev
+```
+
+**必ずこれ。** 素の `npm start` は scheme が `modrift` になり、Dev Client（`modrift-dev`）と食い違って**共有拡張や Open In がホーム画面で止まる**。「アプリの不具合」に見えるので毎回ここを疑う。
+
+### 4. アプリを動かす
+
+端末に以前の Dev Client が残っていれば、ケーブルを繋いで Metro に繋ぐだけで JS の変更が反映される。入れ直すなら [3章](#3-ローカルビルド詳細debug--release)へ。**ネイティブを触っていない限り再ビルドは不要。**
+
+> 何を作るかを思い出すには [Requirements.md](Requirements.md)、実装のルールは [CLAUDE.md](../CLAUDE.md)。**機能を足す前に Requirements の「5.6 意図的に実装しないもの」を読む** — フォルダ Vault・内部リンク・他形式の編集などは**意図的に外してある**。
+
+---
+
 ## 0. 全体像
 
 届け先は **ローカル実機 / TestFlight / App Store** の3系統。ローカルは Debug / Release に分かれる。
