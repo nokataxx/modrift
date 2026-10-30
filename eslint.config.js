@@ -5,7 +5,7 @@ const expoConfig = require("eslint-config-expo/flat");
 module.exports = defineConfig([
   expoConfig,
   {
-    // Generated WebView bundles (each format's build-bundle.mjs).
-    ignores: ["dist/*", "src/lib/cm/bundle.ts", "src/lib/docx/bundle.ts", "src/lib/xlsx/bundle.ts"],
+    // Generated WebView bundle (src/lib/cm/build-bundle.mjs).
+    ignores: ["dist/*", "src/lib/cm/bundle.ts"],
   }
 ]);
