@@ -145,6 +145,10 @@ export default function HomeScreen() {
         // un-materialized Google Drive / iCloud files open (verified 2026-07-27).
         copyToCacheDirectory: false,
         multiple: false,
+        // public.text (UTType.text): Markdown, plain text and, later, JSON /
+        // source code all conform to it, so everything else is greyed out in
+        // the picker instead of being rejected after the user picks it.
+        type: 'text/*',
       });
     } catch {
       Alert.alert(t('picker.errorTitle'), t('picker.errorOpenFailed'));
@@ -154,8 +158,8 @@ export default function HomeScreen() {
     if (result.canceled) return;
 
     const asset = result.assets[0];
-    // The picker itself is unfiltered (no `type`), so the extension check is
-    // what actually gates which formats Modrift opens.
+    // public.text is wider than what Modrift renders (e.g. .csv, .html), so the
+    // extension check still has the final say.
     if (!isSupportedFile(asset.name)) {
       Alert.alert(t('picker.errorTitle'), t('picker.unsupportedType'));
       return;
