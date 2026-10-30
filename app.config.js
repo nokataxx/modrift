@@ -6,10 +6,8 @@
 // instead of overwriting it. Same bundle id = one app slot on a device, so a
 // distinct bundle id is what lets the two coexist.
 //
-// The share-extension bundle id (…app.dev.share-extension) follows the main
-// bundle id automatically. The share-extension App Group stays shared with
-// production (acceptable for testing). Production builds (no APP_VARIANT) use app.json
-// unchanged, so TestFlight/App Store are unaffected.
+// Production builds (no APP_VARIANT) use app.json unchanged, so TestFlight /
+// App Store are unaffected.
 const IS_DEV = process.env.APP_VARIANT === 'development';
 
 export default ({ config }) => {

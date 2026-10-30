@@ -5,18 +5,13 @@
 // extension. expo-router would otherwise treat the file:// URL as an unknown
 // route ("Unmatched Route"), so we rewrite it into the in-app viewer route.
 //
-// Files that iOS copied into our Inbox (i.e. came from apps without File
-// Provider in-place support — Mail attachments, AirDrop, etc.) carry an
-// `openInPending=true` flag. These are throwaway sandbox copies: the viewer
-// keeps them out of history and deletes them on leave.
+// This is also how a file shared from another app's share sheet arrives (Google
+// Drive's "Open with", Mail attachments, AirDrop…): iOS copies it into our
+// Inbox. Those copies carry an `openInPending=true` flag — they are throwaway
+// sandbox files, so the viewer keeps them out of history and deletes them on
+// leave.
 export function redirectSystemPath({ path }: { path: string; initial: boolean }): string {
   try {
-    // A file shared through the iOS Share Sheet (経路C) reaches us as a custom-
-    // scheme deep link (modrift://dataUrl=...) from expo-share-intent, not as a
-    // file:// URL. Without this, expo-router treats it as an unknown route
-    // ("Unmatched Route"). Send it to home so ShareIntentHandler can read the
-    // shared file from the share-intent context and route it into the viewer.
-    if (path.includes('dataUrl=')) return '/';
     if (!path.startsWith('file://')) return path;
     const fileName = decodeURIComponent(path.split('/').pop() ?? 'file');
     const isInbox = path.includes('/Documents/Inbox/');

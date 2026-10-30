@@ -48,7 +48,7 @@ export default function ViewerScreen() {
     fileName: string;
     openInPending?: string;
     // How the viewer was reached: "picker" (in-app Open File) or "history"
-    // (recent-files tap). Open-In / share-sheet launches carry no source.
+    // (recent-files tap). Open-In launches carry no source.
     // Drives whether we record history.
     source?: string;
   }>();
@@ -136,9 +136,9 @@ export default function ViewerScreen() {
         setContent(normalizeMarkdown(text));
         // FR-04: record history only for files we can reliably re-open — opened
         // via the in-app picker or reopened from history. Files arriving through
-        // iOS Open-In / share are deliberately not recorded: third-party
-        // providers (Google Drive) can't be re-opened by bookmark, and Inbox
-        // copies are throwaway, so an entry would just be a dead link.
+        // iOS Open-In are deliberately not recorded: third-party providers
+        // (Google Drive) can't be re-opened by bookmark, and Inbox copies are
+        // throwaway, so an entry would just be a dead link.
         if (source === "picker" || source === "history") {
           recordRecentFile({ uri: fileUri, name: fileName ?? "" }).catch(() => {
             // Non-fatal: history is for display only.
@@ -162,7 +162,7 @@ export default function ViewerScreen() {
   }, []);
 
   useEffect(() => {
-    // An Open-In Inbox / share-sheet copy is a throwaway sandbox file. Delete it
+    // An Open-In Inbox copy is a throwaway sandbox file. Delete it
     // when the viewer unmounts so we don't leave a stale sandbox file behind.
     return () => {
       if (isOpenInPending && fileUri) {

@@ -65,18 +65,6 @@
         }
       ],
       "expo-localization",
-      [
-        "expo-share-intent",
-        {
-          "iosActivationRules": {
-            "NSExtensionActivationSupportsFileWithMaxCount": 1
-          },
-          "iosShareExtensionName": "Modrift Share",
-          "iosAppGroupIdentifier": "group.com.modrift.app",
-          "disableAndroid": true
-        }
-      ],
-      "./plugins/with-share-extension-xcode-fixes",
       "./plugins/with-pod-deployment-target",
       [
         "expo-alternate-app-icons",

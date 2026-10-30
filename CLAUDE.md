@@ -25,15 +25,15 @@ v2 までは編集・ホームフォルダ (iCloud › Modrift)・有償 Pro (PD
 
 v2 までのコードと要件はタグ `v2.0.0` に残っている。
 
-## 3つの起動経路 (重要)
+## 2つの起動経路 (重要)
 
 どの経路からでも同じビューア画面 (`/viewer`) に到達すること。
 
 - **経路A: アプリ内ピッカー** — ホームの「ファイルを開く」→ `expo-document-picker`
 - **経路B: Open In** — Files App などで「Modrift で開く」。`app.json` の `CFBundleDocumentTypes` で UTI を宣言し、[+native-intent.tsx](src/app/+native-intent.tsx) が `file://` URL をビューアのルートへ書き換える
-- **経路C: 共有シート** — `expo-share-intent` の Share Extension。[share-intent-handler.tsx](src/components/share-intent-handler.tsx) がビューアへ送る
+Google Drive の「Open with」やメール添付・Files の「共有」も経路B (iOS が Inbox にコピーして渡す)。Inbox のコピーは使い捨てなので、**履歴に残さず、ビューアを離れるときに削除する** (`openInPending`)。
 
-経路B の Inbox コピーと経路C の共有ファイルは使い捨てのコピーなので、**履歴に残さず、ビューアを離れるときに削除する** (`openInPending`)。
+**共有シートの拡張 (Share Extension) は持たない**。v2 までは `expo-share-intent` で持っていたが、Open In の宣言だけで共有シートに Modrift が出て開けることを実機で確認して削除した (2026-10-30)。壊れやすい部品 (ライブラリ・patch・Xcode 修正・App Group) が要るだけなので戻さない
 
 ## Tech Stack
 
@@ -68,8 +68,8 @@ v2 までのコードと要件はタグ `v2.0.0` に残っている。
 ## 開発環境の注意
 
 - **`app.json` のネイティブ設定やネイティブ依存を変えたら `npm run prebuild:dev` (= `prebuild --clean --platform ios`) が必須**。古い設定が `ios/` の pbxproj に残る。`ios/` は prebuild が生成するもので、git 管理外。**iOS 専用なので `android/` は生成しない** (`--platform` を付けない prebuild や `expo run:android` は使わない)
-- **開発版は別アプリ** (`com.modrift.app.dev` / スキーム `modrift-dev`、[app.config.js](app.config.js))。Metro は必ず `npm run start:dev` (`APP_VARIANT=development`) で起動する。素の `npm start` だとスキームが合わず、Open In・共有シートがホームで止まる
-- **xcodebuild で開発版を直接ビルドするときも `APP_VARIANT=development` を付ける**。Release 構成は app.config をビルド時にアプリへ埋め込むため、付け忘れると埋め込みの scheme が `modrift` になり、`modrift-dev://` で届く共有を expo-share-intent が無視する (表示されずホームのまま)
+- **開発版は別アプリ** (`com.modrift.app.dev` / スキーム `modrift-dev`、[app.config.js](app.config.js))。Metro は必ず `npm run start:dev` (`APP_VARIANT=development`) で起動する。素の `npm start` だと Metro が配る設定 (scheme など) がアプリと食い違う
+- **xcodebuild で開発版を直接ビルドするときも `APP_VARIANT=development` を付ける**。Release 構成は app.config をビルド時にアプリへ埋め込むため、付け忘れると埋め込みの設定 (scheme・名前) が本番用になり、ネイティブ側と食い違う
 - **iOS 27 SDK (Xcode 27) でビルドしたアプリは UIScene ライフサイクルが必須** (無いと起動直後に SIGTRAP)。Expo SDK 58 以降の prebuild が `SceneDelegate.swift` を生成するので、**SDK 57 以前に戻さない**
 - Xcode 27 は Pod の最低デプロイターゲット iOS 15.0 未満を拒否する。[plugins/with-pod-deployment-target.js](plugins/with-pod-deployment-target.js) が prebuild のたびに補正する
 
@@ -115,7 +115,6 @@ v2 までのコードと要件はタグ `v2.0.0` に残っている。
 
 - **Bundle ID**: `com.modrift.app` (開発版は `com.modrift.app.dev`)
 - **表示名**: Modrift / **スラッグ (Expo)**: `modrift`
-- **App Group** (共有シート用): `group.com.modrift.app`
 
 ## Competitive Positioning
 
