@@ -1,7 +1,6 @@
-// Builds the HTML document for Modrift's CodeMirror Markdown editor, loaded
-// inside a WebView for both reading and editing (FR-20 live preview). The editor
-// logic is in editor-entry.mjs, bundled offline into CM_BUNDLE (build-bundle.mjs)
-// — CDN imports failed to dedupe @codemirror/state, which left the syntax tree
+// Builds the HTML document for Modrift's CodeMirror Markdown viewer, loaded
+// inside a WebView. The viewer logic is in editor-entry.mjs, bundled offline
+// into CM_BUNDLE (build-bundle.mjs) — CDN imports failed to dedupe @codemirror/state, which left the syntax tree
 // empty, so we inline a single self-contained bundle instead.
 //
 // Typography is fixed: SF Pro for Latin, Hiragino Kaku Gothic for Japanese (the
@@ -35,20 +34,17 @@ const JP = `"Hiragino Sans", "Hiragino Kaku Gothic ProN", sans-serif`;
 // kanji body (~0.88em), so lift heading Latin to match.
 const HEAD_SCALE = 1.2;
 
-export function buildEditorHtml(opts: {
+export function buildViewerHtml(opts: {
   content: string;
-  editable: boolean;
   theme: CmTheme;
   // Placeholder template for non-https images, with "__F__" where the filename
   // goes — e.g. "[Image: __F__]" (from i18n, so it's localized).
   imagePlaceholder?: string;
-  // When true, tapping a task checkbox toggles it (only for savable files).
-  taskInteractive?: boolean;
   // Preview mode (settings screen): trims the scroller's bottom padding so a
   // short sample fits its card without the reading surface's scroll margin.
   compact?: boolean;
   // Extra top padding (px) so the first lines clear the transparent, floating
-  // header (FR-38 hide-on-scroll). It scrolls away with the content, so the only
+  // header (hide-on-scroll). It scrolls away with the content, so the only
   // place it shows is at the very top — where the header is shown anyway.
   topInset?: number;
 }): string {
@@ -61,9 +57,7 @@ export function buildEditorHtml(opts: {
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 <style>
-  /* Top padding lives in a CSS var so the RN side can grow it at runtime when
-     the offline banner appears (FR-38 / FR-12) without remounting the editor. */
-  :root { color-scheme: light dark; --cm-top: ${padTop}px; }
+  :root { color-scheme: light dark; }
   /* No fixed heights: the editor grows to its content and the PAGE scrolls,
      via WKWebView's native UIScrollView. An inner .cm-scroller overflow div
      kills fling momentum on iOS whenever CodeMirror redraws or corrects the
@@ -92,9 +86,8 @@ export function buildEditorHtml(opts: {
   .cm-tsp { font-size: 0.34em; }
   .cm-content {
     font-size: var(--base);
-    padding: var(--cm-top) 10px ${padBottom}px 10px !important;
-    caret-color: var(--tint) !important;
-    /* FR-16 (iPad / large screens): cap the text measure and centre it so lines
+    padding: ${padTop}px 10px ${padBottom}px 10px !important;
+    /* FR-07 (iPad / large screens): cap the text measure and centre it so lines
        stay readable instead of running edge-to-edge. em-based so the column
        scales with the font size; a no-op on phones (screen < the cap).
        !important beats CodeMirror's baseTheme margin:0 on .cm-content, which
@@ -103,22 +96,17 @@ export function buildEditorHtml(opts: {
     margin-left: auto !important;
     margin-right: auto !important;
   }
-  /* FR-36: a phone held in landscape drops the cap and uses the full width —
+  /* FR-07: a phone held in landscape drops the cap and uses the full width —
      widening the measure is the whole point of rotating. Keyed on viewport
      height, not width: a landscape phone is short (<=500px tall) while a
-     landscape iPad is not, so iPad keeps its FR-16 reading column. */
+     landscape iPad is not, so iPad keeps its reading column. */
   @media (orientation: landscape) and (max-height: 500px) {
     .cm-content { max-width: none; }
   }
   /* CodeMirror's baseTheme adds .cm-line { padding: 0 2px 0 6px } after our
      styles — zero it so our own horizontal padding is the only source. */
   .cm-line { padding-left: 0 !important; padding-right: 0 !important; }
-  /* Read-only (preview): hide the caret. !important to beat .cm-content above. */
-  body.readonly .cm-content { caret-color: transparent !important; }
   ::selection { background: var(--sel); }
-  /* Transient search-match highlight (FR-15). Amber reads as "find" in both
-     light and dark; translucent so the text underneath stays legible. */
-  .cm-search-hl { background: rgba(255, 204, 0, 0.42); border-radius: 2px; }
 
   /* Headings — size + colour carry the hierarchy, no bold weight. */
   .cm-h1 { font-size: 1.6em;  font-weight: 500; letter-spacing: -0.012em; line-height: 1.25; color: var(--h1); padding-top: 2px; }
@@ -158,7 +146,6 @@ export function buildEditorHtml(opts: {
     vertical-align: -0.16em; margin-right: 0.35em;
   }
   .cm-task-on { background: var(--link); border-color: var(--link); }
-  .cm-task-tap { cursor: pointer; }
   /* Checkmark drawn with borders, absolutely positioned so it never affects the
      box's baseline (which would shift checked boxes out of alignment). */
   .cm-task-on::after {

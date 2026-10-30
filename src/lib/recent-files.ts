@@ -15,8 +15,8 @@ export type RecentFile = {
   bookmark?: string;
   // Display name of the File Provider that hosts this file ("Google Drive",
   // "Dropbox", etc.), captured at record time via NSFileProviderManager.
-  // Absent for files in our own sandbox / iCloud copy / iCloud Drive — the
-  // UI falls back to a kind-based label in that case.
+  // Absent for files in our own sandbox / iCloud Drive — the UI falls back to
+  // a kind-based label in that case.
   providerName?: string;
 };
 
@@ -98,53 +98,9 @@ export async function recordRecentFile(entry: { uri: string; name: string }): Pr
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
 }
 
-// Update a history entry in place after its file was renamed (FR-22). The uri
-// and name change; the bookmark is dropped because it no longer resolves — our
-// iCloud copies re-open by uri without one anyway (see handleRecentPress).
-export async function renameRecentFile(
-  oldUri: string,
-  next: { uri: string; name: string },
-): Promise<void> {
-  const oldKey = sameFileKey(oldUri);
-  const normalizedNext = normalizeUri(next.uri);
-  const existing = await loadRecentFiles();
-  const updated = existing.map((item) =>
-    sameFileKey(item.uri) === oldKey
-      ? { uri: normalizedNext, name: next.name, openedAt: item.openedAt }
-      : item,
-  );
-  // Renaming onto a uri that another entry already occupies would leave two
-  // rows for the same file. Keep only the first occurrence of each file so the
-  // rename can't duplicate (sameFileKey ignores /var and encoding differences).
-  const deduped = updated.filter(
-    (item, i) =>
-      updated.findIndex((other) => sameFileKey(other.uri) === sameFileKey(item.uri)) === i,
-  );
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(deduped));
-}
-
 export async function removeRecentFile(uri: string): Promise<void> {
   const key = sameFileKey(uri);
   const existing = await loadRecentFiles();
   const next = existing.filter((item) => sameFileKey(item.uri) !== key);
-  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-}
-
-// Clear the whole recently-opened list (FR-06 / 最近見た). Non-destructive to
-// the files themselves — only the history entries are removed.
-export async function clearRecentFiles(): Promise<void> {
-  await AsyncStorage.removeItem(STORAGE_KEY);
-}
-
-// Drop every history entry whose URI matches `predicate`. Used when switching
-// the home location (FR-31): the previous home's files are no longer reachable
-// as home files, so their history rows would be stale — external-cloud entries
-// are left untouched. Non-destructive to the files themselves.
-export async function removeRecentFilesWhere(
-  predicate: (uri: string) => boolean,
-): Promise<void> {
-  const existing = await loadRecentFiles();
-  const next = existing.filter((item) => !predicate(item.uri));
-  if (next.length === existing.length) return;
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
 }

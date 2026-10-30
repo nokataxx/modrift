@@ -11,21 +11,9 @@
       "bundleIdentifier": "com.modrift.app",
       "supportsTablet": true,
       "requireFullScreen": true,
-      "entitlements": {
-        "com.apple.developer.icloud-container-identifiers": [
-          "iCloud.com.modrift.app"
-        ],
-        "com.apple.developer.icloud-services": [
-          "CloudDocuments"
-        ],
-        "com.apple.developer.ubiquity-container-identifiers": [
-          "iCloud.com.modrift.app"
-        ]
-      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "LSSupportsOpeningDocumentsInPlace": true,
-        "UIFileSharingEnabled": true,
         "UISupportedInterfaceOrientations~ipad": [
           "UIInterfaceOrientationPortrait",
           "UIInterfaceOrientationPortraitUpsideDown",
@@ -45,52 +33,8 @@
               "net.daringfireball.markdown",
               "public.plain-text"
             ]
-          },
-          {
-            "CFBundleTypeName": "PDF Document",
-            "LSHandlerRank": "Alternate",
-            "CFBundleTypeRole": "Viewer",
-            "LSItemContentTypes": [
-              "com.adobe.pdf"
-            ]
-          },
-          {
-            "CFBundleTypeName": "Word Document",
-            "LSHandlerRank": "Alternate",
-            "CFBundleTypeRole": "Viewer",
-            "LSItemContentTypes": [
-              "org.openxmlformats.wordprocessingml.document"
-            ]
-          },
-          {
-            "CFBundleTypeName": "Excel Workbook",
-            "LSHandlerRank": "Alternate",
-            "CFBundleTypeRole": "Viewer",
-            "LSItemContentTypes": [
-              "org.openxmlformats.spreadsheetml.sheet"
-            ]
-          },
-          {
-            "CFBundleTypeName": "Image",
-            "LSHandlerRank": "Alternate",
-            "CFBundleTypeRole": "Viewer",
-            "LSItemContentTypes": [
-              "public.png",
-              "public.jpeg",
-              "com.compuserve.gif",
-              "public.heic",
-              "public.heif",
-              "org.webmproject.webp"
-            ]
           }
-        ],
-        "NSUbiquitousContainers": {
-          "iCloud.com.modrift.app": {
-            "NSUbiquitousContainerIsDocumentScopePublic": true,
-            "NSUbiquitousContainerSupportedFolderLevels": "Any",
-            "NSUbiquitousContainerName": "Modrift"
-          }
-        }
+        ]
       }
     },
     "android": {
@@ -154,8 +98,7 @@
       "router": {},
       "eas": {
         "projectId": "52d700ed-7785-4afd-b930-528d7997c0ae"
-      },
-      "revenueCatApiKey": "appl_SVWgRGbMhtbUAKmdlzXaopXtKzC"
+      }
     },
     "owner": "nokata"
   }

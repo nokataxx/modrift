@@ -3,98 +3,23 @@
     "name": "Modrift"
   },
   "common": {
-    "open": "Open",
     "cancel": "Cancel",
-    "ok": "OK",
-    "save": "Save",
-    "edit": "Edit",
-    "preview": "Preview",
-    "delete": "Delete",
     "back": "Back",
     "retry": "Retry"
   },
   "screens": {
     "recentFiles": {
-      "title": "Recent Files",
-      "empty": "No files opened yet. Tap Open to pick one.",
       "reopenFailedTitle": "Couldn't re-open",
       "reopenFailedMessage": "The file may have been moved or deleted, or not yet downloaded from iCloud. Tap Open to pick it again, or try again later.",
-      "locationIcloudCopy": "iCloud › Modrift",
-      "locationLocalHome": "Local › Modrift",
       "locationIcloudDrive": "iCloud",
       "locationAppSandbox": "From other apps",
       "locationExternal": "Other cloud",
-      "renameTitle": "Rename file",
-      "renameMessage": "Enter a new file name (.md is added automatically).",
-      "renameConfirm": "Rename",
-      "renameErrorTitle": "Couldn't rename",
-      "renameErrorInUse": "A file with that name already exists. Choose a different name.",
-      "renameErrorFailed": "Failed to rename the file.",
-      "deleteFileTitle": "Delete “{{name}}”?",
-      "deleteFileMessage": "This deletes the file from iCloud Drive › Modrift. This can't be undone.",
-      "deleteFileAction": "Delete File",
-      "duplicateAction": "Duplicate",
-      "selectAction": "Select",
-      "selectTitleEmpty": "Select Items",
-      "selectedCount": "{{count}} Selected",
-      "selectAll": "Select All",
-      "deselectAll": "Deselect All",
-      "deleteSelectedAction": "Delete ({{count}})",
-      "deleteSelectedTitle": "Delete {{count}} selected?",
-      "deleteSelectedMessage": "Removed from your home folder. This can't be undone.",
-      "duplicateErrorTitle": "Couldn't duplicate",
-      "duplicateErrorFailed": "Failed to duplicate the file.",
       "removeFromListAction": "Remove",
-      "nameCloudTitle": "Name this cloud",
-      "nameCloudMessage": "This name will show for every file from this cloud (e.g. Google Drive). Leave blank to reset.",
-      "nameCloudConfirm": "Save",
-      "newNote": "New note",
-      "untitledNote": "Untitled",
-      "menu": "Menu",
-      "tabMyFiles": "Home",
-      "tabRecent": "Recent",
-      "myFilesEmpty": "No files in your home folder yet. Tap ＋ to create one.",
-      "recentEmpty": "No recently opened files yet.",
-      "sortTitle": "Sort by",
-      "sortByDate": "Date modified",
-      "sortByName": "Name",
-      "clearHistoryAction": "Clear all history",
-      "clearHistoryTitle": "Clear all history?",
-      "clearHistoryMessage": "This clears your Recent list. The files themselves are not deleted.",
-      "clearHistoryConfirm": "Clear"
+      "recentEmpty": "No recently viewed files yet."
     },
     "viewer": {
-      "edit": "Edit",
-      "preview": "Preview",
       "loading": "Loading…",
-      "imagePlaceholder": "[Image: {{filename}}]",
-      "copyToHomeButton": "Copy to Home",
-      "copyToHomeDialogTitle": "Copy to Home",
-      "copyToHomeDialogMessage": "A copy of this file will be created in your home (iCloud › Modrift). The original is left unchanged. You can edit the copy in your home.",
-      "copyToHomeDialogConfirm": "Copy",
-      "copyToIcloudErrorTitle": "Couldn't copy",
-      "copyToIcloudErrorIcloudUnavailable": "Enable iCloud Drive and try again.",
-      "copyToIcloudErrorFailed": "Failed to create a copy.",
-      "conflictTitle": "File has changed",
-      "conflictMessage": "This file was updated by another device or app after you opened it. Overwrite it with your edits, or load the latest version.",
-      "conflictKeepMine": "Keep my edits",
-      "conflictLoadLatest": "Load latest (discard edits)",
-      "undo": "Undo",
-      "redo": "Redo",
-      "toolbar": {
-        "heading": "Heading",
-        "bulletList": "Bullet list",
-        "numberedList": "Numbered list",
-        "checkbox": "Checkbox",
-        "bold": "Bold",
-        "italic": "Italic",
-        "strikethrough": "Strikethrough",
-        "code": "Inline code",
-        "quote": "Quote",
-        "codeBlock": "Code block",
-        "link": "Link",
-        "horizontalRule": "Horizontal rule"
-      }
+      "imagePlaceholder": "[Image: {{filename}}]"
     },
     "settings": {
       "title": "Settings",
@@ -117,71 +42,19 @@
         "mono": "Mono",
         "colorful": "Colorful"
       },
-      "cloudNames": "Cloud names",
-      "cloudSample": "e.g. {{name}}",
-      "cloudNamesHint": "iOS doesn't reveal which cloud a file comes from. Name them here and it shows in your history.",
-      "homeLocation": "Home location",
-      "homeLocationOptions": {
-        "icloud": "iCloud",
-        "local": "Local"
-      },
-      "homeLocationHint": "Switching won't move your existing files.",
-      "homeLocationSwitchTitle": "Change home location",
-      "homeLocationToLocalMessage": "Switch to Local. Your iCloud files will be hidden for now (not deleted). Local files are not synced to iCloud or backed up, and are lost if you delete the app.",
-      "homeLocationToIcloudMessage": "Switch to iCloud. Your Local files will be hidden for now (not deleted). Using iCloud requires iCloud Drive to be enabled.",
-      "homeLocationSwitchConfirm": "Switch",
       "appIcon": "App Icon",
       "appIconOptions": {
         "dark": "Dark",
         "light": "Light",
         "navy": "Navy"
-      },
-      "purchase": "Purchase",
-      "restorePurchase": "Restore Purchase",
-      "restorePurchaseHint": "Brings back a purchase after reinstalling or switching devices."
-    },
-    "search": {
-      "title": "Search",
-      "placeholder": "Search Home and Recent",
-      "noResults": "No results found",
-      "truncated": "Showing partial results (too many matches)"
-    },
-    "xlsx": {
-      "rows": "{{count}} rows",
-      "rowsTruncated": "Showing the first {{shown}} of {{total}} rows",
-      "showAll": "Show all"
-    },
-    "paywall": {
-      "title": "Open PDF, Word and Excel",
-      "features": {
-        "pdf": "Open PDF files",
-        "docx": "Open Word documents (.docx)",
-        "xlsx": "Open Excel workbooks (.xlsx)"
-      },
-      "freeNote": "Markdown, text and images stay free.",
-      "buy": "Buy for {{price}}",
-      "oneTimeNote": "A one-time purchase. No subscription.",
-      "restore": "Restore Purchase",
-      "unavailable": "Purchasing isn't available right now. Check your connection and try again shortly.",
-      "notConfigured": "This format isn't available yet.",
-      "purchaseFailedTitle": "Purchase failed",
-      "restoreFailedTitle": "Restore failed",
-      "tryAgain": "Please try again in a moment.",
-      "restoredTitle": "Purchase restored",
-      "restoredBody": "You can now open PDF, Word and Excel files.",
-      "nothingToRestoreTitle": "Nothing to restore",
-      "nothingToRestoreBody": "No purchase was found for this Apple ID."
+      }
     }
-  },
-  "network": {
-    "offline": "Offline",
-    "backOnline": "Back online"
   },
   "picker": {
     "open": "Open File",
     "errorTitle": "Couldn't open file",
     "errorOpenFailed": "Couldn't open the file picker.",
     "errorReadFailed": "Couldn't open the file. It may not be downloaded to this device yet — open it once in its app (Google Drive, Files, etc.) or check your connection, then try again.",
-    "unsupportedType": "This file type isn't supported. Open a .md, .markdown, .txt, .text, .pdf, .docx, .xlsx, or image (.png, .jpg, .gif, .heic, .webp) file."
+    "unsupportedType": "This file type isn't supported. Open a .md, .markdown, .txt, or .text file."
   }
 }

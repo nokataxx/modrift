@@ -2,15 +2,11 @@ import { useRouter } from 'expo-router';
 import { useShareIntentContext } from 'expo-share-intent';
 import { useEffect } from 'react';
 
-import { routeForFile } from '@/lib/file-types';
-
-// Routes a file arriving through the iOS Share Sheet (FR-08) into the viewer.
+// Routes a file arriving through the iOS Share Sheet (経路C) into the viewer.
 //
 // A shared file is delivered as a throwaway copy in the app-group container —
-// the same nature as an Open-In Inbox copy (経路B) — so we hand it to the
-// existing openInPending flow rather than inventing a new one: the viewer opens
-// it preview-first, keeps it out of history, and either deletes it on leave or
-// promotes it to a durable iCloud copy when the user edits (see viewer.tsx).
+// the same nature as an Open-In Inbox copy (経路B) — so it takes the same
+// openInPending flow: kept out of history and deleted on leave (see viewer.tsx).
 //
 // Renders nothing; it only watches the share-intent context and navigates.
 export function ShareIntentHandler() {
@@ -20,7 +16,7 @@ export function ShareIntentHandler() {
   useEffect(() => {
     if (!hasShareIntent) return;
     // We only handle file shares. Text / URL shares have no file to open, so we
-    // just clear them (Modrift is a file client, not a note-capture target).
+    // just clear them (Modrift is a file viewer, not a note-capture target).
     const file = shareIntent.files?.[0];
     if (!file?.path) {
       resetShareIntent();
@@ -29,8 +25,7 @@ export function ShareIntentHandler() {
     const fileUri = file.path.startsWith('file://') ? file.path : `file://${file.path}`;
     const fileName = file.fileName || decodeURIComponent(fileUri.split('/').pop() ?? 'file');
     router.push({
-      // FR-21: route by type, same as every other entry point.
-      pathname: routeForFile(fileName),
+      pathname: '/viewer',
       params: { fileUri, fileName, openInPending: 'true' },
     });
     // Clear so re-foregrounding or a second share doesn't re-trigger the push.

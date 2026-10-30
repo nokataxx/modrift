@@ -1,11 +1,11 @@
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { Platform } from 'react-native';
 
-// FR-36: screen orientation policy.
+// FR-07: screen orientation policy.
 //
 // iPhone is portrait-locked everywhere except the viewer, where landscape gives
 // long lines room so they wrap far less. iPad already supports every
-// orientation on every screen (FR-16 / UISupportedInterfaceOrientations~ipad),
+// orientation on every screen (UISupportedInterfaceOrientations~ipad),
 // so these helpers deliberately no-op there and leave the OS in charge.
 //
 // Info.plist declares all orientations (app.json orientation: "default") —

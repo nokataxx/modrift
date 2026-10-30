@@ -3,98 +3,23 @@
     "name": "Modrift"
   },
   "common": {
-    "open": "開く",
     "cancel": "キャンセル",
-    "ok": "OK",
-    "save": "保存",
-    "edit": "編集",
-    "preview": "プレビュー",
-    "delete": "削除",
     "back": "戻る",
     "retry": "再試行"
   },
   "screens": {
     "recentFiles": {
-      "title": "最近開いたファイル",
-      "empty": "まだファイルがありません。「開く」から選択してください。",
       "reopenFailedTitle": "再オープンできませんでした",
       "reopenFailedMessage": "ファイルが移動・削除されたか、まだ iCloud からダウンロードされていない可能性があります。「開く」から選び直すか、しばらくしてからもう一度お試しください。",
-      "locationIcloudCopy": "iCloud › Modrift",
-      "locationLocalHome": "Local › Modrift",
       "locationIcloudDrive": "iCloud",
       "locationAppSandbox": "他のアプリから",
       "locationExternal": "他のクラウド",
-      "renameTitle": "名前を変更",
-      "renameMessage": "新しいファイル名を入力してください（.md は自動で付きます）。",
-      "renameConfirm": "変更",
-      "renameErrorTitle": "名前を変更できませんでした",
-      "renameErrorInUse": "同じ名前のファイルが既にあります。別の名前を入力してください。",
-      "renameErrorFailed": "ファイル名の変更に失敗しました。",
-      "deleteFileTitle": "「{{name}}」を削除しますか？",
-      "deleteFileMessage": "iCloud Drive の Modrift フォルダからこのファイルを削除します。元に戻せません。",
-      "deleteFileAction": "ファイルを削除",
-      "duplicateAction": "複製",
-      "selectAction": "選択",
-      "selectTitleEmpty": "項目を選択",
-      "selectedCount": "{{count}}件を選択",
-      "selectAll": "すべて選択",
-      "deselectAll": "選択解除",
-      "deleteSelectedAction": "削除 ({{count}})",
-      "deleteSelectedTitle": "選択した{{count}}件を削除しますか？",
-      "deleteSelectedMessage": "ホームフォルダから削除します。元に戻せません。",
-      "duplicateErrorTitle": "複製できませんでした",
-      "duplicateErrorFailed": "ファイルの複製に失敗しました。",
       "removeFromListAction": "履歴から削除",
-      "nameCloudTitle": "クラウドに名前を付ける",
-      "nameCloudMessage": "このクラウド上のファイルにまとめて表示する名前を入力します（例: Google Drive）。空欄で元に戻せます。",
-      "nameCloudConfirm": "保存",
-      "newNote": "新規ノート",
-      "untitledNote": "無題",
-      "menu": "メニュー",
-      "tabMyFiles": "ホーム",
-      "tabRecent": "履歴",
-      "myFilesEmpty": "ホームフォルダにファイルがありません。＋ から新規作成できます。",
-      "recentEmpty": "履歴はまだありません。",
-      "sortTitle": "並び替え",
-      "sortByDate": "更新日",
-      "sortByName": "ファイル名",
-      "clearHistoryAction": "すべての履歴を消去",
-      "clearHistoryTitle": "すべての履歴を消去しますか？",
-      "clearHistoryMessage": "履歴をすべて消去します。ファイル自体は削除されません。",
-      "clearHistoryConfirm": "消去"
+      "recentEmpty": "最近見たファイルはまだありません。"
     },
     "viewer": {
-      "edit": "編集",
-      "preview": "プレビュー",
       "loading": "読み込み中…",
-      "imagePlaceholder": "[画像: {{filename}}]",
-      "copyToHomeButton": "ホームにコピー",
-      "copyToHomeDialogTitle": "ホームにコピー",
-      "copyToHomeDialogMessage": "ホーム（iCloud › Modrift）にこのファイルのコピーを作成します。元のファイルは変更されません。コピーはホームで編集できます。",
-      "copyToHomeDialogConfirm": "コピー",
-      "copyToIcloudErrorTitle": "コピーできませんでした",
-      "copyToIcloudErrorIcloudUnavailable": "iCloud Drive を有効にしてからもう一度お試しください。",
-      "copyToIcloudErrorFailed": "ファイルのコピーに失敗しました。",
-      "conflictTitle": "ファイルが変更されています",
-      "conflictMessage": "このファイルは、開いてから別のデバイスやアプリによって更新されています。編集中の内容で上書きするか、最新版を取得してください。",
-      "conflictKeepMine": "編集中の内容を保持",
-      "conflictLoadLatest": "最新版を取得（編集を破棄）",
-      "undo": "元に戻す",
-      "redo": "やり直す",
-      "toolbar": {
-        "heading": "見出し",
-        "bulletList": "箇条書き",
-        "numberedList": "番号付きリスト",
-        "checkbox": "チェックボックス",
-        "bold": "太字",
-        "italic": "斜体",
-        "strikethrough": "打ち消し線",
-        "code": "インラインコード",
-        "quote": "引用",
-        "codeBlock": "コードブロック",
-        "link": "リンク",
-        "horizontalRule": "水平線"
-      }
+      "imagePlaceholder": "[画像: {{filename}}]"
     },
     "settings": {
       "title": "設定",
@@ -117,71 +42,19 @@
         "mono": "モノクロ",
         "colorful": "カラフル"
       },
-      "cloudNames": "クラウドの名前",
-      "cloudSample": "例: {{name}}",
-      "cloudNamesHint": "Google Drive などのクラウドは iOS の制約で自動判別できません。ここで名前を付けると履歴に反映されます。",
-      "homeLocation": "ホームの保存先",
-      "homeLocationOptions": {
-        "icloud": "iCloud",
-        "local": "Local"
-      },
-      "homeLocationHint": "切り替えても既存のファイルは移動しません。",
-      "homeLocationSwitchTitle": "ホームの保存先を変更",
-      "homeLocationToLocalMessage": "「Local」に切り替えます。表示中の iCloud のファイルは一時的に見えなくなります（消えません）。Local のファイルは iCloud 同期・バックアップの対象外で、アプリを削除すると失われます。",
-      "homeLocationToIcloudMessage": "「iCloud」に切り替えます。表示中の Local のファイルは一時的に見えなくなります（消えません）。iCloud を使うには iCloud Drive が有効である必要があります。",
-      "homeLocationSwitchConfirm": "切り替える",
       "appIcon": "アプリアイコン",
       "appIconOptions": {
         "dark": "ダーク",
         "light": "ライト",
         "navy": "ネイビー"
-      },
-      "purchase": "購入",
-      "restorePurchase": "購入を復元",
-      "restorePurchaseHint": "機種変更や再インストールの後に、購入済みの機能を戻します。"
-    },
-    "search": {
-      "title": "検索",
-      "placeholder": "ホームと履歴を検索",
-      "noResults": "見つかりませんでした",
-      "truncated": "結果が多いため一部のみ表示しています"
-    },
-    "xlsx": {
-      "rows": "{{count}} 行",
-      "rowsTruncated": "{{total}} 行のうち先頭 {{shown}} 行を表示",
-      "showAll": "すべて表示"
-    },
-    "paywall": {
-      "title": "PDF・Word・Excel を開く",
-      "features": {
-        "pdf": "PDF を開く",
-        "docx": "Word 文書 (.docx) を開く",
-        "xlsx": "Excel ブック (.xlsx) を開く"
-      },
-      "freeNote": "Markdown・テキスト・画像は無料のままです。",
-      "buy": "{{price}} で購入",
-      "oneTimeNote": "買い切りです。月額料金はかかりません。",
-      "restore": "購入を復元",
-      "unavailable": "現在購入できません。通信状況をご確認のうえ、しばらくしてからお試しください。",
-      "notConfigured": "この形式の閲覧は現在ご利用いただけません。",
-      "purchaseFailedTitle": "購入できませんでした",
-      "restoreFailedTitle": "復元できませんでした",
-      "tryAgain": "しばらくしてからもう一度お試しください。",
-      "restoredTitle": "復元しました",
-      "restoredBody": "PDF・Word・Excel を開けるようになりました。",
-      "nothingToRestoreTitle": "対象がありません",
-      "nothingToRestoreBody": "この Apple ID での購入は見つかりませんでした。"
+      }
     }
-  },
-  "network": {
-    "offline": "オフライン",
-    "backOnline": "オンラインに復帰しました"
   },
   "picker": {
     "open": "ファイルを開く",
     "errorTitle": "ファイルを開けませんでした",
     "errorOpenFailed": "ファイルピッカーを開けませんでした。",
     "errorReadFailed": "ファイルを開けませんでした。端末にまだダウンロードされていない可能性があります。元のアプリ (Google Drive・ファイル等) で一度開くか、通信状態を確認してからもう一度お試しください。",
-    "unsupportedType": "この形式のファイルには対応していません。.md / .markdown / .txt / .text / .pdf / .docx / .xlsx / 画像 (.png / .jpg / .gif / .heic / .webp) を開いてください。"
+    "unsupportedType": "この形式のファイルには対応していません。.md / .markdown / .txt / .text を開いてください。"
   }
 }

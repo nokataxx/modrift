@@ -9,7 +9,7 @@ import { useSettings } from '@/hooks/use-settings';
 
 /**
  * Resolves the effective color scheme from the user's appearance setting:
- * 'system' follows the OS, 'light'/'dark' force a fixed scheme (FR-09).
+ * 'system' follows the OS, 'light'/'dark' force a fixed scheme (FR-06).
  */
 export function useResolvedColorScheme(): 'light' | 'dark' {
   const scheme = useColorScheme();
@@ -22,7 +22,7 @@ export function useResolvedColorScheme(): 'light' | 'dark' {
 export function useTheme() {
   const scheme = useResolvedColorScheme();
   const { settings } = useSettings();
-  // FR-25: overlay the chosen style preset (heading1–4 + accent) onto the base
+  // FR-06: overlay the chosen style preset (heading1–4 + accent) onto the base
   // scheme colors. `accent` drives reading-surface links / checkboxes.
   const palette = (StyleThemes[settings.styleTheme] ?? StyleThemes.navy)[scheme];
   return { ...Colors[scheme], ...palette };

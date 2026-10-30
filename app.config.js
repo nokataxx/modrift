@@ -7,9 +7,8 @@
 // distinct bundle id is what lets the two coexist.
 //
 // The share-extension bundle id (…app.dev.share-extension) follows the main
-// bundle id automatically. The iCloud container and share-extension App Group
-// stay shared with production (acceptable for testing); split them later if dev
-// data needs to be isolated. Production builds (no APP_VARIANT) use app.json
+// bundle id automatically. The share-extension App Group stays shared with
+// production (acceptable for testing). Production builds (no APP_VARIANT) use app.json
 // unchanged, so TestFlight/App Store are unaffected.
 const IS_DEV = process.env.APP_VARIANT === 'development';
 

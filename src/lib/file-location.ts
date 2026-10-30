@@ -1,40 +1,11 @@
 import { Paths } from 'expo-file-system';
 
-const UBIQUITY_CONTAINER_SEGMENT = '/iCloud~com~modrift~app/';
 const ICLOUD_DRIVE_SEGMENT = '/com~apple~CloudDocs/';
-
-// FR-31: the on-device home IS the app's Documents directory — that is exactly
-// what UIFileSharingEnabled surfaces as "On My iPhone › Modrift" (Modrift being
-// the app's display name). Using a subfolder here would show as a confusing
-// "Modrift › Modrift" nesting in the Files app, so the home is the Documents
-// root itself. Home files are the DIRECT children of Documents; subfolders
-// (e.g. an Open-In Inbox) are excluded from the home (see isLocalHomeFile).
-export function localHomeDirectoryUri(): string | null {
-  try {
-    const doc = Paths.document.uri; // file://.../Documents/ (trailing slash)
-    return doc.endsWith('/') ? doc : `${doc}/`;
-  } catch {
-    return null;
-  }
-}
-
-// True for a file sitting directly in the on-device home (Documents root), not
-// in a subfolder. Keeps Inbox / other sandbox subfolders out of "home" so they
-// stay view-only (Policy A) instead of becoming editable.
-function isLocalHomeFile(uri: string): boolean {
-  const home = localHomeDirectoryUri();
-  if (home === null) return false;
-  const u = normalizePrivate(uri);
-  const h = normalizePrivate(home);
-  if (!u.startsWith(h)) return false;
-  const rest = u.slice(h.length);
-  return rest.length > 0 && !rest.includes('/');
-}
 
 // iOS reports the same file as both `file:///var/...` and `file:///private/var/...`
 // depending on how the URL was constructed. They point at the same file but are
-// different strings, so a naive startsWith() comparison between the document
-// dir and an Open-In Inbox URI can miss. Normalize to the `/private/var/` form
+// different strings, so a naive startsWith() comparison between the app
+// container and a file URI can miss. Normalize to the `/private/var/` form
 // before comparing (mirrors normalizeUri in recent-files.ts).
 function normalizePrivate(uri: string): string {
   return uri.replace(/^file:\/\/\/var\//, 'file:///private/var/');
@@ -51,21 +22,7 @@ function appContainerRoot(): string | null {
   }
 }
 
-// Policy A (v1.4): editing is limited to the app's home folder — the iCloud ›
-// Modrift ubiquity container. Third-party clouds, the app sandbox, AND iCloud
-// Drive files OUTSIDE the Modrift folder are all view-only; editing them means
-// first taking an explicit "copy to home" (FR-34). This replaces the pre-v1.4
-// gate (isInPlaceEditable), which let any iCloud Drive file be edited in place —
-// now iCloud Drive outside Modrift is view+copy like everything else, so there's
-// one simple rule for the user ("you can edit files in your home"). FR-31
-// (home on-device) will extend this to also accept the local home directory.
-export function isHomeFile(uri: string): boolean {
-  if (!uri) return false;
-  if (uri.includes(UBIQUITY_CONTAINER_SEGMENT)) return true; // iCloud home
-  return isLocalHomeFile(uri); // on-device home (direct children of Documents)
-}
-
-export type FileLocationKind = 'icloudCopy' | 'localHome' | 'icloudDrive' | 'appSandbox' | 'external';
+export type FileLocationKind = 'icloudDrive' | 'appSandbox' | 'external';
 
 export type FileLocation = {
   kind: FileLocationKind;
@@ -102,13 +59,9 @@ function icloudDriveFolder(uri: string): string | undefined {
 // named files coming from different places.
 export function classifyFileLocation(uri: string): FileLocation {
   if (!uri) return { kind: 'external' };
-  if (uri.includes(UBIQUITY_CONTAINER_SEGMENT)) return { kind: 'icloudCopy' };
   if (uri.includes(ICLOUD_DRIVE_SEGMENT)) {
     return { kind: 'icloudDrive', folder: icloudDriveFolder(uri) };
   }
-  // FR-31 on-device home (App Documents root) — checked before the generic
-  // app-sandbox test below, since it lives inside the sandbox but is a home file.
-  if (isLocalHomeFile(uri)) return { kind: 'localHome' };
   const root = appContainerRoot();
   if (root && normalizePrivate(uri).startsWith(normalizePrivate(root))) {
     return { kind: 'appSandbox' };
@@ -159,30 +112,6 @@ function detectProvider(uri: string): string | undefined {
   const mob = uri.match(/\/Mobile Documents\/([^/]+)/);
   if (mob) return providerNameFromContainerId(mob[1]) || undefined;
   return undefined;
-}
-
-// A stable identifier for the third-party cloud source a file came from. iOS
-// embeds a per-provider container id in the path — Document-Picker URIs under
-// the provider's AppGroup, Files-app in-place URIs under /CloudStorage, legacy
-// ones under /Mobile Documents. The id is opaque (usually a UUID) but stable
-// within an install, so it groups all files from the same source. We can't turn
-// it into "Google Drive"/"Dropbox" (iOS exposes no such API — verified), but it
-// lets the user name each source once (see cloud-names) and tell two clouds
-// apart even before they do.
-export function externalContainerKey(uri: string): string | undefined {
-  if (!uri) return undefined;
-  const m =
-    uri.match(/\/AppGroup\/([^/]+)/) ??
-    uri.match(/\/CloudStorage\/([^/]+)/) ??
-    uri.match(/\/Mobile Documents\/([^/]+)/);
-  return m ? decodeURIComponent(m[1]) : undefined;
-}
-
-// A short, stable tag derived from the container key (first hex group of the
-// UUID), shown as "他のクラウド · A348" so identically-labelled sources are at
-// least visually distinct until the user names them.
-export function shortContainerTag(key: string): string {
-  return key.replace(/[^A-Za-z0-9]/g, '').slice(0, 4).toUpperCase();
 }
 
 function providerNameFromContainerId(segment: string): string | undefined {

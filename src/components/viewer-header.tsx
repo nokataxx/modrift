@@ -1,5 +1,4 @@
 import { SymbolView } from "expo-symbols";
-import { type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, StyleSheet, View } from "react-native";
 import Animated, {
@@ -10,10 +9,10 @@ import Animated, {
 import { ThemedText } from "@/components/themed-text";
 import { useTheme } from "@/hooks/use-theme";
 
-// FR-38: the viewer's own header, rendered instead of the native navigation
+// The viewer's own header, rendered instead of the native navigation
 // header so that hide-on-scroll can slide it with a reanimated shared value on
 // the UI thread — without any React re-render or native-nav change mid-scroll.
-// It floats over the full-height editor (the editor's topInset keeps text clear
+// It floats over the full-height document (the viewer's topInset keeps text clear
 // of it), so showing/hiding it never resizes the content.
 export function ViewerHeader({
   progress,
@@ -22,24 +21,18 @@ export function ViewerHeader({
   insetRight = 0,
   barHeight,
   title,
-  renameable,
-  onRename,
   onBack,
-  right,
 }: {
   // 0 = fully shown, 1 = fully hidden (slid up out of view).
   progress: SharedValue<number>;
   insetTop: number;
   // Landscape safe-area insets (notch side): keep the back chevron and the
-  // right actions clear of the sensor housing / rounded corners (FR-36).
+  // title clear of the sensor housing / rounded corners (FR-07).
   insetLeft?: number;
   insetRight?: number;
   barHeight: number;
   title: string;
-  renameable: boolean;
-  onRename: () => void;
   onBack: () => void;
-  right?: ReactNode;
 }) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -72,17 +65,11 @@ export function ViewerHeader({
         >
           <SymbolView name="chevron.backward" size={20} weight="semibold" tintColor={theme.text} />
         </Pressable>
-        <Pressable
-          onLongPress={renameable ? onRename : undefined}
-          disabled={!renameable}
-          style={styles.center}
-          accessibilityRole="header"
-        >
+        <View style={styles.center} accessibilityRole="header">
           <ThemedText numberOfLines={1} style={styles.title}>
             {title}
           </ThemedText>
-        </Pressable>
-        <View style={styles.right}>{right}</View>
+        </View>
       </View>
     </Animated.View>
   );
@@ -106,13 +93,6 @@ const styles = StyleSheet.create({
   left: {
     position: "absolute",
     left: 12,
-    top: 0,
-    bottom: 0,
-    justifyContent: "center",
-  },
-  right: {
-    position: "absolute",
-    right: 16,
     top: 0,
     bottom: 0,
     justifyContent: "center",

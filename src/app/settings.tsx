@@ -4,33 +4,18 @@ import {
   supportsAlternateIcons,
 } from 'expo-alternate-app-icons';
 import { Stack } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MarkdownWebView } from '@/components/markdown-web-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { useProEntitlement } from '@/hooks/use-pro-entitlement';
 import { useSettings } from '@/hooks/use-settings';
 import { useResolvedColorScheme, useTheme } from '@/hooks/use-theme';
-import { type CloudNames, loadCloudNames, setCloudName } from '@/lib/cloud-names';
 import { type CmTheme } from '@/lib/cm/html';
-import {
-  classifyFileLocation,
-  externalContainerKey,
-  shortContainerTag,
-} from '@/lib/file-location';
-import { restorePro } from '@/lib/purchases';
-import { loadRecentFiles, removeRecentFilesWhere } from '@/lib/recent-files';
-import {
-  FONT_SIZE_BASE,
-  type AppearanceMode,
-  type FontSizeKey,
-  type HomeLocation,
-} from '@/lib/settings';
+import { FONT_SIZE_BASE, type AppearanceMode, type FontSizeKey } from '@/lib/settings';
 import {
   MaxContentWidth,
   STYLE_THEME_KEYS,
@@ -44,9 +29,8 @@ type Theme = ReturnType<typeof useTheme>;
 
 const APPEARANCE_OPTIONS: AppearanceMode[] = ['system', 'light', 'dark'];
 const FONT_SIZE_OPTIONS: FontSizeKey[] = ['small', 'medium', 'large'];
-const HOME_LOCATION_OPTIONS: HomeLocation[] = ['icloud', 'local'];
 
-// FR-29 alternate app icons. `name` must match the plugin config in app.json
+// FR-06 alternate app icons. `name` must match the plugin config in app.json
 // (null = the primary icon). The OS is the source of truth for the current
 // selection (getAppIconName), so nothing is persisted app-side.
 const APP_ICON_OPTIONS = [
@@ -168,61 +152,8 @@ export default function SettingsScreen() {
   const { t } = useTranslation();
   const theme = useTheme();
   const scheme = useResolvedColorScheme();
-  const { settings, setAppearance, setFontSize, setStyleTheme, setHomeLocation } = useSettings();
-  const { refresh: refreshPro } = useProEntitlement();
-  const [restoring, setRestoring] = useState(false);
+  const { settings, setAppearance, setFontSize, setStyleTheme } = useSettings();
 
-  // FR-44 / Guideline 3.1.1: restore has to be reachable without hitting a
-  // locked file first — a reinstalling customer should not have to hunt for a
-  // PDF to find the button. The paywall carries the same action.
-  const restorePurchase = async () => {
-    if (restoring) return;
-    setRestoring(true);
-    try {
-      const info = await restorePro();
-      await refreshPro();
-      const restored = info?.entitlements.active['pro'] !== undefined;
-      Alert.alert(
-        restored ? t('screens.paywall.restoredTitle') : t('screens.paywall.nothingToRestoreTitle'),
-        restored ? t('screens.paywall.restoredBody') : t('screens.paywall.nothingToRestoreBody'),
-      );
-    } catch {
-      Alert.alert(t('screens.paywall.restoreFailedTitle'), t('screens.paywall.tryAgain'));
-    } finally {
-      setRestoring(false);
-    }
-  };
-
-  // FR-31: switching home is destructive-ish (the other folder's files vanish
-  // from view, and local isn't backed up), so confirm with a warning first. No
-  // files are moved — only which folder is listed/written changes.
-  const switchHomeLocation = (loc: HomeLocation) => {
-    if (loc === settings.homeLocation) return;
-    Alert.alert(
-      t('screens.settings.homeLocationSwitchTitle'),
-      loc === 'local'
-        ? t('screens.settings.homeLocationToLocalMessage')
-        : t('screens.settings.homeLocationToIcloudMessage'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('screens.settings.homeLocationSwitchConfirm'),
-          onPress: () => {
-            // The previous home's files are no longer reachable as home files
-            // after the switch, so drop their (now stale) history rows. Only the
-            // OLD home's own files are pruned — external-cloud entries stay.
-            const prevHomeKind = settings.homeLocation === 'local' ? 'localHome' : 'icloudCopy';
-            removeRecentFilesWhere(
-              (uri) => classifyFileLocation(uri).kind === prevHomeKind,
-            ).catch(() => {
-              // Non-fatal: history is display-only.
-            });
-            setHomeLocation(loc);
-          },
-        },
-      ],
-    );
-  };
   const [appIcon, setAppIcon] = useState<string | null>(() => getAppIconName());
 
   const handleAppIcon = async (name: 'Light' | 'Navy' | null) => {
@@ -236,7 +167,7 @@ export default function SettingsScreen() {
   const base = FONT_SIZE_BASE[settings.fontSize];
 
   // Same CodeMirror theme the viewer builds, so the live preview matches the
-  // actual reading/editing surface exactly (FR-20 unification).
+  // actual reading surface exactly.
   const cmTheme: CmTheme = useMemo(
     () => ({
       bg: theme.background,
@@ -256,57 +187,12 @@ export default function SettingsScreen() {
     [theme, base],
   );
 
-  // FR-26: name third-party cloud sources. iOS won't reveal whether a file is
-  // from Google Drive or Dropbox, but each source has a stable container key, so
-  // the user names it once here and it applies to every file from that source.
-  // We derive the visible sources from history (most-recent sample name per key
-  // gives the user something to recognise it by).
-  const [cloudSources, setCloudSources] = useState<{ key: string; sample: string }[]>([]);
-  const [cloudNames, setCloudNames] = useState<CloudNames>({});
-
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([loadRecentFiles(), loadCloudNames()]).then(([items, names]) => {
-      if (cancelled) return;
-      const seen = new Map<string, string>();
-      for (const file of items) {
-        if (classifyFileLocation(file.uri).kind !== 'external') continue;
-        const key = externalContainerKey(file.uri);
-        if (!key || seen.has(key)) continue;
-        seen.set(key, file.name);
-      }
-      setCloudSources(Array.from(seen, ([key, sample]) => ({ key, sample })));
-      setCloudNames(names);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const promptCloudName = (key: string) => {
-    Alert.prompt(
-      t('screens.recentFiles.nameCloudTitle'),
-      t('screens.recentFiles.nameCloudMessage'),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('screens.recentFiles.nameCloudConfirm'),
-          onPress: (value?: string) => {
-            setCloudName(key, value ?? '').then(setCloudNames).catch(() => {});
-          },
-        },
-      ],
-      'plain-text',
-      cloudNames[key] ?? '',
-    );
-  };
-
   return (
     <ThemedView style={styles.container}>
       <Stack.Screen options={{ title: t('screens.settings.title') }} />
       <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          {/* FR-16: cap width and centre on iPad / large screens (no-op on phones). */}
+          {/* Cap width and centre on iPad / large screens (no-op on phones). */}
           <View style={styles.content}>
           {/* Live preview — the same CodeMirror surface as the viewer, read-only,
               reflecting appearance + font size in real time. */}
@@ -314,7 +200,7 @@ export default function SettingsScreen() {
             style={[
               styles.previewCard,
               // Height tracks the font size so the whole sample fits without an
-              // internal scroll at any size (FR-25 preview is compact-padded).
+              // internal scroll at any size (the preview is compact-padded).
               { height: PREVIEW_HEIGHT[settings.fontSize] },
               { backgroundColor: theme.background, borderColor: theme.backgroundElement },
             ]}>
@@ -322,9 +208,7 @@ export default function SettingsScreen() {
               // Remount on setting change so the preview always reflects the
               // latest appearance / size (theme + base are baked in at mount).
               key={`${settings.appearance}-${settings.fontSize}-${settings.styleTheme}`}
-              initialContent={t('screens.settings.previewSample')}
-              editable={false}
-              taskInteractive={false}
+              content={t('screens.settings.previewSample')}
               compact
               theme={cmTheme}
               style={[styles.previewWeb, { backgroundColor: theme.background }]}
@@ -400,7 +284,7 @@ export default function SettingsScreen() {
             <ThemedText style={styles.glyphLarge}>A</ThemedText>
           </View>
 
-          {/* FR-29: alternate app icon picker (hidden where unsupported). */}
+          {/* Alternate app icon picker (hidden where unsupported). */}
           {supportsAlternateIcons && (
             <>
               <ThemedText themeColor="textSecondary" style={styles.sectionLabel}>
@@ -435,109 +319,6 @@ export default function SettingsScreen() {
               </View>
             </>
           )}
-
-          {/* FR-31: home storage location — iCloud › Modrift (default) or an
-              on-device folder. Switching only changes what マイファイル lists /
-              writes to; it never moves files (warned in switchHomeLocation). */}
-          <ThemedText themeColor="textSecondary" style={styles.sectionLabel}>
-            {t('screens.settings.homeLocation')}
-          </ThemedText>
-          <View style={[styles.segment, { backgroundColor: theme.backgroundElement }]}>
-            {HOME_LOCATION_OPTIONS.map((loc) => {
-              const active = settings.homeLocation === loc;
-              return (
-                <Pressable
-                  key={loc}
-                  onPress={() => switchHomeLocation(loc)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  style={[
-                    styles.segmentItem,
-                    active && [
-                      styles.segmentItemActive,
-                      { backgroundColor: theme.background, borderColor: theme.backgroundSelected },
-                    ],
-                  ]}>
-                  <ThemedText
-                    themeColor={active ? 'tint' : 'textSecondary'}
-                    style={[styles.segmentText, active && styles.segmentTextActive]}>
-                    {t(`screens.settings.homeLocationOptions.${loc}`)}
-                  </ThemedText>
-                </Pressable>
-              );
-            })}
-          </View>
-          <ThemedText themeColor="textSecondary" style={styles.cloudHint}>
-            {t('screens.settings.homeLocationHint')}
-          </ThemedText>
-
-          {cloudSources.length > 0 && (
-            <>
-              <ThemedText themeColor="textSecondary" style={styles.sectionLabel}>
-                {t('screens.settings.cloudNames')}
-              </ThemedText>
-              <View style={[styles.cloudGroup, { backgroundColor: theme.backgroundElement }]}>
-                {cloudSources.map((src, i) => (
-                  <Pressable
-                    key={src.key}
-                    onPress={() => promptCloudName(src.key)}
-                    style={({ pressed }) => [
-                      styles.cloudRow,
-                      i > 0 && {
-                        borderTopColor: theme.background,
-                        borderTopWidth: StyleSheet.hairlineWidth,
-                      },
-                      pressed && styles.pressed,
-                    ]}
-                    accessibilityRole="button">
-                    <View style={styles.cloudRowText}>
-                      <ThemedText numberOfLines={1}>
-                        {cloudNames[src.key] ??
-                          `${t('screens.recentFiles.locationExternal')} · ${shortContainerTag(src.key)}`}
-                      </ThemedText>
-                      {src.sample ? (
-                        <ThemedText
-                          themeColor="textSecondary"
-                          numberOfLines={1}
-                          style={styles.cloudSample}>
-                          {t('screens.settings.cloudSample', { name: src.sample })}
-                        </ThemedText>
-                      ) : null}
-                    </View>
-                    <SymbolView
-                      name="chevron.right"
-                      size={14}
-                      weight="semibold"
-                      tintColor={theme.textSecondary}
-                    />
-                  </Pressable>
-                ))}
-              </View>
-              <ThemedText themeColor="textSecondary" style={styles.cloudHint}>
-                {t('screens.settings.cloudNamesHint')}
-              </ThemedText>
-            </>
-          )}
-
-          <ThemedText themeColor="textSecondary" style={styles.sectionLabel}>
-            {t('screens.settings.purchase')}
-          </ThemedText>
-          <View style={[styles.cloudGroup, { backgroundColor: theme.backgroundElement }]}>
-            <Pressable
-              onPress={restorePurchase}
-              disabled={restoring}
-              style={({ pressed }) => [styles.cloudRow, (pressed || restoring) && styles.pressed]}
-              accessibilityRole="button">
-              <View style={styles.cloudRowText}>
-                <ThemedText themeColor="tint">
-                  {t('screens.settings.restorePurchase')}
-                </ThemedText>
-              </View>
-            </Pressable>
-          </View>
-          <ThemedText themeColor="textSecondary" style={styles.cloudHint}>
-            {t('screens.settings.restorePurchaseHint')}
-          </ThemedText>
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -703,58 +484,7 @@ const styles = StyleSheet.create({
   chipLabel: {
     fontSize: 14,
   },
-  // Cloud names
-  cloudGroup: {
-    borderRadius: Spacing.three,
-    overflow: 'hidden',
-  },
-  cloudRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
-  },
-  cloudRowText: {
-    flex: 1,
-  },
-  cloudSample: {
-    fontSize: 12,
-    marginTop: 2,
-  },
-  cloudHint: {
-    fontSize: 12,
-    marginTop: Spacing.two,
-    marginLeft: Spacing.two,
-  },
-  // FR-31 home-location segmented control (mirrors the home screen's segment).
-  segment: {
-    flexDirection: 'row',
-    borderRadius: Spacing.two,
-    padding: 2,
-  },
-  segmentItem: {
-    flex: 1,
-    paddingVertical: Spacing.two,
-    borderRadius: Spacing.two - 2,
-    alignItems: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: 'transparent',
-  },
-  segmentItemActive: {
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.18,
-    shadowRadius: 1.5,
-  },
-  segmentText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  segmentTextActive: {
-    fontWeight: '700',
-  },
-  // FR-29 app icon picker
+  // App icon picker
   iconRow: {
     flexDirection: 'row',
     gap: Spacing.four,
