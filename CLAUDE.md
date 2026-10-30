@@ -62,7 +62,7 @@ v2 までのコードと要件はタグ `v2.0.0` に残っている。
 
 ## 開発環境の注意
 
-- **`app.json` のネイティブ設定やネイティブ依存を変えたら `npx expo prebuild --clean` が必須**。古い設定が `ios/` の pbxproj に残る。`ios/` と `android/` は prebuild が生成するもので、git 管理外
+- **`app.json` のネイティブ設定やネイティブ依存を変えたら `npm run prebuild:dev` (= `prebuild --clean --platform ios`) が必須**。古い設定が `ios/` の pbxproj に残る。`ios/` は prebuild が生成するもので、git 管理外。**iOS 専用なので `android/` は生成しない** (`--platform` を付けない prebuild や `expo run:android` は使わない)
 - **開発版は別アプリ** (`com.modrift.app.dev` / スキーム `modrift-dev`、[app.config.js](app.config.js))。Metro は必ず `npm run start:dev` (`APP_VARIANT=development`) で起動する。素の `npm start` だとスキームが合わず、Open In・共有シートがホームで止まる
 
 ## Development Principles

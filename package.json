@@ -53,10 +53,9 @@
     "postinstall": "patch-package",
     "start": "expo start",
     "start:dev": "APP_VARIANT=development expo start",
-    "android": "expo run:android",
     "ios": "expo run:ios",
     "ios:dev": "APP_VARIANT=development expo run:ios --device --configuration Release",
-    "prebuild:dev": "APP_VARIANT=development expo prebuild --clean",
+    "prebuild:dev": "APP_VARIANT=development expo prebuild --clean --platform ios",
     "web": "expo start --web",
     "lint": "expo lint"
   },

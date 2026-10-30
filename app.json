@@ -76,6 +76,7 @@
         }
       ],
       "./plugins/with-share-extension-xcode-fixes",
+      "./plugins/with-pod-deployment-target",
       [
         "expo-alternate-app-icons",
         [
