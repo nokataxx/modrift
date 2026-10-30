@@ -9,6 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.modrift.app",
+      "appleTeamId": "69DJBCFQQ3",
       "supportsTablet": true,
       "requireFullScreen": true,
       "infoPlist": {
