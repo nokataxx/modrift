@@ -53,6 +53,11 @@ v2 までのコードと要件はタグ `v2.0.0` に残っている。
 - **WKWebView は `@font-face` の `size-adjust` を無視する**。和文と欧文のサイズ調和は inline の `font-size` (`.cm-lat` の装飾) で行う。ヘッドレス Chrome は実機と見た目が違うので**表示の確認は実機で**
 - **スクロール慣性**: CodeMirror に `height: 100%` を当てない (ページのネイティブスクロールが必要)、かつ WebView に `decelerationRate="normal"` を**明示**する。どちらを外しても長文フリックが途中で「カチン」と止まる。同根で、スクロール中に装飾を再構築しない (`WHOLE_DOC_DECORATE_LIMIT` = 20000 文字以下は文書全体を装飾)。**回帰検体は [samples/large-scroll-test.md](samples/large-scroll-test.md)** — 上限を超える長さなので、フォールバック側の経路を踏める
 
+### 画面レイアウト (Expo SDK 58 / iOS 26+)
+- **Stack のヘッダーは iOS 26 以降で既定が透明 (Liquid Glass)** で、画面の中身がヘッダーの下に潜り込む。**スクロールする画面は、ルートの `ScrollView` / `FlatList` に `contentInsetAdjustmentBehavior="automatic"` を必ず付ける**。付けないと先頭の行がヘッダーに隠れてタップできない。スクロールしない画面は `headerTransparent: false` にする。`SafeAreaView` (react-native-safe-area-context) でずらそうとしない — ステータスバー分しか動かない
+- 空の状態の表示などは、スクロールビューの外に置かず `ListEmptyComponent` に入れて同じ inset を受けさせる
+- ビューアは独自ヘッダー (`headerShown: false`) なので対象外
+
 ### その他
 - **i18n**: `expo-localization` + `i18next` + `react-i18next`。翻訳は `/locales/{lang}/translation.json`、日本語・英語のみ
 - **永続化**: AsyncStorage (最近見たファイル・設定)
@@ -64,6 +69,9 @@ v2 までのコードと要件はタグ `v2.0.0` に残っている。
 
 - **`app.json` のネイティブ設定やネイティブ依存を変えたら `npm run prebuild:dev` (= `prebuild --clean --platform ios`) が必須**。古い設定が `ios/` の pbxproj に残る。`ios/` は prebuild が生成するもので、git 管理外。**iOS 専用なので `android/` は生成しない** (`--platform` を付けない prebuild や `expo run:android` は使わない)
 - **開発版は別アプリ** (`com.modrift.app.dev` / スキーム `modrift-dev`、[app.config.js](app.config.js))。Metro は必ず `npm run start:dev` (`APP_VARIANT=development`) で起動する。素の `npm start` だとスキームが合わず、Open In・共有シートがホームで止まる
+- **xcodebuild で開発版を直接ビルドするときも `APP_VARIANT=development` を付ける**。Release 構成は app.config をビルド時にアプリへ埋め込むため、付け忘れると埋め込みの scheme が `modrift` になり、`modrift-dev://` で届く共有を expo-share-intent が無視する (表示されずホームのまま)
+- **iOS 27 SDK (Xcode 27) でビルドしたアプリは UIScene ライフサイクルが必須** (無いと起動直後に SIGTRAP)。Expo SDK 58 以降の prebuild が `SceneDelegate.swift` を生成するので、**SDK 57 以前に戻さない**
+- Xcode 27 は Pod の最低デプロイターゲット iOS 15.0 未満を拒否する。[plugins/with-pod-deployment-target.js](plugins/with-pod-deployment-target.js) が prebuild のたびに補正する
 
 ## Development Principles
 

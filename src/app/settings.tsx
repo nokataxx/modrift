@@ -191,7 +191,12 @@ export default function SettingsScreen() {
     <ThemedView style={styles.container}>
       <Stack.Screen options={{ title: t('screens.settings.title') }} />
       <SafeAreaView style={styles.safeArea} edges={['bottom', 'left', 'right']}>
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          // SDK 58: on iOS 26+ the Stack header is transparent (Liquid Glass)
+          // and the screen runs under it; this insets the content below it.
+          contentInsetAdjustmentBehavior="automatic"
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}>
           {/* Cap width and centre on iPad / large screens (no-op on phones). */}
           <View style={styles.content}>
           {/* Live preview — the same CodeMirror surface as the viewer, read-only,

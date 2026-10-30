@@ -243,40 +243,45 @@ export default function HomeScreen() {
         {/* Cap width and centre on iPad / large screens; a no-op on phones
             since the column is narrower than the cap. */}
         <View style={styles.content}>
-          {recent !== null && recent.length === 0 ? (
-            <View style={styles.empty}>
-              <ThemedText themeColor="textSecondary" style={styles.emptyText}>
-                {t('screens.recentFiles.recentEmpty')}
-              </ThemedText>
-              <Pressable
-                onPress={handleOpen}
-                accessibilityRole="button"
-                style={({ pressed }) => [
-                  styles.openButton,
-                  { backgroundColor: theme.tint },
-                  pressed && { opacity: 0.7 },
-                ]}>
-                <ThemedText style={styles.openButtonLabel}>{t('picker.open')}</ThemedText>
-              </Pressable>
-            </View>
-          ) : (
-            <FlatList
-              data={recent ?? []}
-              keyExtractor={(item) => item.uri}
-              showsVerticalScrollIndicator={false}
-              // Bounce even when the list is shorter than the screen, so a drag
-              // anywhere (including the empty area below the rows) responds.
-              alwaysBounceVertical
-              contentContainerStyle={styles.listContent}
-              ItemSeparatorComponent={() => (
-                <View style={[styles.separator, { backgroundColor: theme.backgroundElement }]} />
-              )}
-              renderItem={({ item }) => (
-                <RecentRow item={item} onPress={handleRecentPress} onRemove={handleRemove} />
-              )}
-              style={styles.list}
-            />
-          )}
+          <FlatList
+            data={recent ?? []}
+            keyExtractor={(item) => item.uri}
+            // SDK 58: on iOS 26+ the Stack header is transparent (Liquid Glass)
+            // and the screen runs under it; this insets the list below it.
+            contentInsetAdjustmentBehavior="automatic"
+            showsVerticalScrollIndicator={false}
+            // Bounce even when the list is shorter than the screen, so a drag
+            // anywhere (including the empty area below the rows) responds.
+            alwaysBounceVertical
+            contentContainerStyle={styles.listContent}
+            ItemSeparatorComponent={() => (
+              <View style={[styles.separator, { backgroundColor: theme.backgroundElement }]} />
+            )}
+            // Inside the list (not beside it) so it gets the same header inset.
+            ListEmptyComponent={
+              recent === null ? undefined : (
+                <View style={styles.empty}>
+                  <ThemedText themeColor="textSecondary" style={styles.emptyText}>
+                    {t('screens.recentFiles.recentEmpty')}
+                  </ThemedText>
+                  <Pressable
+                    onPress={handleOpen}
+                    accessibilityRole="button"
+                    style={({ pressed }) => [
+                      styles.openButton,
+                      { backgroundColor: theme.tint },
+                      pressed && { opacity: 0.7 },
+                    ]}>
+                    <ThemedText style={styles.openButtonLabel}>{t('picker.open')}</ThemedText>
+                  </Pressable>
+                </View>
+              )
+            }
+            renderItem={({ item }) => (
+              <RecentRow item={item} onPress={handleRecentPress} onRemove={handleRemove} />
+            )}
+            style={styles.list}
+          />
         </View>
       </SafeAreaView>
     </ThemedView>
